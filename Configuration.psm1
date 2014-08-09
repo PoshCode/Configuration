@@ -43,14 +43,22 @@ function Get-StoragePath {
         [Parameter(ParameterSetName = "__CallStack")]
         [System.Management.Automation.CallStackFrame[]]$CallStack = $(Get-PSCallStack),
 
-        # The type of storage you're looking for will be automatically detected from the callstack
-        [Parameter(ParameterSetName = "ManualOverride")]
-        [ValidateSet("Modules", "Scripts")]
-        [String]$Type = $(if($CallStack[0].InvocationInfo.MyCommand.Module){"Modules"} else {"Scripts"}),
-
         # An optional module qualifier (by default, this is blank)
         [Parameter(ParameterSetName = "ManualOverride")]
-        [String]$CompanyName = $(if($CallStack[0].InvocationInfo.MyCommand.Module){$CallStack[0].InvocationInfo.MyCommand.Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"}),
+        [String]$CompanyName = $(
+            if($CallStack[0].InvocationInfo.MyCommand.Module){
+                $Name = $CallStack[0].InvocationInfo.MyCommand.Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
+                if($Name -eq "Unknown" -or -not $Name) {
+                    $Name = $CallStack[0].InvocationInfo.MyCommand.Module.Author
+                    if($Name -eq "Unknown" -or -not $Name) {
+                        $Name = "AnonymousModules"
+                    }
+                }
+                $Name
+            } else {
+                "AnonymousScripts"
+            }
+        ),
 
         # The name of the module or script
         # Will be used in the returned storage path

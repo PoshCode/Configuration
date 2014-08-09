@@ -1,9 +1,9 @@
 @StoragePath
-Feature: Local Storage Paths
+Feature: Automatically Calculate Local Storage Paths
     In order for module settings to survive upgrades
     A PowerShell Module Author
     Needs a place outside their module to save settings
-    By default, it should be the "RoamingData" path used by enterprises
+    By default, it should be in the "RoamingData" path used by enterprises
 
     Background:
         Given the configuration module is imported with testing paths:
@@ -13,13 +13,13 @@ Feature: Local Storage Paths
     @Scripts
     Scenario: Scripts get automatic storage paths
         Given a script with the name 'SuperTestScript'
-        Then the script's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and '\\Scripts\\SuperTestScript$'
+        Then the script's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and '\\AnonymousScripts\\SuperTestScript$'
         And the script's Enterprise path should exist already
 
     @Modules 
     Scenario Outline: Modules get automatic storage paths
-        Given a module with the name '<modulename>'
-        Then the module's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and '\\Modules\\<modulename>$'
+        Given a module with the name '<modulename>' by the author 'Joel Bennett'
+        Then the module's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and '\\Joel Bennett\\<modulename>$'
         And the module's Enterprise path should exist already
 
         Examples: A few different module names
@@ -30,12 +30,12 @@ Feature: Local Storage Paths
 
     @Modules
     Scenario Outline: There should be a way to store settings at the Machine and User scope too
-        Given a module with the name '<modulename>'
-        Then the module's <scope> path should match '^<root>' and '\\Modules\\<modulename>$'
+        Given a module with the name '<modulename>' with the author ''
+        Then the module's <scope> path should match '^<rootpattern>' and '\\AnonymousModules\\<modulename>$'
         And the module's <scope> path should exist already
 
         Examples:
-            | scope      | modulename      | root                         |
+            | scope      | modulename      | rootpattern                  |
             | Enterprise | SuperTestModule | TestDrive:\\\\EnterprisePath |
             | Machine    | SuperTestModule | TestDrive:\\\\MachinePath    |
             | User       | SuperTestModule | TestDrive:\\\\UserPath       |
@@ -43,13 +43,12 @@ Feature: Local Storage Paths
 
     @Modules
     Scenario Outline: To allow us to upgrade, settings should be versionable
-        Given a module with the name 'SuperTestModule'
-        Then the module's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and '\\Modules\\SuperTestModule$'
+        Given a module with the name 'SuperTestModule' by the author 'Joel'
+        Then the module's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and '\\Joel\\SuperTestModule$'
         But the module's storage path should end with a version number if one is passed in
 
     @Modules
-    Scenario Outline: To support differentiation, settings should support a company name
-        Given a module with the name 'SuperTestModule' by the company 'PoshCode'
-        Then the module's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and '\\Modules\\PoshCode\\SuperTestModule$'
-        But the module's storage path should end with a version number if one is passed in
-
+    Scenario Outline: To support differentiation, settings should support a company name instead
+        Given a module with the name 'SuperTestModule' by the company 'PoshCode' and the author 'Jaykul'
+        Then the module's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and '\\PoshCode\\SuperTestModule$'
+        And the module's storage path should end with a version number if one is passed in

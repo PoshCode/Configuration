@@ -1,9 +1,11 @@
 $PSModuleAutoLoadingPreference = "None"
 
+Import-Module .\Configuration.psd1
+
 Given 'the configuration module is imported with testing paths:' {
     param($Table)
     Remove-Module Configuration -EA 0
-    Import-Module .\Configuration.psm1 -Args $Table.Enterprise, $Table.User, $Table.Machine -Scope Global
+    Import-Module .\Configuration.psd1 -Args $Table.Enterprise, $Table.User, $Table.Machine -Scope Global
 }
 
 When "a script with the name '(.+)'" {
@@ -12,8 +14,8 @@ When "a script with the name '(.+)'" {
     $Script:ScriptName = $Name
 }
 
-When "a module with the name '(.+?)'(?: by the company '(.+)')?" {
-    param($name, $Company = "")
+When "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company>.+?)'|\s+\w+ the author '(?<author>.+?)')+" {
+    param($name, $Company = "", $Author = "")
 
     $ModulePath = "TestDrive:\Modules\$name"
     Remove-Module $name -ErrorAction SilentlyContinue
@@ -23,7 +25,15 @@ When "a module with the name '(.+?)'(?: by the company '(.+)')?" {
 
     Set-Content $ModulePath\${Name}.psm1 "function GetStoragePath {Get-StoragePath @Args }"
 
-    New-ModuleManifest $ModulePath\${Name}.psd1 -RootModule .\${Name}.psm1 -Description "A Super Test Module" -Company $Company
+    New-ModuleManifest $ModulePath\${Name}.psd1 -RootModule .\${Name}.psm1 -Description "A Super Test Module" -Company $Company -Author $Author
+
+    # New-ModuleManifest sets things even when we don't want it to:
+    if(!$Author) {
+        Set-Content $ModulePath\${Name}.psd1 ((Get-Content $ModulePath\${Name}.psd1) -Replace "^(Author.*)$", '#$1')
+    }
+    if(!$Company) {
+        Set-Content $ModulePath\${Name}.psd1 ((Get-Content $ModulePath\${Name}.psd1) -Replace "^(Company.*)$", '#$1')
+    }
 
     Import-Module $ModulePath\${Name}.psd1
 }
