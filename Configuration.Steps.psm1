@@ -64,3 +64,78 @@ When "the module's storage path should end with a version number if one is passe
     GetStoragePath -Version "2.0" | Should Match "\\2.0$"
     GetStoragePath -Version "4.0" | Should Match "\\4.0$"
 }
+
+
+When "a settings hashtable" {
+    param($hashtable)
+    $script:Settings = iex "[ordered]$hashtable"
+}
+
+When "a settings hashtable with an? (.+) in it" {
+    param($type)
+    $script:Settings = @{
+        UserName = $Env:UserName
+        BackgroundColor = $Host.UI.RawUI.BackgroundColor.ToString()
+    }
+
+    switch($type) {
+        "NULL" {
+            $Settings.TestCase = $Null
+        }
+        "Enum" {
+            $Settings.TestCase = [Security.PolicyLevelType]::Enterprise
+        }
+        "String" {
+            $Settings.TestCase = "Test"
+        }
+        "Number" {
+            $Settings.OneTestCase = 42
+            $Settings.TwoTestCase = 42.9
+        }
+        "Array"  {
+            $Settings.TestCase = "One", "Two", "Three"
+        }
+        "Boolean"  {
+            $Settings.OneTestCase = $True
+            $Settings.TwoTestCase = $False
+        }
+        "DateTime" {
+            $Settings.TestCase = Get-Date
+        }
+        "DateTimeOffset" {
+            $Settings.TestCase = [DateTimeOffset](Get-Date)
+        }
+        "GUID" {
+            $Settings.TestCase = [GUID]::NewGuid()
+        }
+        "PSObject" {
+            $Settings.TestCase = New-Object PSObject -Property @{ Name = $Env:UserName }
+        }
+        default {
+            throw "missing test type"
+        }
+    }
+}
+
+When "we convert the settings to metadata" {
+    $script:SettingsMetadata = ConvertTo-Metadata $script:Settings
+}
+
+When "the string version should (\w+)\s*(.*)?" {
+    param($operator, $data)
+    # I have to normalize line endings:
+    $meta = ($script:SettingsMetadata -replace "\r?\n","`n")
+    $data = $data.trim('"''')  -replace "\r?\n","`n"
+    # And then actually test it
+    $meta | Should $operator $data
+}
+
+When "we expect a warning" {
+    Mock Write-Warning { Write-Host "Warning: $args"; return $True} -Verifiable
+    Write-Warning "Test"
+    Assert-VerifiableMocks
+}
+
+When "the warning is (.*)" {
+    Assert-VerifiableMocks
+}
