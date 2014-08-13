@@ -131,8 +131,7 @@ When "the string version should (\w+)\s*(.*)?" {
 }
 
 When "we expect a warning" {
-    Mock -Module Metadata Write-Warning { parameter($Message) Write-Host "Warning: $message" } -Verifiable
-    Mock Write-Warning { parameter($Message) Write-Host "Warning: $message" } -Verifiable
+    Mock -Module Metadata Write-Warning { $true } -Verifiable
 }
 
 When "the warning is (.*)" {
