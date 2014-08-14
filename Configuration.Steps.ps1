@@ -1,5 +1,6 @@
 $PSModuleAutoLoadingPreference = "None"
 
+Remove-Module Configuration -EA 0
 Import-Module .\Configuration.psd1
 
 Given 'the configuration module is imported with testing paths:' {
@@ -75,7 +76,6 @@ When "a settings hashtable with an? (.+) in it" {
     param($type)
     $script:Settings = @{
         UserName = $Env:UserName
-        BackgroundColor = $Host.UI.RawUI.BackgroundColor.ToString()
     }
 
     switch($type) {
@@ -111,8 +111,29 @@ When "a settings hashtable with an? (.+) in it" {
         "PSObject" {
             $Settings.TestCase = New-Object PSObject -Property @{ Name = $Env:UserName }
         }
+        "Uri" {
+            $Settings.TestCase = [Uri]"http://HuddledMasses.org"
+        }
         default {
             throw "missing test type"
+        }
+    }
+}
+
+When "we add a converter for (.*) types" {
+    param($Type)
+    switch ($Type) {
+        "Uri" {
+            Add-MetadataConverter @{
+                [Uri] = { "Uri '$_' " }
+                "Uri" = {
+                    param([string]$Value)
+                    [Uri]$Value
+                }
+            }
+        }
+        default {
+            throw "missing converter type"
         }
     }
 }

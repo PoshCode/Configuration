@@ -58,4 +58,8 @@ Feature: Serialize Hashtables or Custom Objects
         When we convert the settings to metadata
         And the warning is called
         
-        
+    Scenario: I want to add support for serializing other types
+        Given a settings hashtable with a Uri in it
+        When we add a converter for Uri types
+        And we convert the settings to metadata
+        Then the string version should match "TestCase = Uri '.*'"
