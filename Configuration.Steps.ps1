@@ -72,6 +72,15 @@ When "a settings hashtable" {
     $script:Settings = iex "[ordered]$hashtable"
 }
 
+When "a settings file" {
+    param($hashtable)
+    Set-Content TestDrive:\Settings.psd1 -Value $hashtable
+}
+
+Then "the settings object MyPath should match the file's folder" {
+    $script:Settings.MyPath | Should Match "TestDrive:\\"
+}
+
 When "a settings hashtable with an? (.+) in it" {
     param($type)
     $script:Settings = @{
@@ -114,6 +123,9 @@ When "a settings hashtable with an? (.+) in it" {
         "Uri" {
             $Settings.TestCase = [Uri]"http://HuddledMasses.org"
         }
+        "Hashtable" {
+            $Settings.TestCase = @{ Key = "Value"; ANother = "Value" }
+        }
         default {
             throw "missing test type"
         }
@@ -138,9 +150,27 @@ When "we add a converter for (.*) types" {
     }
 }
 
+
+
 When "we convert the settings to metadata" {
     $script:SettingsMetadata = ConvertTo-Metadata $script:Settings
+
+    $Wide = $Host.UI.RawUI.WindowSize.Width
+    Write-Verbose $script:SettingsMetadata
 }
+
+When "we convert the metadata to an object" {
+    $script:Settings = ConvertFrom-Metadata $script:SettingsMetadata
+
+    Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+}
+
+When "we convert the file to an object" {
+    $script:Settings = ConvertFrom-Metadata TestDrive:\Settings.psd1
+
+    Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+}
+
 
 When "the string version should (\w+)\s*(.*)?" {
     param($operator, $data)
@@ -151,10 +181,92 @@ When "the string version should (\w+)\s*(.*)?" {
     $meta | Should $operator $data
 }
 
-When "we expect a warning" {
-    Mock -Module Metadata Write-Warning { $true } -Verifiable
+# This step will create verifiable/counting loggable mocks for Write-Warning, Write-Error, Write-Verbose
+When "we expect an? (?<type>warning|error|verbose)" {
+    param($type)
+    Mock -Module Metadata Write-$type { $true } -Verifiable
 }
 
-When "the warning is (.*)" {
-    Assert-VerifiableMocks
+# this step lets us verify the number of calls to those three mocks
+When "the (?<type>warning|error|verbose) is logged(?: (?<exactly>exactly) (\d+) times)?" {
+    param($count, $exactly, $type)
+    $param = @{}
+    if($count) {
+        $param.Exactly = $Exactly -eq "Exactly"
+        $param.Times = $count
+    }
+    Assert-MockCalled -Module Metadata -Command Write-$type @param
 }
+
+When "we add a converter that's not a scriptblock" {
+    Add-MetadataConverter @{
+        "Uri" = "
+            param([string]$Value)
+            [Uri]$Value
+        "
+    }
+}
+
+When "we add a converter with a number as a key" {
+    Add-MetadataConverter @{
+        42 = {
+            param([string]$Value)
+            $Value
+        }
+    }
+}
+
+# Then the error is logged exactly 2 times
+
+Then "the settings object should be a (.*)" {
+    param([Type]$Type)
+    $script:Settings -is $Type | Should Be $true
+}
+
+
+Then "the settings object should have an? (.*) of type (.*)" {
+    param([String]$Parameter, [Type]$Type)
+    $script:Settings.$Parameter -is $Type | Should Be $true
+}
+
+Given "a mock PowerShell version (.*)" {
+    param($version)
+    $script:PSVersion = [Version]$version
+    $script:PSDefaultParameterValues."Test-PSVersion:Version" = $script:PSVersion
+}
+
+When "we fake version 2.0 in the Metadata module" {
+    &(Get-Module Configuration) {
+        &(Get-Module Metadata) {
+            $script:PSDefaultParameterValues."Test-PSVersion:Version" = [Version]"2.0"
+        }
+    }
+}
+
+When "we're using PowerShell 4 or higher in the Metadata module" {
+    &(Get-Module Configuration) {
+        &(Get-Module Metadata) {
+            $null = $script:PSDefaultParameterValues.Remove("Test-PSVersion:Version")
+            $PSVersionTable.PSVersion -ge ([Version]"4.0") | Should Be $True
+        }
+    }
+}
+
+Given "the actual PowerShell version" {
+    $script:PSVersion = $PSVersionTable.PSVersion
+    $null = $script:PSDefaultParameterValues.Remove("Test-PSVersion:Version")
+}
+
+Then "the Version -(..) (.*)" {
+    param($comparator, $version)
+
+    if($version -eq "the version") {
+        [Version]$version = $script:PSVersion
+    } else {
+        [Version]$version = $version
+    }
+
+    $test = @{ $comparator = $version }
+    Test-PSVersion @test | Should Be $True
+}
+

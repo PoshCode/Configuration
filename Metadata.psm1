@@ -3,19 +3,35 @@ param(
    $Converters = @{}
 )
 
+$ModuleManifestExtension = ".psd1"
+
 function Add-MetadataConverter {
-   param($Converters)
+   [CmdletBinding()]
+   param([hashtable]$Converters)
 
    if($Converters.Count) {
-      foreach($key in @($Converters.Keys)) {
-         if($Key -is [String]) {
-            Set-Content "function:script:$key" $Converters.$key
+      switch ($Converters.Keys.GetEnumerator()) {
+         {$Converters.$_ -isnot [ScriptBlock]} {
+            Write-Error "Ignoring $_ converter, value must be ScriptBlock"
+            continue
          }
-         elseif($Key -is [Type] -and $Converters.$key -is [ScriptBlock])
+
+         {$_ -is [String]}
          {
-            $MetadataConverters.$key = $Converters.$key
-         } else {
-            Write-Warning "Unknown Key/Value in Converters: $key"
+            Write-Verbose "Adding function $_"
+            Set-Content "function:script:$_" $Converters.$_
+            continue
+         }
+
+         {$_ -is [Type]}
+         {
+            Write-Verbose "Adding serializer for $($_.FullName)"
+            $MetadataConverters.$_ = $Converters.$_
+            continue
+         }
+
+         default {
+            Write-Error "Unsupported key type in Converters: $_ is $($_.GetType())"
          }
       }
    }
@@ -32,6 +48,7 @@ function ConvertTo-Metadata {
    )
    begin {
       $t = "  "
+      $Script:OriginalMetadataConverters = $Script:MetadataConverters.Clone()
       Add-MetadataConverter $Converters
    }
    end {
@@ -132,6 +149,95 @@ function Test-PSVersion {
 
    $all -notcontains $false
 }
+
+
+function ConvertFrom-Metadata {
+   [CmdletBinding()]
+   param(
+      [Parameter(ValueFromPipelineByPropertyName="True", Position=0)]
+      [Alias("PSPath")]
+      $InputObject,
+
+      [Hashtable]$Converters = @{},
+      $ScriptRoot = '$PSScriptRoot'
+   )
+   begin {
+      $Script:OriginalMetadataConverters = $Script:MetadataConverters.Clone()
+      Add-MetadataConverter $Converters
+      [string[]]$ValidCommands = @("PSObject", "GUID", "DateTime", "DateTimeOffset", "ConvertFrom-StringData", "Join-Path") +  @($MetadataConverters.Keys.GetEnumerator())
+      [string[]]$ValidVariables = "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot","PSCulture","PSUICulture","True","False","Null"
+   }
+   end {
+      $Script:MetadataConverters = $Script:OriginalMetadataConverters.Clone()
+   }
+   process {
+      $EAP, $ErrorActionPreference = $EAP, "Stop"
+      $Tokens = $Null; $ParseErrors = $Null
+
+      if(Test-PSVersion -lt "3.0") {
+         Write-Verbose "$InputObject"
+         if(!(Test-Path $InputObject -ErrorAction SilentlyContinue)) {
+            $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
+            Set-Content -Path $Path $InputObject
+            $InputObject = $Path
+         } elseif(!"$InputObject".EndsWith($ModuleManifestExtension)) {
+            $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
+            Copy-Item "$InputObject" "$Path"
+            $InputObject = $Path
+         }
+         $Result = $null
+         Import-LocalizedData -BindingVariable Result -BaseDirectory (Split-Path $InputObject) -FileName (Split-Path $InputObject -Leaf) -SupportedCommand $ValidCommands
+         return $Result
+      }
+
+      if(Test-Path $InputObject -ErrorAction SilentlyContinue) {
+         $AST = [System.Management.Automation.Language.Parser]::ParseFile( (Convert-Path $InputObject), [ref]$Tokens, [ref]$ParseErrors)
+         $ScriptRoot = Split-Path $InputObject
+      } else {
+         $ScriptRoot = $PoshCodeModuleRoot
+         $OFS = "`n"
+         $InputObject = "$InputObject" -replace "# SIG # Begin signature block(?s:.*)"
+         $AST = [System.Management.Automation.Language.Parser]::ParseInput($InputObject, [ref]$Tokens, [ref]$ParseErrors)
+      }
+
+      if($ParseErrors -ne $null) {
+         $ParseException = New-Object System.Management.Automation.ParseException (,[System.Management.Automation.Language.ParseError[]]$ParseErrors)
+         $PSCmdlet.ThrowTerminatingError((New-Object System.Management.Automation.ErrorRecord $ParseException, "Metadata Error", "ParserError", $InputObject))
+      }
+
+      $Tokens += $Tokens | Where-Object { "StringExpandable" -eq $_.Kind } | Select-Object -Expand NestedTokens
+
+      if($scriptroots = @($Tokens | Where-Object { ("Variable" -eq $_.Kind) -and ($_.Name -eq "PSScriptRoot") } | ForEach-Object { $_.Extent } )) {
+         $ScriptContent = $Ast.ToString()
+         for($r = $scriptroots.count - 1; $r -ge 0; $r--) {
+            $ScriptContent = $ScriptContent.Remove($scriptroots[$r].StartOffset, ($scriptroots[$r].EndOffset - $scriptroots[$r].StartOffset)).Insert($scriptroots[$r].StartOffset,'$ScriptRoot')
+         }
+         $AST = [System.Management.Automation.Language.Parser]::ParseInput($ScriptContent, [ref]$Tokens, [ref]$ParseErrors)
+      }
+
+      $Script = $AST.GetScriptBlock()
+      try {
+        $Script.CheckRestrictedLanguage( $ValidCommands, $ValidVariables, $true )
+      }
+      catch {
+        Write-Error "$Script"
+      }
+
+      $Mode, $ExecutionContext.SessionState.LanguageMode = $ExecutionContext.SessionState.LanguageMode, "RestrictedLanguage"
+
+      try {
+         $Script.InvokeReturnAsIs(@())
+      }
+      finally {
+         $ErrorActionPreference = $EAP
+         $ExecutionContext.SessionState.LanguageMode = $Mode
+      }
+   }
+}
+
+
+
+
 # These functions are simple helpers for use in data sections (see about_data_sections) and .psd1 files (see ConvertFrom-Metadata)
 function PSObject {
    <#
@@ -174,8 +280,6 @@ function DateTimeOffset {
    param([string]$Value)
    [DateTimeOffset]$Value
 }
-
-
 
 
 $MetadataConverters = @{}
