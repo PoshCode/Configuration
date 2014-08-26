@@ -107,6 +107,31 @@ function ConvertTo-Metadata {
    }
 }
 
+function Test-PSVersion {
+   [CmdletBinding()]
+   param(
+      [Version]$Version = $PSVersionTable.PSVersion,
+      [Version]$lt,
+      [Version]$le,
+      [Version]$gt,
+      [Version]$ge,
+      [Version]$eq,
+      [Version]$ne
+   )
+
+   Write-Verbose "Version $Version"
+
+   $all = @(
+      if($lt) { $Version -lt $lt }
+      if($gt) { $Version -gt $gt }
+      if($le) { $Version -le $le }
+      if($ge) { $Version -ge $ge }
+      if($eq) { $Version -eq $eq }
+      if($ne) { $Version -ne $ne }
+   )
+
+   $all -notcontains $false
+}
 # These functions are simple helpers for use in data sections (see about_data_sections) and .psd1 files (see ConvertFrom-Metadata)
 function PSObject {
    <#
