@@ -236,8 +236,6 @@ function ConvertFrom-Metadata {
 }
 
 
-
-
 # These functions are simple helpers for use in data sections (see about_data_sections) and .psd1 files (see ConvertFrom-Metadata)
 function PSObject {
    <#

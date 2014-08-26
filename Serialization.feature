@@ -110,10 +110,11 @@ Feature: Serialize Hashtables or Custom Objects
         Given a settings hashtable 
             """
             @{
-              UserName = 'Joel'
-              Age = 42
-              LastUpdated = (Get-Date).Date
-              Homepage = [Uri]"http://HuddledMasses.org"
+              UserName = New-Object PSObject -Property @{ FirstName = 'Joel'; LastName = 'Bennett' }
+              Age = [Version]4.2
+              LastUpdated = [DateTimeOffset](Get-Date).Date
+              GUID = [GUID]::NewGuid()
+
             }
             """
         And we fake version 2.0 in the Metadata module
@@ -121,14 +122,14 @@ Feature: Serialize Hashtables or Custom Objects
         And we convert the settings to metadata
         When we convert the metadata to an object
         Then the settings object should be a hashtable
-        Then the settings object should have an UserName of type String
-        Then the settings object should have an Age of type Int32
-        Then the settings object should have an LastUpdated of type DateTime
-        Then the settings object should have an Homepage of type Uri
+        Then the settings object should have an UserName of type PSObject
+        Then the settings object should have an Age of type String
+        Then the settings object should have an LastUpdated of type DateTimeOffset
+        Then the settings object should have an GUID of type GUID
 
     @Deserialization
     Scenario: I should be able to import serialized data from files even in PowerShell 2
-        Given a settings file 
+        Given a settings file named Settings.psd1
             """
             @{
               UserName = 'Joel'
@@ -141,17 +142,32 @@ Feature: Serialize Hashtables or Custom Objects
         Then the settings object should have an UserName of type String
         Then the settings object should have an Age of type Int32
 
+
     @Deserialization
-    Scenario: Imported metadata files should be able to use PSScriptRoot
-        Given a settings file 
+    Scenario: I should be able to import serialized data regardless of file extension
+        Given a settings file named Settings.data
             """
             @{
-              MyPath = "$PSScriptRoot\Settings.psd1"
+              UserName = 'Joel'
+              Age = 42
+            }
+            """
+        When we convert the file to an object
+        Then the settings object should be a hashtable
+        Then the settings object should have an UserName of type String
+        Then the settings object should have an Age of type Int32
+
+    @Deserialization
+    Scenario: Imported metadata files should be able to use PSScriptRoot
+        Given a settings file named Settings.psd1
+            """
+            @{
+              MyPath = Join-Path $PSScriptRoot "Settings.psd1"
             }
             """
         And we're using PowerShell 4 or higher in the Metadata module
         When we convert the file to an object
         Then the settings object should be a hashtable
         And the settings object should have a MyPath of type String
-        And the settings object MyPath should match the file's folder
+        And the settings object MyPath should match the file's path
 

@@ -72,13 +72,14 @@ When "a settings hashtable" {
     $script:Settings = iex "[ordered]$hashtable"
 }
 
-When "a settings file" {
-    param($hashtable)
-    Set-Content TestDrive:\Settings.psd1 -Value $hashtable
+When "a settings file named (.*)" {
+    param($fileName, $hashtable)
+    $Script:SettingsFile = $fileName
+    Set-Content TestDrive:\$fileName -Value $hashtable
 }
 
-Then "the settings object MyPath should match the file's folder" {
-    $script:Settings.MyPath | Should Match "TestDrive:\\"
+Then "the settings object MyPath should match the file's path" {
+    $script:Settings.MyPath | Should Be "TestDrive:\${Script:SettingsFile}"
 }
 
 When "a settings hashtable with an? (.+) in it" {
@@ -166,7 +167,7 @@ When "we convert the metadata to an object" {
 }
 
 When "we convert the file to an object" {
-    $script:Settings = ConvertFrom-Metadata TestDrive:\Settings.psd1
+    $script:Settings = ConvertFrom-Metadata TestDrive:\${Script:SettingsFile}
 
     Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
