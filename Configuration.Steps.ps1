@@ -172,6 +172,10 @@ When "we convert the file to an object" {
     Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
 
+When "trying to convert the file to an object should throw(.*)" {
+    param([string]$Message)
+    { $script:Settings = ConvertFrom-Metadata TestDrive:\${Script:SettingsFile} } | Should Throw $Message.trim()
+}
 
 When "the string version should (\w+)\s*(.*)?" {
     param($operator, $data)

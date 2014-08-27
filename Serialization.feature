@@ -171,3 +171,27 @@ Feature: Serialize Hashtables or Custom Objects
         And the settings object should have a MyPath of type String
         And the settings object MyPath should match the file's path
 
+
+    @Deserialization
+    Scenario: Bad data should generate useful errors
+        Given a settings file named Settings.psd1
+            """
+            @{ UserName = }
+            """
+        Then trying to convert the file to an object should throw
+            """
+            Missing statement after '=' in hash literal.
+            """
+
+    @Deserialization
+    Scenario: Disallowed commands should generate useful errors
+        Given a settings file named Settings.psd1
+            """
+            @{ 
+                UserName = New-Object PSObject -Property @{ First = "Joel" }
+            }
+            """
+        Then trying to convert the file to an object should throw
+            """
+            The command 'New-Object' is not allowed in restricted language mode or a Data section.
+            """

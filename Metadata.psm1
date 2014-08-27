@@ -217,10 +217,10 @@ function ConvertFrom-Metadata {
 
       $Script = $AST.GetScriptBlock()
       try {
-        $Script.CheckRestrictedLanguage( $ValidCommands, $ValidVariables, $true )
+         $Script.CheckRestrictedLanguage( $ValidCommands, $ValidVariables, $true )
       }
       catch {
-        Write-Error "$Script"
+         $PSCmdlet.ThrowTerminatingError((New-Object System.Management.Automation.ErrorRecord $_.Exception.InnerException, "Metadata Error", "InvalidData", $Script))
       }
 
       $Mode, $ExecutionContext.SessionState.LanguageMode = $ExecutionContext.SessionState.LanguageMode, "RestrictedLanguage"
