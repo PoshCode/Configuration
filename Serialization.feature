@@ -70,14 +70,14 @@ Feature: Serialize Hashtables or Custom Objects
         When we convert the settings to metadata
         And the warning is logged
 
-    @Serialization @Error
+    @Serialization @Error @Converter
     Scenario: Invalid converters should write non-terminating errors
         Given we expect an error
         When we add a converter that's not a scriptblock
         And we add a converter with a number as a key
         Then the error is logged exactly 2 times
 
-    @Serialization @Uri
+    @Serialization @Uri @Converter
     Scenario: Developers should be able to add support for other types
         Given a settings hashtable with a Uri in it
         When we add a converter for Uri types
@@ -103,7 +103,7 @@ Feature: Serialize Hashtables or Custom Objects
             }
             """
 
-    @Deserialization @Uri
+    @Deserialization @Uri @Converter
     Scenario: I should be able to import serialized data
         Given a settings hashtable 
             """
@@ -124,7 +124,7 @@ Feature: Serialize Hashtables or Custom Objects
         Then the settings object should have an LastUpdated of type DateTime
         Then the settings object should have an Homepage of type Uri
 
-    @Deserialization @Uri
+    @Deserialization @Uri @Converter
     Scenario: I should be able to import serialized data even in PowerShell 2
         Given a settings hashtable 
             """
@@ -145,6 +145,30 @@ Feature: Serialize Hashtables or Custom Objects
         Then the settings object should have an Age of type String
         Then the settings object should have an LastUpdated of type DateTimeOffset
         Then the settings object should have an GUID of type GUID
+
+    @Deserialization @Uri @Converter
+    Scenario: I should be able to add converters at import time
+        Given the configuration module is imported with a URL converter
+        And a settings hashtable 
+            """
+            @{
+              UserName = 'Joel'
+              Age = 42
+              Homepage = [Uri]"http://HuddledMasses.org"
+            }
+            """
+        Then the settings object should have an Homepage of type Uri
+        And we convert the settings to metadata
+        Then the string version should match
+            """
+              Homepage = Uri 'http://HuddledMasses.org/'
+            """        
+        When we convert the metadata to an object
+        Then the settings object should be a hashtable
+        Then the settings object should have an UserName of type String
+        Then the settings object should have an Age of type Int32
+        Then the settings object should have an Homepage of type Uri
+
 
     @Deserialization @File
     Scenario: I should be able to import serialized data from files even in PowerShell 2

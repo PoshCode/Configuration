@@ -1,5 +1,6 @@
 # Allows you to override the Scope storage paths (e.g. for testing)
 param(
+    $Converters     = @{},
     $EnterpriseData = $Env:AppData,
     $UserData       = $Env:LocalAppData,
     $MachineData    = $Env:ProgramData
@@ -8,6 +9,13 @@ param(
 $EnterpriseData = Join-Path $EnterpriseData WindowsPowerShell
 $UserData       = Join-Path $UserData   WindowsPowerShell
 $MachineData    = Join-Path $MachineData WindowsPowerShell
+
+$ConfigurationRoot = Get-Variable PSScriptRoot -ErrorAction SilentlyContinue | ForEach-Object { $_.Value }
+if(!$ConfigurationRoot) {
+    $ConfigurationRoot = Split-Path $MyInvocation.MyCommand.Path -Parent
+}
+
+Import-Module "${ConfigurationRoot}\Metadata.psm1" -Args @($Converters)
 
 function Get-StoragePath {
     #.Synopsis

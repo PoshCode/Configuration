@@ -1,5 +1,4 @@
 param(
-   # Because of the way
    $Converters = @{}
 )
 
@@ -406,13 +405,7 @@ function DateTimeOffset {
 
 $MetadataConverters = @{}
 
-if($Converters -isnot [Collections.IDictionary]) {
-   foreach($param in $Converters) {
-      if($param -is [Collections.IDictionary]) {
-         Add-MetadataConverter $param
-      }
-   }
-} else {
+if($Converters -is [Collections.IDictionary]) {
    Add-MetadataConverter $Converters
 }
 

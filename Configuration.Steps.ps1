@@ -6,7 +6,19 @@ Import-Module .\Configuration.psd1
 Given 'the configuration module is imported with testing paths:' {
     param($Table)
     Remove-Module Configuration -EA 0
-    Import-Module .\Configuration.psd1 -Args $Table.Enterprise, $Table.User, $Table.Machine -Scope Global
+    Import-Module .\Configuration.psd1 -Args @($null, $Table.Enterprise, $Table.User, $Table.Machine) -Scope Global
+}
+
+Given 'the configuration module is imported with a URL converter' {
+    param($Table)
+    Remove-Module Configuration -EA 0
+    Import-Module .\Configuration.psd1 -Args @{
+                [Uri] = { "Uri '$_' " }
+                "Uri" = {
+                    param([string]$Value)
+                    [Uri]$Value
+                }
+            } -Scope Global
 }
 
 When "a script with the name '(.+)'" {
@@ -208,7 +220,7 @@ When "the settings file should (\w+)\s*(.*)?" {
     param($operator, $data)
                     # I have to normalize line endings:
     $data = [regex]::escape(($data -replace "\r?\n","`n"))
-    Get-Item ${Script:SettingsFile} | Should $operator
+    Get-Item ${Script:SettingsFile} | Should $operator $data
 }
 # This step will create verifiable/counting loggable mocks for Write-Warning, Write-Error, Write-Verbose
 When "we expect an? (?<type>warning|error|verbose)" {
