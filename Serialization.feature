@@ -84,6 +84,25 @@ Feature: Serialize Hashtables or Custom Objects
         And we convert the settings to metadata
         Then the string version should match "TestCase = Uri '.*'"
 
+
+    @Serialization @File
+    Scenario: Developers should be able to export straight to file
+        Given a settings hashtable 
+            """
+            @{
+              UserName = 'Joel'
+              Age = 42
+            }
+            """
+        When we export to a settings file named Settings.psd1
+        Then the settings file should contain
+            """
+            @{
+              UserName = 'Joel'
+              Age = 42
+            }
+            """
+
     @Deserialization @Uri
     Scenario: I should be able to import serialized data
         Given a settings hashtable 
@@ -127,7 +146,7 @@ Feature: Serialize Hashtables or Custom Objects
         Then the settings object should have an LastUpdated of type DateTimeOffset
         Then the settings object should have an GUID of type GUID
 
-    @Deserialization
+    @Deserialization @File
     Scenario: I should be able to import serialized data from files even in PowerShell 2
         Given a settings file named Settings.psd1
             """
@@ -137,13 +156,13 @@ Feature: Serialize Hashtables or Custom Objects
             }
             """
         And we fake version 2.0 in the Metadata module
-        When we convert the file to an object
+        When we import the file to an object
         Then the settings object should be a hashtable
         Then the settings object should have an UserName of type String
         Then the settings object should have an Age of type Int32
 
 
-    @Deserialization
+    @Deserialization @File
     Scenario: I should be able to import serialized data regardless of file extension
         Given a settings file named Settings.data
             """
@@ -152,12 +171,12 @@ Feature: Serialize Hashtables or Custom Objects
               Age = 42
             }
             """
-        When we convert the file to an object
+        When we import the file to an object
         Then the settings object should be a hashtable
         Then the settings object should have an UserName of type String
         Then the settings object should have an Age of type Int32
 
-    @Deserialization
+    @Deserialization @File
     Scenario: Imported metadata files should be able to use PSScriptRoot
         Given a settings file named Settings.psd1
             """
@@ -166,24 +185,24 @@ Feature: Serialize Hashtables or Custom Objects
             }
             """
         And we're using PowerShell 4 or higher in the Metadata module
-        When we convert the file to an object
+        When we import the file to an object
         Then the settings object should be a hashtable
         And the settings object should have a MyPath of type String
         And the settings object MyPath should match the file's path
 
 
-    @Deserialization
+    @Deserialization @File
     Scenario: Bad data should generate useful errors
         Given a settings file named Settings.psd1
             """
             @{ UserName = }
             """
-        Then trying to convert the file to an object should throw
+        Then trying to import the file to an object should throw
             """
             Missing statement after '=' in hash literal.
             """
 
-    @Deserialization
+    @Deserialization @File
     Scenario: Disallowed commands should generate useful errors
         Given a settings file named Settings.psd1
             """
@@ -191,7 +210,21 @@ Feature: Serialize Hashtables or Custom Objects
                 UserName = New-Object PSObject -Property @{ First = "Joel" }
             }
             """
-        Then trying to convert the file to an object should throw
+        Then trying to import the file to an object should throw
             """
             The command 'New-Object' is not allowed in restricted language mode or a Data section.
             """
+
+    @Serialization @Deserialization @File
+    Scenario: Handling the default module manifest
+        Given a settings file named ModuleName\ModuleName.psd1
+            """
+            @{
+              UserName = 'Joel'
+              Age = 42
+            }
+            """
+        When we import the folder path
+        Then the settings object should be a hashtable
+        Then the settings object should have an UserName of type String
+        Then the settings object should have an Age of type Int32

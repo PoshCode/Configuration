@@ -74,12 +74,17 @@ When "a settings hashtable" {
 
 When "a settings file named (.*)" {
     param($fileName, $hashtable)
-    $Script:SettingsFile = $fileName
-    Set-Content TestDrive:\$fileName -Value $hashtable
+    $Script:SettingsFile = Join-Path TestDrive:\ $fileName
+
+    $Parent = Split-Path $Script:SettingsFile
+    if(!(Test-Path $Parent)) {
+        $null = mkdir $Parent -Force -EA 0
+    }
+    Set-Content $Script:SettingsFile -Value $hashtable
 }
 
 Then "the settings object MyPath should match the file's path" {
-    $script:Settings.MyPath | Should Be "TestDrive:\${Script:SettingsFile}"
+    $script:Settings.MyPath | Should Be ${Script:SettingsFile}
 }
 
 When "a settings hashtable with an? (.+) in it" {
@@ -151,8 +156,6 @@ When "we add a converter for (.*) types" {
     }
 }
 
-
-
 When "we convert the settings to metadata" {
     $script:SettingsMetadata = ConvertTo-Metadata $script:Settings
 
@@ -160,21 +163,36 @@ When "we convert the settings to metadata" {
     Write-Verbose $script:SettingsMetadata
 }
 
+When "we export to a settings file named (.*)" {
+    param($fileName)
+    $Script:SettingsFile = Join-Path TestDrive:\ $fileName
+    $File = $script:Settings | Export-Metadata ${Script:SettingsFile} -Passthru
+    $File.FullName | Should Be (Convert-Path $SettingsFile)
+}
+
+
 When "we convert the metadata to an object" {
-    $script:Settings = ConvertFrom-Metadata $script:SettingsMetadata
+    $script:Settings = Import-Metadata $script:SettingsMetadata
 
     Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
 
-When "we convert the file to an object" {
-    $script:Settings = ConvertFrom-Metadata TestDrive:\${Script:SettingsFile}
+
+When "we import the file to an object" {
+    $script:Settings = Import-Metadata ${Script:SettingsFile}
 
     Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
 
-When "trying to convert the file to an object should throw(.*)" {
+When "we import the folder path" {
+    $script:Settings = Import-Metadata (Split-Path ${Script:SettingsFile})
+
+    Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+}
+
+When "trying to import the file to an object should throw(.*)" {
     param([string]$Message)
-    { $script:Settings = ConvertFrom-Metadata TestDrive:\${Script:SettingsFile} } | Should Throw $Message.trim()
+    { $script:Settings = Import-Metadata ${Script:SettingsFile} } | Should Throw $Message.trim()
 }
 
 When "the string version should (\w+)\s*(.*)?" {
@@ -186,6 +204,12 @@ When "the string version should (\w+)\s*(.*)?" {
     $meta | Should $operator $data
 }
 
+When "the settings file should (\w+)\s*(.*)?" {
+    param($operator, $data)
+                    # I have to normalize line endings:
+    $data = [regex]::escape(($data -replace "\r?\n","`n"))
+    Get-Item ${Script:SettingsFile} | Should $operator
+}
 # This step will create verifiable/counting loggable mocks for Write-Warning, Write-Error, Write-Verbose
 When "we expect an? (?<type>warning|error|verbose)" {
     param($type)

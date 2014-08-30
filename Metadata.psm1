@@ -5,9 +5,79 @@ param(
 
 $ModuleManifestExtension = ".psd1"
 
-function Add-MetadataConverter {
+function Test-PSVersion {
+   <#
+      .Synopsis
+         Test the PowerShell Version
+      .Description
+         This function exists so I can do things differently on older versions of PowerShell.
+         But the reason I test in a function is that I can mock the Version to test the alternative code.
+      .Example
+         if(Test-PSVersion -ge 3.0) {
+            ls | where Length -gt 12mb
+         } else {
+            ls | Where { $_.Length -gt 12mb }
+         }
+
+         This is just a trivial example to show the usage (you wouldn't really bother for a where-object call)
+   #>
    [CmdletBinding()]
-   param([hashtable]$Converters)
+   param(
+      [Version]$Version = $PSVersionTable.PSVersion,
+      [Version]$lt,
+      [Version]$le,
+      [Version]$gt,
+      [Version]$ge,
+      [Version]$eq,
+      [Version]$ne
+   )
+
+   Write-Verbose "Version $Version"
+
+   $all = @(
+      if($lt) { $Version -lt $lt }
+      if($gt) { $Version -gt $gt }
+      if($le) { $Version -le $le }
+      if($ge) { $Version -ge $ge }
+      if($eq) { $Version -eq $eq }
+      if($ne) { $Version -ne $ne }
+   )
+
+   $all -notcontains $false
+}
+
+function Add-MetadataConverter {
+   <#
+      .Synopsis
+         Add a converter functions for serialization and deserialization to metadata
+      .Description
+         Add-MetadataConverter allows you to map:
+         * a type to a scriptblock which can serialize that type to metadata (psd1)
+         * define a name and scriptblock as a function which will be whitelisted in metadata (for ConvertFrom-Metadata and Import-Metadata)
+
+         The idea is to give you a way to extend the serialization capabilities if you really need to.
+      .Example
+         Add-MetadataCOnverter @{ [bool] = { if($_) { '$True' } else { '$False' } } }
+
+         Shows a simple example of mapping bool to a scriptblock that serializes it in a way that's inherently parseable by PowerShell.  This exact converter is already built-in to the Metadata module, so you don't need to add it.
+
+      .Example
+         Add-MetadataConverter @{
+            [Uri] = { "Uri '$_' " }
+            "Uri" = {
+               param([string]$Value)
+               [Uri]$Value
+            }
+         }
+
+         Shows how to map a function for serializing Uri objects as strings with a Uri function that just casts them. Normally you wouldn't need to do that for Uri, since they output strings natively, and it's perfectly logical to store Uris as strings and only cast them when you really need to.
+   #>
+   [CmdletBinding()]
+   param(
+      # A hashtable of types to serializer scriptblocks, or function names to scriptblock definitions
+      [Parameter(Mandatory = $True)]
+      [hashtable]$Converters
+   )
 
    if($Converters.Count) {
       switch ($Converters.Keys.GetEnumerator()) {
@@ -124,32 +194,6 @@ function ConvertTo-Metadata {
    }
 }
 
-function Test-PSVersion {
-   [CmdletBinding()]
-   param(
-      [Version]$Version = $PSVersionTable.PSVersion,
-      [Version]$lt,
-      [Version]$le,
-      [Version]$gt,
-      [Version]$ge,
-      [Version]$eq,
-      [Version]$ne
-   )
-
-   Write-Verbose "Version $Version"
-
-   $all = @(
-      if($lt) { $Version -lt $lt }
-      if($gt) { $Version -gt $gt }
-      if($le) { $Version -le $le }
-      if($ge) { $Version -ge $ge }
-      if($eq) { $Version -eq $eq }
-      if($ne) { $Version -ne $ne }
-   )
-
-   $all -notcontains $false
-}
-
 
 function ConvertFrom-Metadata {
    [CmdletBinding()]
@@ -159,6 +203,7 @@ function ConvertFrom-Metadata {
       $InputObject,
 
       [Hashtable]$Converters = @{},
+
       $ScriptRoot = '$PSScriptRoot'
    )
    begin {
@@ -234,6 +279,85 @@ function ConvertFrom-Metadata {
       }
    }
 }
+
+
+
+function Import-Metadata {
+   <#
+      .Synopsis
+         Creates a data object from the items in a Metadata file (e.g. a .psd1)
+   #>
+   [CmdletBinding()]
+   param(
+      [Parameter(ValueFromPipeline=$true, Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
+      [Alias("PSPath","Content")]
+      [string]$Path,
+
+      [Hashtable]$Converters = @{}
+   )
+
+   process {
+      $ModuleInfo = $null
+      if(Test-Path $Path) {
+         Write-Verbose "Importing Metadata file from `$Path: $Path"
+         if(!(Test-Path $Path -PathType Leaf)) {
+            $Path = Join-Path $Path ((Split-Path $Path -Leaf) + $ModuleManifestExtension)
+         }
+      }
+
+      try {
+         ConvertFrom-Metadata -InputObject $Path -Converters $Converters
+      } catch {
+         $PSCmdlet.ThrowTerminatingError( $_ )
+      }
+   }
+}
+
+function Export-Metadata {
+   <#
+      .Synopsis
+         Creates a metadata file from a simple object
+      .Description
+         Converts simple objects to psd1 data files
+         Note that exportable data is limited by the rules of data sections (see about_Data_Sections) and the available MetadataConverters (see Add-MetadataConverter)
+
+         The only things inherently importable in PowerShell metadata files are Strings, Booleans, and Numbers ... and Arrays or Hashtables where the values (and keys) are all strings, booleans, or numbers.
+
+         Note: this function and the matching Import-Metadata are extensible, and have included support for PSCustomObject, Guid, Version, etc.
+   #>
+   [CmdletBinding()]
+   param(
+      # Specifies the path to the PSD1 output file.
+      [Parameter(Mandatory=$true, Position=0)]
+      $Path,
+
+      # comments to place on the top of the file (to explain settings or whatever for people who might edit it by hand)
+      [string[]]$CommentHeader,
+
+      # Specifies the objects to export as metadata structures.
+      # Enter a variable that contains the objects or type a command or expression that gets the objects.
+      # You can also pipe objects to Export-Metadata.
+      [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+      $InputObject,
+
+      [Hashtable]$Converters = @{},
+
+      # If set, output the nuspec file
+      [Switch]$Passthru
+    )
+    begin { $data = @() }
+    process { $data += @($InputObject) }
+    end {
+        # Avoid arrays when they're not needed:
+        if($data.Count -eq 1) { $data = $data[0] }
+        Set-Content -Path $Path -Value ((@($CommentHeader) + @(ConvertTo-Metadata -InputObject $data -Converters $Converters)) -Join "`n")
+        if($Passthru) {
+            Get-Item $Path
+        }
+    }
+}
+
+
 
 
 # These functions are simple helpers for use in data sections (see about_data_sections) and .psd1 files (see ConvertFrom-Metadata)
