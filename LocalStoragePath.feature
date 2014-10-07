@@ -3,7 +3,11 @@ Feature: Automatically Calculate Local Storage Paths
     In order for module settings to survive upgrades
     A PowerShell Module Author
     Needs a place outside their module to save settings
-    By default, it should be in the "RoamingData" path used by enterprises
+    For developer guidelines, see: http://msdn.microsoft.com/en-us/library/windows/apps/hh465094.aspx
+    We create a module-specific storage location inside the operating-system specified data paths:
+    By default, we store in the $Env:AppData user roaming path that Windows synchronizes (C:\Users\USERNAME\AppData\Roaming)
+    But we  support using the $Env:ProgramData machine-local path instead (C:\ProgramData)
+    As well as the machine-specific $Env:LocalAppData user data path (C:\Users\USERNAME\AppData\Local)
 
     Background:
         Given the configuration module is imported with testing paths:
