@@ -10,7 +10,7 @@ $EnterpriseData = Join-Path $EnterpriseData WindowsPowerShell
 $UserData       = Join-Path $UserData   WindowsPowerShell
 $MachineData    = Join-Path $MachineData WindowsPowerShell
 
-$ConfigurationRoot = Get-Variable PSScriptRoot -ErrorAction SilentlyContinue | ForEach-Object { $_.Value }
+$ConfigurationRoot = Get-Variable PSScriptRoot* -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq "PSScriptRoot" } | ForEach-Object { $_.Value }
 if(!$ConfigurationRoot) {
     $ConfigurationRoot = Split-Path $MyInvocation.MyCommand.Path -Parent
 }

@@ -220,6 +220,7 @@ When "the settings file should (\w+)\s*(.*)?" {
     param($operator, $data)
                     # I have to normalize line endings:
     $data = [regex]::escape(($data -replace "\r?\n","`n"))
+    if($operator -eq "contain"){ $operator = "containmultiline"}
     Get-Item ${Script:SettingsFile} | Should $operator $data
 }
 # This step will create verifiable/counting loggable mocks for Write-Warning, Write-Error, Write-Verbose
