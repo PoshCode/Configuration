@@ -43,7 +43,6 @@ function Get-StoragePath {
     [CmdletBinding(DefaultParameterSetName = 'NoParameters')]
     param(
         # The scope to save at, defaults to Enterprise (which returns a path in "RoamingData")
-        [Parameter(ParameterSetName = "Scope")]
         [Security.PolicyLevelType]$Scope = "Enterprise",
 
         # A callstack. You should not ever need to pass this.
@@ -114,4 +113,91 @@ function Get-StoragePath {
         $null = mkdir $PathRoot -Force
         (Resolve-Path $PathRoot).Path
     }
+}
+
+
+function Import-Configuration {
+    [CmdletBinding(DefaultParameterSetName = '__CallStack')]
+    param(
+        # A callstack. You should not ever need to pass this.
+        # It is used to calculate the defaults for all the other parameters.
+        [Parameter(ParameterSetName = "__CallStack")]
+        [System.Management.Automation.CallStackFrame[]]$CallStack = $(Get-PSCallStack),
+
+        # An optional module qualifier (by default, this is blank)
+        [Parameter(ParameterSetName = "ManualOverride")]
+        [String]$CompanyName = $(
+            if($CallStack[0].InvocationInfo.MyCommand.Module){
+                $Name = $CallStack[0].InvocationInfo.MyCommand.Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
+                if($Name -eq "Unknown" -or -not $Name) {
+                    $Name = $CallStack[0].InvocationInfo.MyCommand.Module.Author
+                    if($Name -eq "Unknown" -or -not $Name) {
+                        $Name = "AnonymousModules"
+                    }
+                }
+                $Name
+            } else {
+                "AnonymousScripts"
+            }
+        ),
+
+        # The name of the module or script
+        # Will be used in the returned storage path
+        [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true)]
+        [String]$Name = $(
+            if($Module = $CallStack[0].InvocationInfo.MyCommand.Module) {
+                $Module.Name
+            } else {
+                if(!($BaseName = [IO.Path]::GetFileNameWithoutExtension(($CallStack[0].InvocationInfo.MyCommand.Name -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_")))) {
+                    throw "Could not determine the storage name, Get-StoragePath should only be called from inside a script or module."
+                }
+                return $BaseName
+            }
+        ),
+
+        # The full path to the module (in case there are dupes)
+        # Will be used in the returned storage path
+        [Parameter(ParameterSetName = "ManualOverride")]
+        [String]$ModulePath = $(
+            if($Module = $CallStack[0].InvocationInfo.MyCommand.Module) {
+                $Module.Path
+            } else {
+                if(!($BaseName = [IO.Path]::GetFileNameWithoutExtension(($CallStack[0].InvocationInfo.MyCommand.Name -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_")))) {
+                    throw "Could not determine the storage name, Get-StoragePath should only be called from inside a script or module."
+                }
+                return $BaseName
+            }
+        ),
+        # The version for saved settings -- if set, will be used in the returned path
+        # NOTE: this is *NOT* calculated from the CallStack
+        [Version]$Version
+    )
+
+    $ModulePath = Split-Path $ModulePath -Parent
+    $ModulePath = Join-Path $ModulePath Configuration.psd1
+    $Local = Import-Metadata $ModulePath -ErrorAction Ignore
+
+    $Parameters = @{
+        CompanyName = $CompanyName
+        Name = $Name
+    }
+    if($Version) {
+        $Parameters.Version = $Version
+    }
+
+    $MachinePath = Get-StoragePath @Parameters -Scope Machine
+    $MachinePath = Join-Path $MachinePath Configuration.psd1
+    $Machine = Import-Metadata $MachinePath -ErrorAction Ignore
+
+    $EnterprisePath = Get-StoragePath @Parameters -Scope Enterprise
+    $EnterprisePath = Join-Path $EnterprisePath Configuration.psd1
+    $Enterprise = Import-Metadata $EnterprisePath -ErrorAction Ignore
+
+    $LocalUserPath = Get-StoragePath @Parameters -Scope User
+    $LocalUserPath = Join-Path $LocalUserPath Configuration.psd1
+    $User = Import-Metadata $LocalUserPath -ErrorAction Ignore
+
+    $Local | Update-Object $Machine | 
+             Update-Object $Enterprise | 
+             Update-Object $User
 }

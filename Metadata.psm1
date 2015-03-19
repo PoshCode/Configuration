@@ -106,7 +106,6 @@ function Add-MetadataConverter {
    }
 }
 
-
 function ConvertTo-Metadata {
    [CmdletBinding()]
    param(
@@ -193,7 +192,6 @@ function ConvertTo-Metadata {
    }
 }
 
-
 function ConvertFrom-Metadata {
    [CmdletBinding()]
    param(
@@ -215,7 +213,7 @@ function ConvertFrom-Metadata {
       $Script:MetadataConverters = $Script:OriginalMetadataConverters.Clone()
    }
    process {
-      $EAP, $ErrorActionPreference = $EAP, "Stop"
+      $ErrorActionPreference = "Stop"
       $Tokens = $Null; $ParseErrors = $Null
 
       if(Test-PSVersion -lt "3.0") {
@@ -273,13 +271,10 @@ function ConvertFrom-Metadata {
          $Script.InvokeReturnAsIs(@())
       }
       finally {
-         $ErrorActionPreference = $EAP
          $ExecutionContext.SessionState.LanguageMode = $Mode
       }
    }
 }
-
-
 
 function Import-Metadata {
    <#
@@ -302,6 +297,13 @@ function Import-Metadata {
          if(!(Test-Path $Path -PathType Leaf)) {
             $Path = Join-Path $Path ((Split-Path $Path -Leaf) + $ModuleManifestExtension)
          }
+      }
+      if(!(Test-Path $Path)) {
+         # TODO: Future Joel will have to make this better
+         $PSCmdlet.WriteError( (New-Object System.Management.Automation.ErrorRecord (
+            New-Object System.Management.Automation.ItemNotFoundException "Can't find settings file $Path"), 
+             "PathNotFound,Metadata\Import-Metadata", "ObjectNotFound", $_) )
+         return
       }
 
       try {
@@ -357,8 +359,6 @@ function Export-Metadata {
 }
 
 
-
-
 # These functions are simple helpers for use in data sections (see about_data_sections) and .psd1 files (see ConvertFrom-Metadata)
 function PSObject {
    <#
@@ -409,6 +409,7 @@ if($Converters -is [Collections.IDictionary]) {
    Add-MetadataConverter $Converters
 }
 
+# The OriginalMetadataConverters
 Add-MetadataConverter @{
    [bool]    = { if($_) { '$True' } else { '$False' } }
 
@@ -433,3 +434,93 @@ Add-MetadataConverter @{
 }
 
 $Script:OriginalMetadataConverters = $MetadataConverters.Clone()
+
+function Optimize-Object {
+   <#
+      .Synopsis
+         Remove duplicate data from an object
+      .Description
+         Removes values from the delta object that are in the base object
+   #>
+}
+function Update-Object {
+   <#
+      .Synopsis
+         Update a custom object (or hashtable) with new values
+      .Description
+         Updates the InputObject with data from the update object.
+      .Example
+         Update-Object -Input @{
+            One = "Un"
+            Two = "Dos"
+         } -Update @{
+            One = "Uno"
+            Three = "Tres"
+         }
+
+         Updates the InputObject with the values in the UpdateObject
+         will return the following object:
+         @{
+            One = "Uno"
+            Two = "Dos"
+            Three = "Tres"
+         }
+   #>
+   [CmdletBinding()]
+   param(
+      [AllowNull()]
+      [Parameter(Position=0, Mandatory=$true)]
+      $UpdateObject,
+
+      [Parameter(ValueFromPipeline=$true, Mandatory = $true)]
+      $InputObject
+   )
+   Write-Verbose "INPUT OBJECT:"
+   Write-Verbose (($InputObject | out-string -stream | % TrimEnd) -join "`n")
+   Write-Verbose "Update OBJECT:"
+   Write-Verbose (($UpdateObject | out-string -stream | % TrimEnd) -join "`n")
+   if($InputObject -is [Hashtable]) {
+      $OutputObject = $InputObject #| Select $p1
+   } elseif($InputObject) {
+      # Create a PSCustomObject with all the properties 
+      $OutputObject = $InputObject | Select-Object *
+   } else {
+      # TODO: Future Joel should clean up this error
+      Write-Warning "No InputObject, Output is just the UpdateObject"
+      if($UpdateObject -is [Hashtable]) {
+         $UpdateObject
+      } elseif($InputObject) {
+         # Create a PSCustomObject with all the properties 
+         $InputObject | Select-Object *
+      }
+      return
+   }
+   
+   if(!$UpdateObject) {
+      $OutputObject
+      return
+   }
+
+   if($UpdateObject -is [Hashtable]) {
+      $Keys = $UpdateObject.Keys
+   } else {
+      $Keys = @($UpdateObject | gm -type Properties | Where { $p1 -notcontains $_.Name } | select -expand Name)
+   }
+
+   ForEach($key in $Keys) {
+      if(($OutputObject.$Key -is [Hashtable] -or $OutputObject.$Key -is [PSObject]) -and 
+         ($InputObject.$Key -is [Hashtable] -or $InputObject.$Key -is [PSObject])) {
+         $Value = Update-Object -InputObject $InputObject.$Key -UpdateObject $UpdateObject.$Key
+      } else {
+         $Value = $UpdateObject.$Key
+      } 
+
+      if($OutputObject -is [Hashtable]) {
+         $OutputObject.$key = $Value
+      } else {
+         $OutputObject = Add-Member -in $OutputObject -type NoteProperty -name $key -value $Value -Passthru -Force
+      }
+   }
+
+   $OutputObject
+}

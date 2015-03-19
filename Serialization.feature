@@ -94,7 +94,7 @@ Feature: Serialize Hashtables or Custom Objects
               Age = 42
             }
             """
-        When we export to a settings file named Settings.psd1
+        When we export to a settings file named Configuration.psd1
         Then the settings file should contain
             """
             @{
@@ -114,15 +114,15 @@ Feature: Serialize Hashtables or Custom Objects
               Homepage = [Uri]"http://HuddledMasses.org"
             }
             """
-        Then the settings object should have an Homepage of type Uri
+        Then the settings object should have a Homepage of type Uri
         And we add a converter for Uri types
         And we convert the settings to metadata
         When we convert the metadata to an object
         Then the settings object should be a hashtable
-        Then the settings object should have an UserName of type String
+        Then the settings object should have a UserName of type String
         Then the settings object should have an Age of type Int32
-        Then the settings object should have an LastUpdated of type DateTime
-        Then the settings object should have an Homepage of type Uri
+        Then the settings object should have a LastUpdated of type DateTime
+        Then the settings object should have a Homepage of type Uri
 
     @Deserialization @Uri @Converter
     Scenario: I should be able to import serialized data even in PowerShell 2
@@ -141,10 +141,10 @@ Feature: Serialize Hashtables or Custom Objects
         And we convert the settings to metadata
         When we convert the metadata to an object
         Then the settings object should be a hashtable
-        Then the settings object should have an UserName of type PSObject
+        Then the settings object should have a UserName of type PSObject
         Then the settings object should have an Age of type String
-        Then the settings object should have an LastUpdated of type DateTimeOffset
-        Then the settings object should have an GUID of type GUID
+        Then the settings object should have a LastUpdated of type DateTimeOffset
+        Then the settings object should have a GUID of type GUID
 
     @Deserialization @Uri @Converter
     Scenario: I should be able to add converters at import time
@@ -157,7 +157,7 @@ Feature: Serialize Hashtables or Custom Objects
               Homepage = [Uri]"http://HuddledMasses.org"
             }
             """
-        Then the settings object should have an Homepage of type Uri
+        Then the settings object should have a Homepage of type Uri
         And we convert the settings to metadata
         Then the string version should match
             """
@@ -165,14 +165,14 @@ Feature: Serialize Hashtables or Custom Objects
             """        
         When we convert the metadata to an object
         Then the settings object should be a hashtable
-        Then the settings object should have an UserName of type String
-        Then the settings object should have an Age of type Int32
-        Then the settings object should have an Homepage of type Uri
+        And the settings object should have a UserName of type String
+        And the settings object should have an Age of type Int32
+        And the settings object should have a Homepage of type Uri
 
 
     @Deserialization @File
     Scenario: I should be able to import serialized data from files even in PowerShell 2
-        Given a settings file named Settings.psd1
+        Given a settings file named Configuration.psd1
             """
             @{
               UserName = 'Joel'
@@ -182,8 +182,8 @@ Feature: Serialize Hashtables or Custom Objects
         And we fake version 2.0 in the Metadata module
         When we import the file to an object
         Then the settings object should be a hashtable
-        Then the settings object should have an UserName of type String
-        Then the settings object should have an Age of type Int32
+        And the settings object should have a UserName of type String
+        And the settings object should have an Age of type Int32
 
 
     @Deserialization @File
@@ -197,15 +197,15 @@ Feature: Serialize Hashtables or Custom Objects
             """
         When we import the file to an object
         Then the settings object should be a hashtable
-        Then the settings object should have an UserName of type String
+        Then the settings object should have a UserName of type String
         Then the settings object should have an Age of type Int32
 
     @Deserialization @File
     Scenario: Imported metadata files should be able to use PSScriptRoot
-        Given a settings file named Settings.psd1
+        Given a settings file named Configuration.psd1
             """
             @{
-              MyPath = Join-Path $PSScriptRoot "Settings.psd1"
+              MyPath = Join-Path $PSScriptRoot "Configuration.psd1"
             }
             """
         And we're using PowerShell 4 or higher in the Metadata module
@@ -217,7 +217,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Deserialization @File
     Scenario: Bad data should generate useful errors
-        Given a settings file named Settings.psd1
+        Given a settings file named Configuration.psd1
             """
             @{ UserName = }
             """
@@ -228,7 +228,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Deserialization @File
     Scenario: Disallowed commands should generate useful errors
-        Given a settings file named Settings.psd1
+        Given a settings file named Configuration.psd1
             """
             @{ 
                 UserName = New-Object PSObject -Property @{ First = "Joel" }
@@ -250,5 +250,5 @@ Feature: Serialize Hashtables or Custom Objects
             """
         When we import the folder path
         Then the settings object should be a hashtable
-        Then the settings object should have an UserName of type String
+        Then the settings object should have a UserName of type String
         Then the settings object should have an Age of type Int32

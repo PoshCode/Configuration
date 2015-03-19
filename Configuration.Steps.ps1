@@ -30,13 +30,16 @@ When "a script with the name '(.+)'" {
 When "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company>.+?)'|\s+\w+ the author '(?<author>.+?)')+" {
     param($name, $Company = "", $Author = "")
 
-    $ModulePath = "TestDrive:\Modules\$name"
+    $Script:ModulePath = "TestDrive:\Modules\$name"
     Remove-Module $name -ErrorAction SilentlyContinue
     Remove-Item $ModulePath -Recurse -ErrorAction SilentlyContinue
     $null = mkdir $ModulePath -Force
     $Env:PSModulePath = $Env:PSModulePath + ";TestDrive:\Modules" -replace "(;TestDrive:\\Modules)+?$", ";TestDrive:\Modules"
 
-    Set-Content $ModulePath\${Name}.psm1 "function GetStoragePath {Get-StoragePath @Args }"
+    Set-Content $ModulePath\${Name}.psm1 "
+    function GetStoragePath {Get-StoragePath @Args }
+    function ImportConfiguration { Import-Configuration }
+    "
 
     New-ModuleManifest $ModulePath\${Name}.psd1 -RootModule .\${Name}.psm1 -Description "A Super Test Module" -Company $Company -Author $Author
 
@@ -84,9 +87,21 @@ When "a settings hashtable" {
     $script:Settings = iex "[ordered]$hashtable"
 }
 
-When "a settings file named (.*)" {
-    param($fileName, $hashtable)
-    $Script:SettingsFile = Join-Path TestDrive:\ $fileName
+When "a settings file named (\S+)(?: in the (\S+) folder)?" {
+    param($fileName, $Scope, $hashtable)
+
+    if($Scope -and !$hashtable) {
+        $hashtable = $Scope
+        $Scope = $null
+    }
+    if($Scope) {
+        $folder = GetStoragePath -Scope $Scope
+    } elseif(Test-Path "${Script:ModulePath}") {
+        $folder = $Script:ModulePath
+    } else {
+        $folder = "TestDrive:\"
+    }
+    $Script:SettingsFile = Join-Path $folder $fileName
 
     $Parent = Split-Path $Script:SettingsFile
     if(!(Test-Path $Parent)) {
@@ -177,14 +192,17 @@ When "we convert the settings to metadata" {
 
 When "we export to a settings file named (.*)" {
     param($fileName)
-    $Script:SettingsFile = Join-Path TestDrive:\ $fileName
+    if(!$Script:ModulePath -or !(Test-Path $Script:ModulePath)) {
+        $Script:ModulePath = "TestDrive:\"
+    }
+    $Script:SettingsFile = Join-Path $Script:ModulePath $fileName
     $File = $script:Settings | Export-Metadata ${Script:SettingsFile} -Passthru
     $File.FullName | Should Be (Convert-Path $SettingsFile)
 }
 
 
 When "we convert the metadata to an object" {
-    $script:Settings = Import-Metadata $script:SettingsMetadata
+    $script:Settings = ConvertFrom-Metadata $script:SettingsMetadata
 
     Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
@@ -262,13 +280,23 @@ When "we add a converter with a number as a key" {
 
 Then "the settings object should be a (.*)" {
     param([Type]$Type)
-    $script:Settings -is $Type | Should Be $true
+    $script:Settings | Should BeA $Type
 }
 
 
 Then "the settings object should have an? (.*) of type (.*)" {
     param([String]$Parameter, [Type]$Type)
-    $script:Settings.$Parameter -is $Type | Should Be $true
+    $script:Settings.$Parameter | Should BeA $Type
+}
+
+Then "the settings object's (.*) should (\w*) (.*)" {
+    param([String]$Parameter, [String]$operator, $Expected)
+    $Value = $script:Settings
+    foreach($property in $Parameter.Split(".")) {
+        $value = $value.$property
+    }
+
+    $value | Should $operator $Expected
 }
 
 Given "a mock PowerShell version (.*)" {
@@ -312,3 +340,8 @@ Then "the Version -(..) (.*)" {
     Test-PSVersion @test | Should Be $True
 }
 
+When "I call Import-Configuration" {
+    $script:Settings = ImportConfiguration
+
+    Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+}
