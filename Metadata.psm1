@@ -402,6 +402,20 @@ function DateTimeOffset {
    [DateTimeOffset]$Value
 }
 
+function PSCredential {
+   <#
+      .Synopsis
+         Creates a new PSCredential with the specified properties
+      .Description
+         This is just a wrapper for the PSObject constructor with -Property $Value
+         It exists purely for the sake of psd1 serialization
+      .Parameter Value
+         The hashtable of properties to add to the created objects
+   #>
+   param([string]$UserName, [string]$Password)
+   New-Object PSCredential $UserName, (ConvertTo-SecureString $Password)
+}
+
 
 $MetadataConverters = @{}
 
@@ -414,6 +428,8 @@ Add-MetadataConverter @{
    [bool]    = { if($_) { '$True' } else { '$False' } }
 
    [Version] = { "'$_'" }
+
+   [PSCredential] = { 'PSCredential "{0}" "{1}"' -f $_.UserName, (ConvertFrom-SecureString $_.Password) }
 
    # This GUID is here instead of as a function
    # just to make sure the tests can validate the converter hashtables
