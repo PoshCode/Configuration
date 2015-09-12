@@ -19,7 +19,7 @@ Feature: Module Configuration
             }
             """
         When I call Import-Configuration 
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         And the settings object should have a UserName of type String
         And the settings object should have an Age of type Int32
 
@@ -40,7 +40,7 @@ Feature: Module Configuration
             }
             """
         When I call Import-Configuration 
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         And the settings object's UserName should be Joel Bennett
         And the settings object's Age should be 42
 
@@ -68,10 +68,10 @@ Feature: Module Configuration
             }
             """
         When I call Import-Configuration
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         And the settings object's UserName should be Jaykul
         And the settings object's FullName should be Joel Bennett
-        And the settings object's BirthDay should bea hashtable
+        And the settings object's BirthDay should be of type hashtable
         And the settings object's BirthDay.Month should be May
         And the settings object's BirthDay.Day should be 22
         
@@ -110,10 +110,10 @@ Feature: Module Configuration
             }
             """
         When I call Import-Configuration
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         And the settings object's UserName should be Jaykul
         And the settings object's FullName should be Joel Bennett
-        And the settings object's BirthDay should bea PSCustomObject
+        And the settings object's BirthDay should be of type PSCustomObject
         And the settings object's BirthDay.Month should be May
         And the settings object's BirthDay.Day should be 22
         
@@ -146,7 +146,7 @@ Feature: Module Configuration
             }
             """
         When I call Import-Configuration 
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         And the settings object's UserName should be Jaykul
         And the settings object's FullName should be Joel Bennett
         And the settings object's Age should be 42
@@ -166,11 +166,11 @@ Feature: Module Configuration
             }
             """
         When I call Import-Configuration
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         And the settings object's UserName should be Jaykul
         And the settings object's FullName should be Joel Bennett
-        And the settings object's BirthDay should bea hashtable
+        And the settings object's BirthDay should be of type hashtable
         And the settings object's BirthDay.Month should be May
         And the settings object's BirthDay.Day should be 22
         
-        
+

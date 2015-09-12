@@ -37,8 +37,9 @@ When "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company>
     $Env:PSModulePath = $Env:PSModulePath + ";TestDrive:\Modules" -replace "(;TestDrive:\\Modules)+?$", ";TestDrive:\Modules"
 
     Set-Content $ModulePath\${Name}.psm1 "
-    function GetStoragePath {Get-StoragePath @Args }
+    function GetStoragePath { Get-StoragePath @Args }
     function ImportConfiguration { Import-Configuration }
+    function ImportConfigVersion { Import-Configuration -Version 2.0 }
     "
 
     New-ModuleManifest $ModulePath\${Name}.psd1 -RootModule .\${Name}.psm1 -Description "A Super Test Module" -Company $Company -Author $Author
@@ -87,15 +88,15 @@ When "a settings hashtable" {
     $script:Settings = iex "[ordered]$hashtable"
 }
 
-When "a settings file named (\S+)(?: in the (\S+) folder)?" {
-    param($fileName, $Scope, $hashtable)
+When "a settings file named (\S+)(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
+    param($fileName, $hashtable, $Scope = $null, $Version = $null)
 
-    if($Scope -and !$hashtable) {
-        $hashtable = $Scope
-        $Scope = $null
-    }
-    if($Scope) {
+    if($Scope -and $Version) {
+        $folder = GetStoragePath -Scope $Scope -Version $Version
+    } elseif($Scope) {
         $folder = GetStoragePath -Scope $Scope
+    } elseif($Version) {
+        $folder = GetStoragePath -Version $Version
     } elseif(Test-Path "${Script:ModulePath}") {
         $folder = $Script:ModulePath
     } else {
@@ -238,7 +239,7 @@ When "the settings file should (\w+)\s*(.*)?" {
     param($operator, $data)
                     # I have to normalize line endings:
     $data = [regex]::escape(($data -replace "\r?\n","`n"))
-    if($operator -eq "contain"){ $operator = "containmultiline"}
+    if($operator -eq "Contain"){ $operator = "ContainMultiline"}
     Get-Item ${Script:SettingsFile} | Should $operator $data
 }
 # This step will create verifiable/counting loggable mocks for Write-Warning, Write-Error, Write-Verbose
@@ -278,25 +279,31 @@ When "we add a converter with a number as a key" {
 
 # Then the error is logged exactly 2 times
 
-Then "the settings object should be a (.*)" {
+Then "the settings object should be of type (.*)" {
     param([Type]$Type)
-    $script:Settings | Should BeA $Type
+    $script:Settings | Should BeOfType $Type
 }
 
 
 Then "the settings object should have an? (.*) of type (.*)" {
     param([String]$Parameter, [Type]$Type)
-    $script:Settings.$Parameter | Should BeA $Type
+    $script:Settings.$Parameter | Should BeOfType $Type
 }
 
-Then "the settings object's (.*) should (\w*) (.*)" {
+Then "the settings object's (.*) should (be of type|be) (.*)" {
     param([String]$Parameter, [String]$operator, $Expected)
     $Value = $script:Settings
     foreach($property in $Parameter.Split(".")) {
         $value = $value.$property
     }
 
-    $value | Should $operator $Expected
+    $operator = $operator -replace " "
+
+    if($Operator -eq "be" -and $Expected -eq "null") {
+        $value | Should BeNullOrEmpty
+    } else {
+        $value | Should $operator $Expected
+    }
 }
 
 Given "a mock PowerShell version (.*)" {

@@ -118,7 +118,7 @@ Feature: Serialize Hashtables or Custom Objects
         And we add a converter for Uri types
         And we convert the settings to metadata
         When we convert the metadata to an object
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         Then the settings object should have a UserName of type String
         Then the settings object should have an Age of type Int32
         Then the settings object should have a LastUpdated of type DateTime
@@ -140,7 +140,7 @@ Feature: Serialize Hashtables or Custom Objects
         And we add a converter for Uri types
         And we convert the settings to metadata
         When we convert the metadata to an object
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         Then the settings object should have a UserName of type PSObject
         Then the settings object should have an Age of type String
         Then the settings object should have a LastUpdated of type DateTimeOffset
@@ -164,7 +164,7 @@ Feature: Serialize Hashtables or Custom Objects
               Homepage = Uri 'http://HuddledMasses.org/'
             """        
         When we convert the metadata to an object
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         And the settings object should have a UserName of type String
         And the settings object should have an Age of type Int32
         And the settings object should have a Homepage of type Uri
@@ -181,7 +181,7 @@ Feature: Serialize Hashtables or Custom Objects
             """
         And we fake version 2.0 in the Metadata module
         When we import the file to an object
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         And the settings object should have a UserName of type String
         And the settings object should have an Age of type Int32
 
@@ -196,7 +196,7 @@ Feature: Serialize Hashtables or Custom Objects
             }
             """
         When we import the file to an object
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         Then the settings object should have a UserName of type String
         Then the settings object should have an Age of type Int32
 
@@ -210,7 +210,7 @@ Feature: Serialize Hashtables or Custom Objects
             """
         And we're using PowerShell 4 or higher in the Metadata module
         When we import the file to an object
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         And the settings object should have a MyPath of type String
         And the settings object MyPath should match the file's path
 
@@ -249,6 +249,6 @@ Feature: Serialize Hashtables or Custom Objects
             }
             """
         When we import the folder path
-        Then the settings object should be a hashtable
+        Then the settings object should be of type hashtable
         Then the settings object should have a UserName of type String
         Then the settings object should have an Age of type Int32

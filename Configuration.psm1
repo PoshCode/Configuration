@@ -175,7 +175,9 @@ function Import-Configuration {
 
     $ModulePath = Split-Path $ModulePath -Parent
     $ModulePath = Join-Path $ModulePath Configuration.psd1
-    $Local = Import-Metadata $ModulePath -ErrorAction Ignore
+    $Local = if(Test-Path $ModulePath) {
+                Import-Metadata $ModulePath -ErrorAction Ignore
+            } else { @{} }
 
     $Parameters = @{
         CompanyName = $CompanyName
@@ -187,15 +189,21 @@ function Import-Configuration {
 
     $MachinePath = Get-StoragePath @Parameters -Scope Machine
     $MachinePath = Join-Path $MachinePath Configuration.psd1
-    $Machine = Import-Metadata $MachinePath -ErrorAction Ignore
+    $Machine = if(Test-Path $MachinePath) {
+                Import-Metadata $MachinePath -ErrorAction Ignore
+            } else { @{} }
 
     $EnterprisePath = Get-StoragePath @Parameters -Scope Enterprise
     $EnterprisePath = Join-Path $EnterprisePath Configuration.psd1
-    $Enterprise = Import-Metadata $EnterprisePath -ErrorAction Ignore
+    $Enterprise = if(Test-Path $EnterprisePath) {
+                Import-Metadata $EnterprisePath -ErrorAction Ignore
+            } else { @{} }
 
     $LocalUserPath = Get-StoragePath @Parameters -Scope User
     $LocalUserPath = Join-Path $LocalUserPath Configuration.psd1
-    $User = Import-Metadata $LocalUserPath -ErrorAction Ignore
+    $User = if(Test-Path $LocalUserPath) {
+                Import-Metadata $LocalUserPath -ErrorAction Ignore
+            } else { @{} }
 
     $Local | Update-Object $Machine | 
              Update-Object $Enterprise | 
