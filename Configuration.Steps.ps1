@@ -352,3 +352,9 @@ When "I call Import-Configuration" {
 
     Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
+
+When "I call Import-Configuration with a Version" {
+    $script:Settings = ImportConfigVersion
+
+    Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+}

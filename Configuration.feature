@@ -174,3 +174,34 @@ Feature: Module Configuration
         And the settings object's BirthDay.Day should be 22
         
 
+
+    @Modules @Import
+    Scenario: SxS Versions
+        Given a module with the name 'MyModule1'
+        And a settings file named Configuration.psd1 in the Enterprise folder
+            """
+            @{
+              FullName = 'John Smith'
+              BirthDay = @{
+                Month = 'December'
+                Day = 22
+              }
+            }
+            """
+        And a settings file named Configuration.psd1 in the Enterprise folder for version 2.0
+            """
+            @{
+              FullName = 'Joel Bennett'
+              UserName = 'Jaykul'
+              Birthday = @{
+                Month = 'May'
+              }
+            }
+            """
+        When I call Import-Configuration with a version
+        Then the settings object should be of type hashtable
+        And the settings object's UserName should be Jaykul
+        And the settings object's FullName should be Joel Bennett
+        And the settings object's BirthDay should be of type hashtable
+        And the settings object's BirthDay.Month should be May
+        And the settings object's BirthDay.Day should be null
