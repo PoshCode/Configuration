@@ -243,8 +243,7 @@ function ConvertFrom-Metadata {
       }
 
       if($ParseErrors -ne $null) {
-         $ParseException = New-Object System.Management.Automation.ParseException (,[System.Management.Automation.Language.ParseError[]]$ParseErrors)
-         $PSCmdlet.ThrowTerminatingError((New-Object System.Management.Automation.ErrorRecord $ParseException, "Metadata Error", "ParserError", $InputObject))
+         ThrowError -Exception (New-Object System.Management.Automation.ParseException (,[System.Management.Automation.Language.ParseError[]]$ParseErrors)) -ErrorId "Metadata Error" -Category "ParserError" -TargetObject $InputObject
       }
 
       $Tokens += $Tokens | Where-Object { "StringExpandable" -eq $_.Kind } | Select-Object -Expand NestedTokens
@@ -262,7 +261,7 @@ function ConvertFrom-Metadata {
          $Script.CheckRestrictedLanguage( $ValidCommands, $ValidVariables, $true )
       }
       catch {
-         $PSCmdlet.ThrowTerminatingError((New-Object System.Management.Automation.ErrorRecord $_.Exception.InnerException, "Metadata Error", "InvalidData", $Script))
+         ThrowError -Exception $_.Exception.InnerException -ErrorId "Metadata Error" -Category "InvalidData" -TargetObject $Script
       }
 
       $Mode, $ExecutionContext.SessionState.LanguageMode = $ExecutionContext.SessionState.LanguageMode, "RestrictedLanguage"
@@ -300,16 +299,14 @@ function Import-Metadata {
       }
       if(!(Test-Path $Path)) {
          # TODO: Future Joel will have to make this better
-         $PSCmdlet.WriteError( (New-Object System.Management.Automation.ErrorRecord (
-            New-Object System.Management.Automation.ItemNotFoundException "Can't find settings file $Path"), 
-             "PathNotFound,Metadata\Import-Metadata", "ObjectNotFound", $_) )
+         WriteError -ExceptionType System.Management.Automation.ItemNotFoundException -Message "Can't find settings file $Path" -ErrorId "PathNotFound,Metadata\Import-Metadata" -Category "ObjectNotFound"
          return
       }
 
       try {
          ConvertFrom-Metadata -InputObject $Path -Converters $Converters
       } catch {
-         $PSCmdlet.ThrowTerminatingError( $_ )
+         ThrowError $_
       }
    }
 }
@@ -431,6 +428,8 @@ Add-MetadataConverter @{
 
    [PSCredential] = { 'PSCredential "{0}" "{1}"' -f $_.UserName, (ConvertFrom-SecureString $_.Password) }
 
+   [SecureString] = { "ConvertTo-SecureString {0}" -f (ConvertFrom-SecureString $_) }
+
    # This GUID is here instead of as a function
    # just to make sure the tests can validate the converter hashtables
    Guid = {
@@ -459,6 +458,7 @@ function Optimize-Object {
          Removes values from the delta object that are in the base object
    #>
 }
+
 function Update-Object {
    <#
       .Synopsis
@@ -539,4 +539,121 @@ function Update-Object {
    }
 
    $OutputObject
+}
+
+
+# Utility to throw an errorrecord
+function ThrowError {
+    param
+    (        
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.PSCmdlet]
+        $Cmdlet = $((Get-Variable -Scope 1 PSCmdlet).Value),
+
+        [Parameter(Mandatory = $true, ParameterSetName="ExistingException", Position=1, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
+        [Parameter(ParameterSetName="NewException")]
+        [ValidateNotNullOrEmpty()]
+        [System.Exception]
+        $Exception,
+
+        [Parameter(ParameterSetName="NewException", Position=2)]
+        [ValidateNotNullOrEmpty()]
+        [System.String]        
+        $ExceptionType="System.Management.Automation.RuntimeException",
+
+        [Parameter(Mandatory = $true, ParameterSetName="NewException", Position=3)]
+        [ValidateNotNullOrEmpty()]
+        [System.String]
+        $Message,
+        
+        [Parameter(Mandatory = $false)]
+        [System.Object]
+        $TargetObject,
+        
+        [Parameter(Mandatory = $true, ParameterSetName="ExistingException", Position=10)]
+        [Parameter(Mandatory = $true, ParameterSetName="NewException", Position=10)]
+        [ValidateNotNullOrEmpty()]
+        [System.String]
+        $ErrorId,
+
+        [Parameter(Mandatory = $true, ParameterSetName="ExistingException", Position=11)]
+        [Parameter(Mandatory = $true, ParameterSetName="NewException", Position=11)]
+        [ValidateNotNull()]
+        [System.Management.Automation.ErrorCategory]
+        $Category,
+
+        [Parameter(Mandatory = $true, ParameterSetName="Rethrow", Position=1)]
+        [System.Management.Automation.ErrorRecord]$ErrorRecord
+    ) 
+    process {
+        if(!$ErrorRecord) {
+            if($PSCmdlet.ParameterSetName -eq "NewException") {
+                if($Exception) {
+                    $Exception = New-Object $ExceptionType $Message, $Exception
+                } else {
+                    $Exception = New-Object $ExceptionType $Message
+                }
+            }
+            $errorRecord = New-Object System.Management.Automation.ErrorRecord $Exception, $ErrorId, $Category, $TargetObject
+        }
+        $Cmdlet.ThrowTerminatingError($errorRecord)
+    }
+}
+
+# Utility to throw an errorrecord
+function WriteError {
+    param
+    (        
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.PSCmdlet]
+        $Cmdlet = $((Get-Variable -Scope 1 PSCmdlet).Value),
+
+        [Parameter(Mandatory = $true, ParameterSetName="ExistingException", Position=1, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
+        [Parameter(ParameterSetName="NewException")]
+        [ValidateNotNullOrEmpty()]
+        [System.Exception]
+        $Exception,
+
+        [Parameter(ParameterSetName="NewException", Position=2)]
+        [ValidateNotNullOrEmpty()]
+        [System.String]        
+        $ExceptionType="System.Management.Automation.RuntimeException",
+
+        [Parameter(Mandatory = $true, ParameterSetName="NewException", Position=3)]
+        [ValidateNotNullOrEmpty()]
+        [System.String]
+        $Message,
+        
+        [Parameter(Mandatory = $false)]
+        [System.Object]
+        $TargetObject,
+        
+        [Parameter(Mandatory = $true, Position=10)]
+        [ValidateNotNullOrEmpty()]
+        [System.String]
+        $ErrorId,
+
+        [Parameter(Mandatory = $true, Position=11)]
+        [ValidateNotNull()]
+        [System.Management.Automation.ErrorCategory]
+        $Category,
+
+        [Parameter(Mandatory = $true, ParameterSetName="Rethrow", Position=1)]
+        [System.Management.Automation.ErrorRecord]$ErrorRecord
+    ) 
+    process {
+        if(!$ErrorRecord) {
+            if($PSCmdlet.ParameterSetName -eq "NewException") {
+                if($Exception) {
+                    $Exception = New-Object $ExceptionType $Message, $Exception
+                } else {
+                    $Exception = New-Object $ExceptionType $Message
+                }
+            }
+            $errorRecord = New-Object System.Management.Automation.ErrorRecord $Exception, $ErrorId, $Category, $TargetObject
+        }
+        $Cmdlet.WriteError($errorRecord)
+    }
 }

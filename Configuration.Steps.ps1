@@ -246,6 +246,10 @@ When "the settings file should (\w+)\s*(.*)?" {
 When "we expect an? (?<type>warning|error|verbose)" {
     param($type)
     Mock -Module Metadata Write-$type { $true } -Verifiable
+    if($Type -eq "Error") {
+        Mock -Module Metadata WriteError { Write-Error "Error" -TargetObject $Args } -Verifiable
+        Mock -Module Metadata ThrowError { Write-Error "Error" -TargetObject $Args } -Verifiable
+    }
 }
 
 # this step lets us verify the number of calls to those three mocks

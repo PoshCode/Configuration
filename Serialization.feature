@@ -252,3 +252,11 @@ Feature: Serialize Hashtables or Custom Objects
         Then the settings object should be of type hashtable
         Then the settings object should have a UserName of type String
         Then the settings object should have an Age of type Int32
+
+
+
+    @Serialization @Deserialization @File
+    Scenario: Errors when you import missing files
+        Given we expect an error
+        When we import the file to an object
+        Then the error is logged exactly 2 times
