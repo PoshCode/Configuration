@@ -300,3 +300,39 @@ Feature: Serialize Hashtables or Custom Objects
         Given we expect an error
         When we import the file to an object
         Then the error is logged
+
+
+    @UpdateObject
+    Scenario: Update An Object
+        Given a settings hashtable 
+            """
+            @{
+              UserName = 'Joel'
+              Age = 41
+              Homepage = [Uri]"http://HuddledMasses.org"
+            }
+            """
+        When we update the settings with
+            """
+            @{
+              Age = 42
+            }
+            """
+        And the settings object's UserName should be Joel
+        And the settings object's Age should be 42
+
+    @UpdateObject
+    Scenario: Try to Update An Object With Nothing
+        Given a settings hashtable 
+            """
+            @{
+              UserName = 'Joel'
+              Age = 41
+              Homepage = [Uri]"http://HuddledMasses.org"
+            }
+            """
+        When we update the settings with
+            """
+            """
+        And the settings object's UserName should be Joel
+        And the settings object's Age should be 41

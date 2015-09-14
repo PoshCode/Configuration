@@ -88,6 +88,17 @@ When "a settings hashtable" {
     $script:Settings = iex "[ordered]$hashtable"
 }
 
+When "we update the settings with" {
+    param($hashtable)
+    $Update = if($hashtable) {
+        iex $hashtable
+    } else {
+        $null
+    }
+
+    $script:Settings = $script:Settings | Update-Object $Update
+}
+
 When "a settings file named (\S+)(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
     param($fileName, $hashtable, $Scope = $null, $Version = $null)
 
@@ -303,6 +314,9 @@ Then "the settings object should have an? (.*) of type (.*)" {
 Then "the settings object's (.*) should (be of type|be) (.*)" {
     param([String]$Parameter, [String]$operator, $Expected)
     $Value = $script:Settings
+
+    Write-Debug ($Settings | Out-String)
+
     foreach($property in $Parameter.Split(".")) {
         $value = $value.$property
     }

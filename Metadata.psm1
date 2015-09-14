@@ -276,39 +276,41 @@ function ConvertFrom-Metadata {
 }
 
 function Import-Metadata {
-   <#
-      .Synopsis
-         Creates a data object from the items in a Metadata file (e.g. a .psd1)
-   #>
-   [CmdletBinding()]
-   param(
-      [Parameter(ValueFromPipeline=$true, Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
-      [Alias("PSPath","Content")]
-      [string]$Path,
+    <#
+        .Synopsis
+            Creates a data object from the items in a Metadata file (e.g. a .psd1)
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipeline=$true, Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
+        [Alias("PSPath","Content")]
+        [string]$Path,
 
-      [Hashtable]$Converters = @{}
-   )
+        [Hashtable]$Converters = @{}
+    )
 
-   process {
-      $ModuleInfo = $null
-      if(Test-Path $Path) {
-         Write-Verbose "Importing Metadata file from `$Path: $Path"
-         if(!(Test-Path $Path -PathType Leaf)) {
-            $Path = Join-Path $Path ((Split-Path $Path -Leaf) + $ModuleManifestExtension)
-         }
-      }
-      if(!(Test-Path $Path)) {
-         # TODO: Future Joel will have to make this better
-         WriteError -ExceptionType System.Management.Automation.ItemNotFoundException -Message "Can't find settings file $Path" -ErrorId "PathNotFound,Metadata\Import-Metadata" -Category "ObjectNotFound"
-         return
-      }
+    process {
+        $ModuleInfo = $null
+        if(Test-Path $Path) {
+            Write-Verbose "Importing Metadata file from `$Path: $Path"
+            if(!(Test-Path $Path -PathType Leaf)) {
+                $Path = Join-Path $Path ((Split-Path $Path -Leaf) + $ModuleManifestExtension)
+            }
+        }
+        if(!(Test-Path $Path)) {
+            WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
+                       -Message "Can't find settings file $Path" `
+                       -ErrorId "PathNotFound,Metadata\Import-Metadata" `
+                       -Category "ObjectNotFound"
+            return
+        }
 
-      try {
-         ConvertFrom-Metadata -InputObject $Path -Converters $Converters
-      } catch {
-         ThrowError $_
-      }
-   }
+        try {
+            ConvertFrom-Metadata -InputObject $Path -Converters $Converters
+        } catch {
+            ThrowError $_
+        }
+    }
 }
 
 function Export-Metadata {
@@ -460,85 +462,83 @@ function Optimize-Object {
 }
 
 function Update-Object {
-   <#
-      .Synopsis
-         Update a custom object (or hashtable) with new values
-      .Description
-         Updates the InputObject with data from the update object.
-      .Example
-         Update-Object -Input @{
-            One = "Un"
-            Two = "Dos"
-         } -Update @{
-            One = "Uno"
-            Three = "Tres"
-         }
+    <#
+        .Synopsis
+            Update a custom object (or hashtable) with new values
+        .Description
+            Updates the InputObject with data from the update object.
+        .Example
+            Update-Object -Input @{
+                One = "Un"
+                Two = "Dos"
+            } -Update @{
+                One = "Uno"
+                Three = "Tres"
+            }
 
-         Updates the InputObject with the values in the UpdateObject
-         will return the following object:
-         @{
-            One = "Uno"
-            Two = "Dos"
-            Three = "Tres"
-         }
-   #>
-   [CmdletBinding()]
-   param(
-      [AllowNull()]
-      [Parameter(Position=0, Mandatory=$true)]
-      $UpdateObject,
+            Updates the InputObject with the values in the UpdateObject
+            will return the following object:
+            @{
+                One = "Uno"
+                Two = "Dos"
+                Three = "Tres"
+            }
+    #>
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [Parameter(Position=0, Mandatory=$true)]
+        $UpdateObject,
 
-      [Parameter(ValueFromPipeline=$true, Mandatory = $true)]
-      $InputObject
-   )
-   Write-Verbose "INPUT OBJECT:"
-   Write-Verbose (($InputObject | out-string -stream | % TrimEnd) -join "`n")
-   Write-Verbose "Update OBJECT:"
-   Write-Verbose (($UpdateObject | out-string -stream | % TrimEnd) -join "`n")
-   if($InputObject -is [Hashtable]) {
-      $OutputObject = $InputObject #| Select $p1
-   } elseif($InputObject) {
-      # Create a PSCustomObject with all the properties 
-      $OutputObject = $InputObject | Select-Object *
-   } else {
-      # TODO: Future Joel should clean up this error
-      Write-Warning "No InputObject, Output is just the UpdateObject"
-      if($UpdateObject -is [Hashtable]) {
-         $UpdateObject
-      } elseif($InputObject) {
-         # Create a PSCustomObject with all the properties 
-         $InputObject | Select-Object *
-      }
-      return
-   }
-   
-   if(!$UpdateObject) {
-      $OutputObject
-      return
-   }
+        [Parameter(ValueFromPipeline=$true, Mandatory = $true)]
+        $InputObject
+    )
+    process {
+        Write-Verbose "INPUT OBJECT:"
+        Write-Verbose (($InputObject | out-string -stream | % TrimEnd) -join "`n")
+        Write-Verbose "Update OBJECT:"
+        Write-Verbose (($UpdateObject | out-string -stream | % TrimEnd) -join "`n")
+        if($InputObject -eq $null) { return }
 
-   if($UpdateObject -is [Hashtable]) {
-      $Keys = $UpdateObject.Keys
-   } else {
-      $Keys = @($UpdateObject | gm -type Properties | Where { $p1 -notcontains $_.Name } | select -expand Name)
-   }
+        if($InputObject -is [System.Collections.IDictionary]) {
+            $OutputObject = $InputObject
+        } else {
+            # Create a PSCustomObject with all the properties 
+            $OutputObject = $InputObject | Select-Object *
+        }
 
-   ForEach($key in $Keys) {
-      if(($OutputObject.$Key -is [Hashtable] -or $OutputObject.$Key -is [PSObject]) -and 
-         ($InputObject.$Key -is [Hashtable] -or $InputObject.$Key -is [PSObject])) {
-         $Value = Update-Object -InputObject $InputObject.$Key -UpdateObject $UpdateObject.$Key
-      } else {
-         $Value = $UpdateObject.$Key
-      } 
+        if(!$UpdateObject) {
+            Write-Output $OutputObject
+            return
+        }
 
-      if($OutputObject -is [Hashtable]) {
-         $OutputObject.$key = $Value
-      } else {
-         $OutputObject = Add-Member -in $OutputObject -type NoteProperty -name $key -value $Value -Passthru -Force
-      }
-   }
+       if($UpdateObject -is [System.Collections.IDictionary]) {
+          $Keys = $UpdateObject.Keys
+       } else {
+          $Keys = @($UpdateObject | gm -type Properties | Where { $p1 -notcontains $_.Name } | select -expand Name)
+       }
 
-   $OutputObject
+       Write-Debug "Keys: $Keys"
+       ForEach($key in $Keys) {
+          if(($OutputObject.$Key -is [System.Collections.IDictionary] -or $OutputObject.$Key -is [PSObject]) -and 
+             ($InputObject.$Key -is  [System.Collections.IDictionary] -or $InputObject.$Key -is [PSObject])) {
+             $Value = Update-Object -InputObject $InputObject.$Key -UpdateObject $UpdateObject.$Key
+          } else {
+             $Value = $UpdateObject.$Key
+          } 
+
+          if($OutputObject -is [System.Collections.IDictionary]) {
+             $OutputObject.$key = $Value
+          } else {
+             $OutputObject = Add-Member -in $OutputObject -type NoteProperty -name $key -value $Value -Passthru -Force
+          }
+       }
+
+       $Keys = $OutputObject.Keys
+       Write-Debug "Keys: $Keys"
+
+       Write-Output $OutputObject
+    }
 }
 
 
