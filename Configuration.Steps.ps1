@@ -154,6 +154,12 @@ When "a settings hashtable with an? (.+) in it" {
         "PSObject" {
             $Settings.TestCase = New-Object PSObject -Property @{ Name = $Env:UserName }
         }
+        "PSCredential" {
+            $Settings.TestCase = New-Object PSCredential @("UserName", (ConvertTo-SecureString -AsPlainText -Force -String "Password"))
+        }
+        "SecureString" {
+            $Settings.TestCase = ConvertTo-SecureString -AsPlainText -Force -String "Password"
+        }
         "Uri" {
             $Settings.TestCase = [Uri]"http://HuddledMasses.org"
         }

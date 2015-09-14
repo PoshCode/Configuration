@@ -50,6 +50,19 @@ Feature: Serialize Hashtables or Custom Objects
         Then the string version should match 'TestCase = @{'
 
 
+    @Serialization @SecureString @PSCredential
+    Scenario Outline: Should be able to serialize PSCredential
+        Given a settings hashtable with a PSCredential in it
+        When we convert the settings to metadata
+        Then the string version should match "TestCase = PSCredential"
+
+    @Serialization @SecureString
+    Scenario Outline: Should be able to serialize SecureStrings
+        Given a settings hashtable with a SecureString in it
+        When we convert the settings to metadata
+        Then the string version should match "TestCase = ConvertTo-SecureString [a-z0-9]+"
+
+
     @Serialization
     Scenario Outline: Should support a few additional types
         Given a settings hashtable with a <type> in it
@@ -62,6 +75,7 @@ Feature: Serialize Hashtables or Custom Objects
             | DateTimeOffset |
             | GUID           |
             | PSObject       |
+            | PSCredential   |
 
     @Serialization @Enum
     Scenario: Unsupported types should be serialized as strings
@@ -123,6 +137,32 @@ Feature: Serialize Hashtables or Custom Objects
         Then the settings object should have an Age of type Int32
         Then the settings object should have a LastUpdated of type DateTime
         Then the settings object should have a Homepage of type Uri
+
+
+
+
+    @DeSerialization @SecureString @PSCredential
+    Scenario Outline: I should be able to import serialized credentials and secure strings
+        Given a settings hashtable 
+            """
+            @{
+              Credential = PSCredential "UserName" $(ConvertTo-SecureString Password -AsPlainText -Force | ConvertFrom-SecureString)
+              Password = ConvertTo-SecureString $(ConvertTo-SecureString Password -AsPlainText -Force | ConvertFrom-SecureString)
+            }
+            """
+        When we convert the settings to metadata
+        Then the string version should match "Credential = PSCredential"
+        And the string version should match "Password = ConvertTo-SecureString [\"a-z0-9]*"
+        When we convert the metadata to an object
+        Then the settings object should be of type hashtable
+        Then the settings object should have a Credential of type PSCredential
+        Then the settings object should have a Password of type SecureString
+
+    @Serialization @SecureString
+    Scenario Outline: Should be able to serialize SecureStrings
+        Given a settings hashtable with a SecureString in it
+        When we convert the settings to metadata
+        Then the string version should match "TestCase = ConvertTo-SecureString [a-z0-9]+"
 
     @Deserialization @Uri @Converter
     Scenario: I should be able to import serialized data even in PowerShell 2
@@ -259,4 +299,4 @@ Feature: Serialize Hashtables or Custom Objects
     Scenario: Errors when you import missing files
         Given we expect an error
         When we import the file to an object
-        Then the error is logged exactly 2 times
+        Then the error is logged

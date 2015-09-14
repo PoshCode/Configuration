@@ -206,7 +206,7 @@ function ConvertFrom-Metadata {
    begin {
       $Script:OriginalMetadataConverters = $Script:MetadataConverters.Clone()
       Add-MetadataConverter $Converters
-      [string[]]$ValidCommands = @("PSObject", "GUID", "DateTime", "DateTimeOffset", "ConvertFrom-StringData", "Join-Path") +  @($MetadataConverters.Keys.GetEnumerator())
+      [string[]]$ValidCommands = @("PSObject", "GUID", "DateTime", "DateTimeOffset", "ConvertFrom-StringData", "ConvertTo-SecureString", "Join-Path") +  @($MetadataConverters.Keys.GetEnumerator())
       [string[]]$ValidVariables = "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot","PSCulture","PSUICulture","True","False","Null"
    }
    end {
