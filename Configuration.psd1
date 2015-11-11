@@ -19,10 +19,12 @@ CompanyName = 'HuddledMasses.org'
 Copyright = 'Copyright (c) 2014 by Joel Bennett, all rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'A module for storing and reading configuration values'
+Description = 'A module for storing and reading configuration values, with full PS Data serialization, automatic configuration for modules and scripts, etc.'
 
 # Functions to export from this module
-FunctionsToExport = '*'
+FunctionsToExport = 'Import-Configuration','Get-StoragePath','Add-MetadataConverter',
+                    'ConvertFrom-Metadata','ConvertTo-Metadata','Export-Metadata','Import-Metadata',
+                    'Optimize-Object','Update-Object','Test-PSVersion','*'
 
 # Cmdlets to export from this module
 CmdletsToExport = '*'
@@ -34,7 +36,7 @@ VariablesToExport = '*'
 AliasesToExport = '*'
 
 # List of all files packaged with this module
-# FileList = @()
+FileList = @('Configuration.psd1','Configuration.psm1','Metadata.psm1','README.md','LICENSE')
 
 PrivateData = @{
     # PSData is module packaging and gallery metadata embedded in PrivateData
@@ -52,13 +54,13 @@ PrivateData = @{
         # IconUri = ""
 
         # The web address of this module's project or support homepage.
-        # ProjectUri = ""
+        ProjectUri = "https://github.com/PoshCode/Configuration"
 
         # The web address of this module's license. Points to a page that's embeddable and linkable.
-        # LicenseUri = ""
+        LicenseUri = "http://opensource.org/licenses/MIT"
 
         # Release notes for this particular version of the module
-        # ReleaseNotes = False
+        ReleaseNotes = "First public release!"
 
         # If true, the LicenseUrl points to an end-user license (not just a source license) which requires the user agreement before use.
         # RequireLicenseAcceptance = ""
