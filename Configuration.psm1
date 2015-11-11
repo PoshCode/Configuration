@@ -126,6 +126,7 @@ function Import-Configuration {
 
         # An optional module qualifier (by default, this is blank)
         [Parameter(ParameterSetName = "ManualOverride")]
+        [Alias("Author")]
         [String]$CompanyName = $(
             if($CallStack[0].InvocationInfo.MyCommand.Module){
                 $Name = $CallStack[0].InvocationInfo.MyCommand.Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
@@ -173,11 +174,13 @@ function Import-Configuration {
         [Version]$Version
     )
 
+    Write-Verbose "PSBoundParameters $($PSBoundParameters | Out-String)"
     $ModulePath = Split-Path $ModulePath -Parent
     $ModulePath = Join-Path $ModulePath Configuration.psd1
-    $Local = if(Test-Path $ModulePath) {
+    $Module = if(Test-Path $ModulePath) {
                 Import-Metadata $ModulePath -ErrorAction Ignore
             } else { @{} }
+    Write-Verbose "Module ($ModulePath)`n$($Module | Out-String)"
 
     $Parameters = @{
         CompanyName = $CompanyName
@@ -192,20 +195,24 @@ function Import-Configuration {
     $Machine = if(Test-Path $MachinePath) {
                 Import-Metadata $MachinePath -ErrorAction Ignore
             } else { @{} }
+    Write-Verbose "Machine ($MachinePath)`n$($Machine | Out-String)"
+
 
     $EnterprisePath = Get-StoragePath @Parameters -Scope Enterprise
     $EnterprisePath = Join-Path $EnterprisePath Configuration.psd1
     $Enterprise = if(Test-Path $EnterprisePath) {
                 Import-Metadata $EnterprisePath -ErrorAction Ignore
             } else { @{} }
+    Write-Verbose "Enterprise ($EnterprisePath)`n$($Enterprise | Out-String)"
 
     $LocalUserPath = Get-StoragePath @Parameters -Scope User
     $LocalUserPath = Join-Path $LocalUserPath Configuration.psd1
-    $User = if(Test-Path $LocalUserPath) {
+    $LocalUser = if(Test-Path $LocalUserPath) {
                 Import-Metadata $LocalUserPath -ErrorAction Ignore
             } else { @{} }
+    Write-Verbose "LocalUser ($LocalUserPath)`n$($LocalUser | Out-String)"
 
-    $Local | Update-Object $Machine | 
-             Update-Object $Enterprise | 
-             Update-Object $User
+    $Module | Update-Object $Machine | 
+              Update-Object $Enterprise | 
+              Update-Object $LocalUser
 }
