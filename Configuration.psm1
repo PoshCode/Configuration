@@ -40,23 +40,36 @@ function Get-StoragePath {
     #
     #   This example shows how to use Get-StoragePath with Export-CliXML to cache some data from inside a module.
     #
-    [CmdletBinding(DefaultParameterSetName = 'NoParameters')]
+    [CmdletBinding(DefaultParameterSetName = '__ModuleInfo')]
     param(
         # The scope to save at, defaults to Enterprise (which returns a path in "RoamingData")
         [Security.PolicyLevelType]$Scope = "Enterprise",
 
-        # A callstack. You should not ever need to pass this.
+        # A callstack. You should not ever pass this.
         # It is used to calculate the defaults for all the other parameters.
         [Parameter(ParameterSetName = "__CallStack")]
         [System.Management.Automation.CallStackFrame[]]$CallStack = $(Get-PSCallStack),
 
+        # The Module you're importing configuration for
+        [Parameter(ParameterSetName = "__ModuleInfo", ValueFromPipeline = $true)]
+        [System.Management.Automation.PSModuleInfo]$Module = $(
+            $mi = ($CallStack)[0].InvocationInfo.MyCommand.Module
+            if($mi -and $mi.ExportedCommands.Count -eq 0) {
+                if($mi2 = Get-Module $mi.ModuleBase -ListAvailable | Where-Object Name -eq $mi.Name | Where-Object ExportedCommands | Select-Object -First 1) {
+                   return $mi2
+                }
+            }
+            return $mi
+        ),
+
         # An optional module qualifier (by default, this is blank)
-        [Parameter(ParameterSetName = "ManualOverride")]
+        [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
+        [Alias("Author")]
         [String]$CompanyName = $(
-            if($CallStack[0].InvocationInfo.MyCommand.Module){
-                $Name = $CallStack[0].InvocationInfo.MyCommand.Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
+            if($Module){
+                $Name = $Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
                 if($Name -eq "Unknown" -or -not $Name) {
-                    $Name = $CallStack[0].InvocationInfo.MyCommand.Module.Author
+                    $Name = $Module.Author
                     if($Name -eq "Unknown" -or -not $Name) {
                         $Name = "AnonymousModules"
                     }
@@ -69,17 +82,15 @@ function Get-StoragePath {
 
         # The name of the module or script
         # Will be used in the returned storage path
-        [Parameter(ParameterSetName = "ManualOverride")]
-        [String]$Name = $(
-            if($Module = $CallStack[0].InvocationInfo.MyCommand.Module) {
-                $Module.Name
-            } else {
-                if(!($BaseName = [IO.Path]::GetFileNameWithoutExtension(($CallStack[0].InvocationInfo.MyCommand.Name -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_")))) {
-                    throw "Could not determine the storage name, Get-StoragePath should only be called from inside a script or module."
-                }
-                return $BaseName
-            }
-        ),
+        [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
+        [String]$Name = $(if($Module) { $Module.Name }),
+
+        # The full path (including file name) of a default Configuration.psd1 file
+        # By default, this is expected to be in the same folder as your module manifest, or adjacent to your script file
+        [Parameter(ParameterSetName = "ManualOverride", ValueFromPipelineByPropertyName=$true)]
+        [Alias("ModuleBase")]
+        [String]$DefaultPath = $(if($Module) { Join-Path $Module.ModuleBase Configuration.psd1 }),
+
 
         # The version for saved settings -- if set, will be used in the returned path
         # NOTE: this is *NOT* calculated from the CallStack
@@ -96,7 +107,13 @@ function Get-StoragePath {
         })
     }
 
-    end {
+    process {
+        if(!$Name) {
+            throw "Could not determine the storage name, Get-StoragePath should only be called from inside a script or module."
+        }
+        $CompanyName = $CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
+
+        Write-Verbose "Storage Root: $PathRoot"
         $PathRoot = Join-Path $PathRoot $Type
 
         if($CompanyName -and $CompanyName -ne "Unknown") {
@@ -109,29 +126,55 @@ function Get-StoragePath {
             $PathRoot = Join-Path $PathRoot $Version
         }
 
+        Write-Verbose "Storage Path: $PathRoot"
+
         # Note: avoid using Convert-Path because drives aliases like "TestData:" get converted to a C:\ file system location
         $null = mkdir $PathRoot -Force
         (Resolve-Path $PathRoot).Path
     }
 }
 
-
-function Import-Configuration {
-    [CmdletBinding(DefaultParameterSetName = '__CallStack')]
+function Export-Configuration {
+    #.Synopsis
+    #   Exports a configuration object to a specified path.
+    #.Description
+    #   Exports the configuration object to a file, by default, in the Roaming AppData location
+    #
+    #   NOTE: this exports the FULL configuration to this file, which will override both defaults and local machine configuration when Import-Configuration is used.
+    [CmdletBinding(DefaultParameterSetName='__ModuleInfo',SupportsShouldProcess)]
     param(
-        # A callstack. You should not ever need to pass this.
+        # Specifies the objects to export as metadata structures.
+        # Enter a variable that contains the objects or type a command or expression that gets the objects.
+        # You can also pipe objects to Export-Metadata.
+        [Parameter(Mandatory=$true, ValueFromPipeline=$true, Position=0)]
+        $InputObject,
+
+        # A callstack. You should not ever pass this.
         # It is used to calculate the defaults for all the other parameters.
         [Parameter(ParameterSetName = "__CallStack")]
         [System.Management.Automation.CallStackFrame[]]$CallStack = $(Get-PSCallStack),
 
+        # The Module you're importing configuration for
+        [Parameter(ParameterSetName = "__ModuleInfo", ValueFromPipeline = $true)]
+        [System.Management.Automation.PSModuleInfo]$Module = $(
+            $mi = ($CallStack)[0].InvocationInfo.MyCommand.Module
+            if($mi -and $mi.ExportedCommands.Count -eq 0) {
+                if($mi2 = Get-Module $mi.ModuleBase -ListAvailable | Where-Object Name -eq $mi.Name | Where-Object ExportedCommands | Select-Object -First 1) {
+                   return $mi2
+                }
+            }
+            return $mi
+        ),
+
+
         # An optional module qualifier (by default, this is blank)
-        [Parameter(ParameterSetName = "ManualOverride")]
+        [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
         [Alias("Author")]
         [String]$CompanyName = $(
-            if($CallStack[0].InvocationInfo.MyCommand.Module){
-                $Name = $CallStack[0].InvocationInfo.MyCommand.Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
+            if($Module){
+                $Name = $Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
                 if($Name -eq "Unknown" -or -not $Name) {
-                    $Name = $CallStack[0].InvocationInfo.MyCommand.Module.Author
+                    $Name = $Module.Author
                     if($Name -eq "Unknown" -or -not $Name) {
                         $Name = "AnonymousModules"
                     }
@@ -144,75 +187,152 @@ function Import-Configuration {
 
         # The name of the module or script
         # Will be used in the returned storage path
-        [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true)]
-        [String]$Name = $(
-            if($Module = $CallStack[0].InvocationInfo.MyCommand.Module) {
-                $Module.Name
-            } else {
-                if(!($BaseName = [IO.Path]::GetFileNameWithoutExtension(($CallStack[0].InvocationInfo.MyCommand.Name -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_")))) {
-                    throw "Could not determine the storage name, Get-StoragePath should only be called from inside a script or module."
-                }
-                return $BaseName
-            }
-        ),
+        [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
+        [String]$Name = $(if($Module) { $Module.Name }),
 
-        # The full path to the module (in case there are dupes)
-        # Will be used in the returned storage path
+        # The full path (including file name) of a default Configuration.psd1 file
+        # By default, this is expected to be in the same folder as your module manifest, or adjacent to your script file
+        [Parameter(ParameterSetName = "ManualOverride", ValueFromPipelineByPropertyName=$true)]
+        [Alias("ModuleBase")]
+        [String]$DefaultPath = $(if($Module) { Join-Path $Module.ModuleBase Configuration.psd1 }),
+
+        # The scope to save at, defaults to Enterprise (which returns a path in "RoamingData")
         [Parameter(ParameterSetName = "ManualOverride")]
-        [String]$ModulePath = $(
-            if($Module = $CallStack[0].InvocationInfo.MyCommand.Module) {
-                $Module.Path
-            } else {
-                if(!($BaseName = [IO.Path]::GetFileNameWithoutExtension(($CallStack[0].InvocationInfo.MyCommand.Name -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_")))) {
-                    throw "Could not determine the storage name, Get-StoragePath should only be called from inside a script or module."
-                }
-                return $BaseName
-            }
-        ),
+        [Security.PolicyLevelType]$Scope = "Enterprise",
+
         # The version for saved settings -- if set, will be used in the returned path
         # NOTE: this is *NOT* calculated from the CallStack
         [Version]$Version
     )
+    process {
+        if(!$Name) {
+            throw "Could not determine the storage name, Get-StoragePath should only be called from inside a script or module."
+        }
 
-    Write-Verbose "PSBoundParameters $($PSBoundParameters | Out-String)"
-    $ModulePath = Split-Path $ModulePath -Parent
-    $ModulePath = Join-Path $ModulePath Configuration.psd1
-    $Module = if(Test-Path $ModulePath) {
-                Import-Metadata $ModulePath -ErrorAction Ignore
-            } else { @{} }
-    Write-Verbose "Module ($ModulePath)`n$($Module | Out-String)"
+        $Parameters = @{
+            CompanyName = $CompanyName
+            Name = $Name
+        }
+        if($Version) {
+            $Parameters.Version = $Version
+        }
 
-    $Parameters = @{
-        CompanyName = $CompanyName
-        Name = $Name
+        $MachinePath = Get-StoragePath @Parameters -Scope $Scope
+
+        $ConfigurationPath = Join-Path $MachinePath "Configuration.psd1"
+
+        $InputObject | Export-Metadata $ConfigurationPath
     }
-    if($Version) {
-        $Parameters.Version = $Version
+}
+
+function Import-Configuration {
+    #.Synopsis
+    #   Import the full, layered configuration for the module.
+    #.Description
+    #   Imports the DefaultPath Configuration file, and then imports the Machine, Roaming (enterprise), and local config files, if they exist.
+    #   Each configuration file is layered on top of the one before (so only needs to set values which are different)
+    [CmdletBinding(DefaultParameterSetName = '__CallStack')]
+    param(
+        # A callstack. You should not ever pass this.
+        # It is used to calculate the defaults for all the other parameters.
+        [Parameter(ParameterSetName = "__CallStack")]
+        [System.Management.Automation.CallStackFrame[]]$CallStack = $(Get-PSCallStack),
+
+        # The Module you're importing configuration for
+        [Parameter(ParameterSetName = "__ModuleInfo", ValueFromPipeline = $true)]
+        [System.Management.Automation.PSModuleInfo]$Module = $(
+            $mi = ($CallStack)[0].InvocationInfo.MyCommand.Module
+            if($mi -and $mi.ExportedCommands.Count -eq 0) {
+                if($mi2 = Get-Module $mi.ModuleBase -ListAvailable | Where-Object Name -eq $mi.Name | Where-Object ExportedCommands | Select-Object -First 1) {
+                   return $mi2
+                }
+            }
+            return $mi
+        ),
+
+        # An optional module qualifier (by default, this is blank)
+        [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
+        [Alias("Author")]
+        [String]$CompanyName = $(
+            if($Module){
+                $Name = $Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
+                if($Name -eq "Unknown" -or -not $Name) {
+                    $Name = $Module.Author
+                    if($Name -eq "Unknown" -or -not $Name) {
+                        $Name = "AnonymousModules"
+                    }
+                }
+                $Name
+            } else {
+                "AnonymousScripts"
+            }
+        ),
+
+        # The name of the module or script
+        # Will be used in the returned storage path
+        [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
+        [String]$Name = $(if($Module) { $Module.Name }),
+
+        # The full path (including file name) of a default Configuration.psd1 file
+        # By default, this is expected to be in the same folder as your module manifest, or adjacent to your script file
+        [Parameter(ParameterSetName = "ManualOverride", ValueFromPipelineByPropertyName=$true)]
+        [Alias("ModuleBase")]
+        [String]$DefaultPath = $(if($Module) { Join-Path $Module.ModuleBase Configuration.psd1 }),
+
+        # The version for saved settings -- if set, will be used in the returned path
+        # NOTE: this is *never* calculated, if you use version numbers, you must manage them on your own
+        [Version]$Version
+    )
+    begin {
+        Write-Verbose "Module Name $Name"
     }
+    process {
+        if(!$Name) {
+            throw "Could not determine the configuration name. When you are not calling Import-Configuration from a module, you must specify the -Author and -Name parameter"
+        }        
 
-    $MachinePath = Get-StoragePath @Parameters -Scope Machine
-    $MachinePath = Join-Path $MachinePath Configuration.psd1
-    $Machine = if(Test-Path $MachinePath) {
-                Import-Metadata $MachinePath -ErrorAction Ignore
-            } else { @{} }
-    Write-Verbose "Machine ($MachinePath)`n$($Machine | Out-String)"
+        if(Test-Path $DefaultPath -Type Container) {
+            $DefaultPath = Join-Path $DefaultPath Configuration.psd1
+        }
+
+        Write-Verbose "PSBoundParameters $($PSBoundParameters | Out-String)"
+        $Configuration = if(Test-Path $DefaultPath) {
+                             Import-Metadata $DefaultPath -ErrorAction Ignore
+                         } else { @{} }
+        Write-Verbose "Module ($DefaultPath)`n$($Configuration | Out-String)"
+
+        $Parameters = @{
+            CompanyName = $CompanyName
+            Name = $Name
+        }
+        if($Version) {
+            $Parameters.Version = $Version
+        }
+
+        $MachinePath = Get-StoragePath @Parameters -Scope Machine
+        $MachinePath = Join-Path $MachinePath Configuration.psd1
+        $Machine = if(Test-Path $MachinePath) {
+                    Import-Metadata $MachinePath -ErrorAction Ignore
+                } else { @{} }
+        Write-Verbose "Machine ($MachinePath)`n$($Machine | Out-String)"
 
 
-    $EnterprisePath = Get-StoragePath @Parameters -Scope Enterprise
-    $EnterprisePath = Join-Path $EnterprisePath Configuration.psd1
-    $Enterprise = if(Test-Path $EnterprisePath) {
-                Import-Metadata $EnterprisePath -ErrorAction Ignore
-            } else { @{} }
-    Write-Verbose "Enterprise ($EnterprisePath)`n$($Enterprise | Out-String)"
+        $EnterprisePath = Get-StoragePath @Parameters -Scope Enterprise
+        $EnterprisePath = Join-Path $EnterprisePath Configuration.psd1
+        $Enterprise = if(Test-Path $EnterprisePath) {
+                    Import-Metadata $EnterprisePath -ErrorAction Ignore
+                } else { @{} }
+        Write-Verbose "Enterprise ($EnterprisePath)`n$($Enterprise | Out-String)"
 
-    $LocalUserPath = Get-StoragePath @Parameters -Scope User
-    $LocalUserPath = Join-Path $LocalUserPath Configuration.psd1
-    $LocalUser = if(Test-Path $LocalUserPath) {
-                Import-Metadata $LocalUserPath -ErrorAction Ignore
-            } else { @{} }
-    Write-Verbose "LocalUser ($LocalUserPath)`n$($LocalUser | Out-String)"
+        $LocalUserPath = Get-StoragePath @Parameters -Scope User
+        $LocalUserPath = Join-Path $LocalUserPath Configuration.psd1
+        $LocalUser = if(Test-Path $LocalUserPath) {
+                    Import-Metadata $LocalUserPath -ErrorAction Ignore
+                } else { @{} }
+        Write-Verbose "LocalUser ($LocalUserPath)`n$($LocalUser | Out-String)"
 
-    $Module | Update-Object $Machine | 
-              Update-Object $Enterprise | 
-              Update-Object $LocalUser
+        $Configuration | Update-Object $Machine |
+                         Update-Object $Enterprise |
+                         Update-Object $LocalUser
+    }
 }

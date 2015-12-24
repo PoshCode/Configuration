@@ -205,3 +205,77 @@ Feature: Module Configuration
         And the settings object's BirthDay should be of type hashtable
         And the settings object's BirthDay.Month should be May
         And the settings object's BirthDay.Day should be null
+
+
+    @Modules @Export
+    Scenario: Exporting creates the expected files
+        Given a module with the name 'MyModule1' and the author 'Bob'
+        And a settings file named Configuration.psd1
+            """
+            @{
+              FullName = 'John Smith'
+              UserName = 'Jaykul'
+              BirthDay = @{
+                Month = 'December'
+                Day = 22
+              }
+            }
+            """
+        When I call Export-Configuration with
+            """
+            @{
+              FullName = 'Joel Bennett'
+              Birthday = @{
+                Month = 'May'
+              }
+            }
+            """
+        Then a settings file named Configuration.psd1 should exist in the Enterprise folder
+        When I call Import-Configuration
+        Then the settings object should be of type hashtable
+        And the settings object's UserName should be Jaykul
+        And the settings object's FullName should be Joel Bennett
+        And the settings object's BirthDay should be of type hashtable
+        And the settings object's BirthDay.Month should be May
+        And the settings object's BirthDay.Day should be 22
+
+
+    @Modules @Export
+    Scenario: Exporting supports versions
+        Given a module with the name 'MyModule1' and the author 'Bob'
+        And a settings file named Configuration.psd1
+            """
+            @{
+              FullName = 'John Smith'
+              UserName = 'Jaykul'
+              BirthDay = @{
+                Month = 'December'
+                Day = 22
+              }
+            }
+            """
+        When I call Export-Configuration with a version
+            """
+            @{
+              FullName = 'Joel Bennett'
+              Birthday = @{
+                Month = 'May'
+              }
+            }
+            """
+        Then a settings file named Configuration.psd1 should exist in the Enterprise folder for version 2.0
+
+        When I call Import-Configuration
+        Then the settings object should be of type hashtable
+        And the settings object's FullName should be John Smith
+        And the settings object's BirthDay.Month should be December
+
+        When I call Import-Configuration with a version
+        Then the settings object should be of type hashtable
+        And the settings object's UserName should be Jaykul
+        And the settings object's FullName should be Joel Bennett
+        And the settings object's BirthDay should be of type hashtable
+        And the settings object's BirthDay.Month should be May
+        And the settings object's BirthDay.Day should be 22
+
+

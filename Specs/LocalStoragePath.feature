@@ -15,10 +15,11 @@ Feature: Automatically Calculate Local Storage Paths
         | TestDrive:\EnterprisePath | TestDrive:\UserPath | TestDrive:\MachinePath |
 
     @Scripts
-    Scenario: Scripts get automatic storage paths
-        Given a script with the name 'SuperTestScript'
-        Then the script's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and '\\AnonymousScripts\\SuperTestScript$'
-        And the script's Enterprise path should exist already
+    Scenario: Scripts will fail unless they specify the names
+         Given a script with the name 'SuperTestScript' that calls Get-StoragePath with no parameters
+         Then the script should throw an exception
+         Given a script with the name 'SuperTestScript' that calls Get-StoragePath -Name TestScript -Author Author
+         Then the script's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and 'Author\\TestScript'
 
     @Modules 
     Scenario Outline: Modules get automatic storage paths

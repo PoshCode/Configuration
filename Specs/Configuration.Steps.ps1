@@ -21,13 +21,7 @@ Given 'the configuration module is imported with a URL converter' {
             } -Scope Global
 }
 
-When "a script with the name '(.+)'" {
-    param($name)
-    Set-Content "TestDrive:\${name}.ps1" "Get-StoragePath"
-    $Script:ScriptName = $Name
-}
-
-When "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company>.+?)'|\s+\w+ the author '(?<author>.+?)')+" {
+Given "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company>.+?)'|\s+\w+ the author '(?<author>.+?)')+" {
     param($name, $Company = "", $Author = "")
 
     $Script:ModulePath = "TestDrive:\Modules\$name"
@@ -40,6 +34,8 @@ When "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company>
     function GetStoragePath { Get-StoragePath @Args }
     function ImportConfiguration { Import-Configuration }
     function ImportConfigVersion { Import-Configuration -Version 2.0 }
+    filter ExportConfiguration { `$_ | Export-Configuration }
+    filter ExportConfigVersion { `$_ | Export-Configuration -Version 2.0 }
     "
 
     New-ModuleManifest $ModulePath\${Name}.psd1 -RootModule .\${Name}.psm1 -Description "A Super Test Module" -Company $Company -Author $Author
@@ -66,12 +62,28 @@ When "the module's (\w+) path should (\w+) (.+)$" {
     }
 }
 
-When "the script's (\w+) path should (\w+) (.+)$" {
+Given "a script with the name '(.+)' that calls Get-StoragePath with no parameters" {
+    param($name)
+    Set-Content "TestDrive:\${name}.ps1" "Get-StoragePath"
+    $Script:ScriptName = $Name
+}
+Given "a script with the name '(?<File>.+)' that calls Get-StoragePath (?:-Name (?<Name>\w*) ?|-Author (?<Author>\w*) ?){2}" {
+    param($File, $Name, $Author)
+    Set-Content "TestDrive:\${File}.ps1" "Get-StoragePath -Name $Name -Author $Author"
+    $Script:ScriptName = $File
+}
+
+Then "the script should throw an exception$" {
+    { $script:LocalStoragePath = iex "TestDrive:\${ScriptName}.ps1" } | Should throw
+}
+
+
+Then "the script's (\w+) path should (\w+) (.+)$" {
     param($Scope, $Comparator, $Path)
 
     [string[]]$Path = $Path -split "\s*and\s*" | %{ $_.Trim("['`"]") }
 
-    $script:LocalStoragePath = iex "TestDrive:\${ScriptName}.ps1"
+    $script:LocalStoragePath = iex "TestDrive:\${Script:ScriptName}.ps1"
     foreach($PathAssertion in $Path) {
         $script:LocalStoragePath | Should $Comparator $PathAssertion
     }
@@ -381,4 +393,32 @@ When "I call Import-Configuration with a Version" {
     $script:Settings = ImportConfigVersion
 
     Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+}
+
+When "I call Export-Configuration with" {
+    param($configuration)
+    iex "$configuration" | ExportConfiguration
+}
+
+When "I call Export-Configuration with a Version" {
+    param($configuration)
+    iex "$configuration" | ExportConfigVersion
+}
+
+Then "a settings file named (\S+) should exist(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
+    param($fileName, $hashtable, $Scope = $null, $Version = $null)
+
+    if($Scope -and $Version) {
+        $folder = GetStoragePath -Scope $Scope -Version $Version
+    } elseif($Scope) {
+        $folder = GetStoragePath -Scope $Scope
+    } elseif($Version) {
+        $folder = GetStoragePath -Version $Version
+    } elseif(Test-Path "${Script:ModulePath}") {
+        $folder = $Script:ModulePath
+    } else {
+        $folder = "TestDrive:\"
+    }
+    $Script:SettingsFile = Join-Path $folder $fileName
+    $Script:SettingsFile | Should Exist
 }

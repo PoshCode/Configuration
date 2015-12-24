@@ -4,7 +4,7 @@
 ModuleToProcess = '.\Configuration.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.2.1'
+ModuleVersion = '0.3.0'
 
 # ID used to uniquely identify this module
 GUID = 'e56e5bec-4d97-4dfd-b138-abbaa14464a6'
@@ -22,7 +22,7 @@ Copyright = 'Copyright (c) 2014 by Joel Bennett, all rights reserved.'
 Description = 'A module for storing and reading configuration values, with full PS Data serialization, automatic configuration for modules and scripts, etc.'
 
 # Functions to export from this module
-FunctionsToExport = 'Import-Configuration','Get-StoragePath','Add-MetadataConverter',
+FunctionsToExport = 'Import-Configuration','Export-Configuration','Get-StoragePath','Add-MetadataConverter',
                     'ConvertFrom-Metadata','ConvertTo-Metadata','Export-Metadata','Import-Metadata',
                     'Optimize-Object','Update-Object','Test-PSVersion','*'
 
@@ -54,7 +54,8 @@ PrivateData = @{
         LicenseUri = "http://opensource.org/licenses/MIT"
 
         # Release notes for this particular version of the module
-        ReleaseNotes = "First public release (now with metadata)!"
+        ReleaseNotes = "Add Export-Configuration
+                        Add pipeline support for Import-Configuration"
 
         # Indicates this is a pre-release/testing version of the module.
         IsPrerelease = 'True'
