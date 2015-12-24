@@ -141,6 +141,16 @@ function Export-Configuration {
     #   Exports the configuration object to a file, by default, in the Roaming AppData location
     #
     #   NOTE: this exports the FULL configuration to this file, which will override both defaults and local machine configuration when Import-Configuration is used.
+    #.Example
+    #   @{UserName = $Env:UserName; LastUpdate = [DateTimeOffset]::Now } | Export-Configuration
+    #
+    #   This example shows how to use Export-Configuration in your module to cache some data.
+    #
+    #.Example
+    #   Get-Module Configuration | Export-Configuration @{UserName = $Env:UserName; LastUpdate = [DateTimeOffset]::Now }
+    #
+    #   This example shows how to use Export-Configuration to export data for use in a specific module.
+    #
     [CmdletBinding(DefaultParameterSetName='__ModuleInfo',SupportsShouldProcess)]
     param(
         # Specifies the objects to export as metadata structures.
@@ -231,6 +241,16 @@ function Import-Configuration {
     #.Description
     #   Imports the DefaultPath Configuration file, and then imports the Machine, Roaming (enterprise), and local config files, if they exist.
     #   Each configuration file is layered on top of the one before (so only needs to set values which are different)
+    #.Example
+    #   $Configuration = Import-Configuration
+    #
+    #   This example shows how to use Import-Configuration in your module to load the cached data
+    #
+    #.Example
+    #   $Configuration = Get-Module Configuration | Import-Configuration
+    #
+    #   This example shows how to use Import-Configuration in your module to load data cached for another module
+    #
     [CmdletBinding(DefaultParameterSetName = '__CallStack')]
     param(
         # A callstack. You should not ever pass this.
