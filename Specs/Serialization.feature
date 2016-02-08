@@ -336,3 +336,42 @@ Feature: Serialize Hashtables or Custom Objects
             """
         And the settings object's UserName should be Joel
         And the settings object's Age should be 41
+
+
+    @Serialization @Deserialization @File
+    Scenario: I should be able to import a manifest in order
+        Given a settings file named Configuration.psd1
+            """
+            @{
+              UserName = 'Joel'
+              Age = 42
+              FullName = 'Joel Bennett'
+            }
+            """
+        When we import the file with ordered
+        Then the settings object should be of type Collections.Specialized.OrderedDictionary
+        And the settings object should have a UserName of type String
+        And the settings object should have an Age of type Int32
+        And Key 0 is UserName
+        And Key 1 is Age
+        And Key 2 is FullName
+
+
+    @Serialization @Deserialization @File
+    Scenario: The ordered hashtable should recurse
+        Given a settings file named Configuration.psd1
+            """
+            @{
+              Age = 42
+              FullName = @{
+                FirstName = 'Joel'
+                LastName = 'Bennett'
+              }
+            }
+            """
+        When we import the file with ordered
+        Then the settings object should be of type Collections.Specialized.OrderedDictionary
+        And the settings object should have a FullName of type Collections.Specialized.OrderedDictionary
+
+
+

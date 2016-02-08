@@ -168,6 +168,7 @@ function ConvertTo-Metadata {
       }
       elseif($InputObject.GetType().FullName -eq 'System.Management.Automation.PSCustomObject') {
          # Write-verbose "PSCustomObject"
+         # NOTE: we can't put [ordered] here because we need support for PS v2, but it's ok, because we put it in at parse-time
          "PSObject @{{`n$t{0}`n}}" -f ($(
             ForEach($key in $InputObject | Get-Member -Type Properties | Select -Expand Name) {
                if("$key" -match '^(\w+|-?\d+\.?\d*)$') {
@@ -201,7 +202,11 @@ function ConvertFrom-Metadata {
 
       [Hashtable]$Converters = @{},
 
-      $ScriptRoot = '$PSScriptRoot'
+      $ScriptRoot = '$PSScriptRoot',
+
+      # If set (and PowerShell version 4 or later) preserve the file order of configuration
+      # This results in the output being an OrderedDictionary instead of Hashtable
+      [Switch]$Ordered
    )
    begin {
       $Script:OriginalMetadataConverters = $Script:MetadataConverters.Clone()
@@ -238,6 +243,7 @@ function ConvertFrom-Metadata {
       } else {
          $ScriptRoot = $PoshCodeModuleRoot
          $OFS = "`n"
+         # Remove SIGnature blocks, PowerShell doesn't parse them in .psd1 and chokes on them here.
          $InputObject = "$InputObject" -replace "# SIG # Begin signature block(?s:.*)"
          $AST = [System.Management.Automation.Language.Parser]::ParseInput($InputObject, [ref]$Tokens, [ref]$ParseErrors)
       }
@@ -246,8 +252,11 @@ function ConvertFrom-Metadata {
          ThrowError -Exception (New-Object System.Management.Automation.ParseException (,[System.Management.Automation.Language.ParseError[]]$ParseErrors)) -ErrorId "Metadata Error" -Category "ParserError" -TargetObject $InputObject
       }
 
+      # Get the variables or subexpressions from strings which have them ("StringExpandable" vs "String") ...
       $Tokens += $Tokens | Where-Object { "StringExpandable" -eq $_.Kind } | Select-Object -Expand NestedTokens
 
+      # Work around PowerShell rules about magic variables 
+      # Replace "PSScriptRoot" magic variables with the non-reserved "ScriptRoot"
       if($scriptroots = @($Tokens | Where-Object { ("Variable" -eq $_.Kind) -and ($_.Name -eq "PSScriptRoot") } | ForEach-Object { $_.Extent } )) {
          $ScriptContent = $Ast.ToString()
          for($r = $scriptroots.count - 1; $r -ge 0; $r--) {
@@ -264,6 +273,25 @@ function ConvertFrom-Metadata {
          ThrowError -Exception $_.Exception.InnerException -ErrorId "Metadata Error" -Category "InvalidData" -TargetObject $Script
       }
 
+      if($Ordered -and (Test-PSVersion -gt "3.0")) {
+         # Make all the hashtables ordered, so that the output objects make more sense to humans...
+         if($Tokens | Where-Object { "AtCurly" -eq $_.Kind }) {
+            $ScriptContent = $AST.ToString()
+            $Hashtables = $AST.FindAll({$args[0] -is [System.Management.Automation.Language.HashtableAst] -and ("ordered" -ne $args[0].Parent.Type.TypeName)}, $Recurse)
+            $Hashtables = $Hashtables | % { 
+                                            New-Object PSObject -Property @{Type="([ordered]";Position=$_.Extent.StartOffset}
+                                            New-Object PSObject -Property @{Type=")";Position=$_.Extent.EndOffset}
+                                          } | Sort Position -Descending
+            foreach($point in $Hashtables) {
+               $ScriptContent = $ScriptContent.Insert($point.Position, $point.Type)
+            }
+            $AST = [System.Management.Automation.Language.Parser]::ParseInput($ScriptContent, [ref]$Tokens, [ref]$ParseErrors)
+            $Script = $AST.GetScriptBlock()
+         }
+      }
+
+      # Write-Debug $ScriptContent
+
       $Mode, $ExecutionContext.SessionState.LanguageMode = $ExecutionContext.SessionState.LanguageMode, "RestrictedLanguage"
 
       try {
@@ -276,41 +304,44 @@ function ConvertFrom-Metadata {
 }
 
 function Import-Metadata {
-    <#
-        .Synopsis
-            Creates a data object from the items in a Metadata file (e.g. a .psd1)
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter(ValueFromPipeline=$true, Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
-        [Alias("PSPath","Content")]
-        [string]$Path,
+   <#
+       .Synopsis
+           Creates a data object from the items in a Metadata file (e.g. a .psd1)
+   #>
+   [CmdletBinding()]
+   param(
+      [Parameter(ValueFromPipeline=$true, Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
+      [Alias("PSPath","Content")]
 
-        [Hashtable]$Converters = @{}
-    )
+      [string]$Path,
 
-    process {
-        $ModuleInfo = $null
-        if(Test-Path $Path) {
-            Write-Verbose "Importing Metadata file from `$Path: $Path"
-            if(!(Test-Path $Path -PathType Leaf)) {
-                $Path = Join-Path $Path ((Split-Path $Path -Leaf) + $ModuleManifestExtension)
-            }
-        }
-        if(!(Test-Path $Path)) {
-            WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
-                       -Message "Can't find settings file $Path" `
-                       -ErrorId "PathNotFound,Metadata\Import-Metadata" `
-                       -Category "ObjectNotFound"
-            return
-        }
+      [Hashtable]$Converters = @{},
 
-        try {
-            ConvertFrom-Metadata -InputObject $Path -Converters $Converters
-        } catch {
-            ThrowError $_
-        }
-    }
+       # If set (and PowerShell version 4 or later) preserve the file order of configuration
+       # This results in the output being an OrderedDictionary instead of Hashtable
+      [Switch]$Ordered
+   )
+   process {
+      $ModuleInfo = $null
+      if(Test-Path $Path) {
+         Write-Verbose "Importing Metadata file from `$Path: $Path"
+         if(!(Test-Path $Path -PathType Leaf)) {
+            $Path = Join-Path $Path ((Split-Path $Path -Leaf) + $ModuleManifestExtension)
+         }
+      }
+      if(!(Test-Path $Path)) {
+         WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
+                     -Message "Can't find settings file $Path" `
+                     -ErrorId "PathNotFound,Metadata\Import-Metadata" `
+                     -Category "ObjectNotFound"
+         return
+      }
+      try {
+         ConvertFrom-Metadata -InputObject $Path -Converters $Converters -Ordered:$Ordered
+      } catch {
+         ThrowError $_
+      }
+   }
 }
 
 function Export-Metadata {
@@ -518,7 +549,7 @@ function Update-Object {
           $Keys = @($UpdateObject | gm -type Properties | Where { $p1 -notcontains $_.Name } | select -expand Name)
        }
 
-       Write-Debug "Keys: $Keys"
+       # Write-Debug "Keys: $Keys"
        ForEach($key in $Keys) {
           if(($OutputObject.$Key -is [System.Collections.IDictionary] -or $OutputObject.$Key -is [PSObject]) -and 
              ($InputObject.$Key -is  [System.Collections.IDictionary] -or $InputObject.$Key -is [PSObject])) {
@@ -535,7 +566,7 @@ function Update-Object {
        }
 
        $Keys = $OutputObject.Keys
-       Write-Debug "Keys: $Keys"
+       #Write-Debug "Keys: $Keys"
 
        Write-Output $OutputObject
     }

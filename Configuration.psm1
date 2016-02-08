@@ -301,7 +301,11 @@ function Import-Configuration {
 
         # The version for saved settings -- if set, will be used in the returned path
         # NOTE: this is *never* calculated, if you use version numbers, you must manage them on your own
-        [Version]$Version
+        [Version]$Version,
+
+        # If set (and PowerShell version 4 or later) preserve the file order of configuration
+        # This results in the output being an OrderedDictionary instead of Hashtable
+        [Switch]$Ordered
     )
     begin {
         Write-Verbose "Module Name $Name"
@@ -317,7 +321,7 @@ function Import-Configuration {
 
         Write-Verbose "PSBoundParameters $($PSBoundParameters | Out-String)"
         $Configuration = if(Test-Path $DefaultPath) {
-                             Import-Metadata $DefaultPath -ErrorAction Ignore
+                             Import-Metadata $DefaultPath -ErrorAction Ignore -Ordered:$Ordered
                          } else { @{} }
         Write-Verbose "Module ($DefaultPath)`n$($Configuration | Out-String)"
 
@@ -332,7 +336,7 @@ function Import-Configuration {
         $MachinePath = Get-StoragePath @Parameters -Scope Machine
         $MachinePath = Join-Path $MachinePath Configuration.psd1
         $Machine = if(Test-Path $MachinePath) {
-                    Import-Metadata $MachinePath -ErrorAction Ignore
+                    Import-Metadata $MachinePath -ErrorAction Ignore -Ordered:$Ordered
                 } else { @{} }
         Write-Verbose "Machine ($MachinePath)`n$($Machine | Out-String)"
 
@@ -340,14 +344,14 @@ function Import-Configuration {
         $EnterprisePath = Get-StoragePath @Parameters -Scope Enterprise
         $EnterprisePath = Join-Path $EnterprisePath Configuration.psd1
         $Enterprise = if(Test-Path $EnterprisePath) {
-                    Import-Metadata $EnterprisePath -ErrorAction Ignore
+                    Import-Metadata $EnterprisePath -ErrorAction Ignore -Ordered:$Ordered
                 } else { @{} }
         Write-Verbose "Enterprise ($EnterprisePath)`n$($Enterprise | Out-String)"
 
         $LocalUserPath = Get-StoragePath @Parameters -Scope User
         $LocalUserPath = Join-Path $LocalUserPath Configuration.psd1
         $LocalUser = if(Test-Path $LocalUserPath) {
-                    Import-Metadata $LocalUserPath -ErrorAction Ignore
+                    Import-Metadata $LocalUserPath -ErrorAction Ignore -Ordered:$Ordered
                 } else { @{} }
         Write-Verbose "LocalUser ($LocalUserPath)`n$($LocalUser | Out-String)"
 

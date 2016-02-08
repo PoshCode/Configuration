@@ -216,6 +216,7 @@ When "we add a converter for (.*) types" {
 When "we convert the settings to metadata" {
     $script:SettingsMetadata = ConvertTo-Metadata $script:Settings
 
+    # Write-Debug $script:SettingsMetadata
     $Wide = $Host.UI.RawUI.WindowSize.Width
     Write-Verbose $script:SettingsMetadata
 }
@@ -240,6 +241,13 @@ When "we convert the metadata to an object" {
 
 When "we import the file to an object" {
     $script:Settings = Import-Metadata ${Script:SettingsFile}
+
+    Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+}
+
+
+When "we import the file with ordered" {
+    $script:Settings = Import-Metadata ${Script:SettingsFile} -Ordered
 
     Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
@@ -327,7 +335,7 @@ Then "the settings object's (.*) should (be of type|be) (.*)" {
     param([String]$Parameter, [String]$operator, $Expected)
     $Value = $script:Settings
 
-    Write-Debug ($Settings | Out-String)
+    # Write-Debug ($Settings | Out-String)
 
     foreach($property in $Parameter.Split(".")) {
         $value = $value.$property
@@ -340,6 +348,11 @@ Then "the settings object's (.*) should (be of type|be) (.*)" {
     } else {
         $value | Should $operator $Expected
     }
+}
+
+Then "Key (\d) is (\w)" {
+    param([int]$index, [string]$name)
+    $script:Settings.Keys[$index] | Should Be $Name   
 }
 
 Given "a mock PowerShell version (.*)" {
