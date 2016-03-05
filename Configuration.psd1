@@ -4,7 +4,7 @@
 ModuleToProcess = '.\Configuration.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.3.0'
+ModuleVersion = '0.3'
 
 # ID used to uniquely identify this module
 GUID = 'e56e5bec-4d97-4dfd-b138-abbaa14464a6'
@@ -21,10 +21,9 @@ Copyright = 'Copyright (c) 2014 by Joel Bennett, all rights reserved.'
 # Description of the functionality provided by this module
 Description = 'A module for storing and reading configuration values, with full PS Data serialization, automatic configuration for modules and scripts, etc.'
 
-# Functions to export from this module
+# We explicitly name the functions we want to be visible, but we export everything with '*'
 FunctionsToExport = 'Import-Configuration','Export-Configuration','Get-StoragePath','Add-MetadataConverter',
-                    'ConvertFrom-Metadata','ConvertTo-Metadata','Export-Metadata','Import-Metadata',
-                    'Optimize-Object','Update-Object','Test-PSVersion','*'
+                    'ConvertFrom-Metadata','ConvertTo-Metadata','Export-Metadata','Import-Metadata','*'
 
 # Cmdlets to export from this module
 CmdletsToExport = '*'
