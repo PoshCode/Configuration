@@ -20,6 +20,7 @@ function Test-PSVersion {
 
          This is just a trivial example to show the usage (you wouldn't really bother for a where-object call)
    #>
+   [OutputType([bool])]
    [CmdletBinding()]
    param(
       [Version]$Version = $PSVersionTable.PSVersion,
@@ -107,6 +108,7 @@ function Add-MetadataConverter {
 }
 
 function ConvertTo-Metadata {
+   [OutputType([string])]
    [CmdletBinding()]
    param(
       [Parameter(ValueFromPipeline = $True)]
@@ -124,7 +126,7 @@ function ConvertTo-Metadata {
    }
    process {
       # Write-verbose ("Type {0}" -f $InputObject.GetType().FullName)
-      if($InputObject -eq $Null) {
+      if($Null -eq $InputObject) {
         # Write-verbose "Null"
         '""'
       } elseif( $InputObject -is [Int16] -or
@@ -248,7 +250,7 @@ function ConvertFrom-Metadata {
          $AST = [System.Management.Automation.Language.Parser]::ParseInput($InputObject, [ref]$Tokens, [ref]$ParseErrors)
       }
 
-      if($ParseErrors -ne $null) {
+      if($null -eq $ParseErrors) {
          ThrowError -Exception (New-Object System.Management.Automation.ParseException (,[System.Management.Automation.Language.ParseError[]]$ParseErrors)) -ErrorId "Metadata Error" -Category "ParserError" -TargetObject $InputObject
       }
 
@@ -322,7 +324,6 @@ function Import-Metadata {
       [Switch]$Ordered
    )
    process {
-      $ModuleInfo = $null
       if(Test-Path $Path) {
          Write-Verbose "Importing Metadata file from `$Path: $Path"
          if(!(Test-Path $Path -PathType Leaf)) {
@@ -442,8 +443,15 @@ function PSCredential {
       .Parameter Value
          The hashtable of properties to add to the created objects
    #>
-   param([string]$UserName, [string]$Password)
-   New-Object PSCredential $UserName, (ConvertTo-SecureString $Password)
+   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingPlainTextForPassword")]
+   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingUserNameAndPasswordParams")]   
+   param(
+      # The UserName for this credential
+      [string]$UserName, 
+      # The Password for this credential, encoded via ConvertFrom-SecureString
+      [string]$EncodedPassword
+   )
+   New-Object PSCredential $UserName, (ConvertTo-SecureString $EncodedPassword)
 }
 
 
@@ -529,7 +537,7 @@ function Update-Object {
         Write-Verbose (($InputObject | out-string -stream | % TrimEnd) -join "`n")
         Write-Verbose "Update OBJECT:"
         Write-Verbose (($UpdateObject | out-string -stream | % TrimEnd) -join "`n")
-        if($InputObject -eq $null) { return }
+        if($Null -eq $InputObject) { return }
 
         if($InputObject -is [System.Collections.IDictionary]) {
             $OutputObject = $InputObject
@@ -546,7 +554,7 @@ function Update-Object {
        if($UpdateObject -is [System.Collections.IDictionary]) {
           $Keys = $UpdateObject.Keys
        } else {
-          $Keys = @($UpdateObject | gm -type Properties | Where { $p1 -notcontains $_.Name } | select -expand Name)
+          $Keys = @($UpdateObject | Get-Member -Type Properties | Where { $p1 -notcontains $_.Name } | Select -expand Name)
        }
 
        # Write-Debug "Keys: $Keys"
@@ -561,7 +569,7 @@ function Update-Object {
           if($OutputObject -is [System.Collections.IDictionary]) {
              $OutputObject.$key = $Value
           } else {
-             $OutputObject = Add-Member -in $OutputObject -type NoteProperty -name $key -value $Value -Passthru -Force
+             $OutputObject = Add-Member -InputObject $OutputObject -MemberType NoteProperty -Name $key -Value $Value -Passthru -Force
           }
        }
 
