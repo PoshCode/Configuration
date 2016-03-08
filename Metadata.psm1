@@ -172,7 +172,7 @@ function ConvertTo-Metadata {
          # Write-verbose "PSCustomObject"
          # NOTE: we can't put [ordered] here because we need support for PS v2, but it's ok, because we put it in at parse-time
          "PSObject @{{`n$t{0}`n}}" -f ($(
-            ForEach($key in $InputObject | Get-Member -Type Properties | Select -Expand Name) {
+            ForEach($key in $InputObject | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name) {
                if("$key" -match '^(\w+|-?\d+\.?\d*)$') {
                   "$key = " + (ConvertTo-Metadata $InputObject.($key))
                }
@@ -184,7 +184,7 @@ function ConvertTo-Metadata {
       }
       elseif($MetadataConverters.ContainsKey($InputObject.GetType())) {
          # Write-verbose "Using type converter for $($InputObject.GetType())"
-         % $MetadataConverters.($InputObject.GetType()) -InputObject $InputObject
+         ForEach-Object $MetadataConverters.($InputObject.GetType()) -InputObject $InputObject
       }
       else {
          # Write-verbose "Unknown!"
@@ -255,7 +255,7 @@ function ConvertFrom-Metadata {
       }
 
       # Get the variables or subexpressions from strings which have them ("StringExpandable" vs "String") ...
-      $Tokens += $Tokens | Where-Object { "StringExpandable" -eq $_.Kind } | Select-Object -Expand NestedTokens
+      $Tokens += $Tokens | Where-Object { "StringExpandable" -eq $_.Kind } | Select-Object -ExpandProperty NestedTokens
 
       # Work around PowerShell rules about magic variables 
       # Replace "PSScriptRoot" magic variables with the non-reserved "ScriptRoot"
@@ -280,10 +280,10 @@ function ConvertFrom-Metadata {
          if($Tokens | Where-Object { "AtCurly" -eq $_.Kind }) {
             $ScriptContent = $AST.ToString()
             $Hashtables = $AST.FindAll({$args[0] -is [System.Management.Automation.Language.HashtableAst] -and ("ordered" -ne $args[0].Parent.Type.TypeName)}, $Recurse)
-            $Hashtables = $Hashtables | % { 
+            $Hashtables = $Hashtables | ForEach-Object { 
                                             New-Object PSObject -Property @{Type="([ordered]";Position=$_.Extent.StartOffset}
                                             New-Object PSObject -Property @{Type=")";Position=$_.Extent.EndOffset}
-                                          } | Sort Position -Descending
+                                          } | Sort-Object Position -Descending
             foreach($point in $Hashtables) {
                $ScriptContent = $ScriptContent.Insert($point.Position, $point.Type)
             }
@@ -534,9 +534,9 @@ function Update-Object {
     )
     process {
         Write-Verbose "INPUT OBJECT:"
-        Write-Verbose (($InputObject | out-string -stream | % TrimEnd) -join "`n")
+        Write-Verbose (($InputObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
         Write-Verbose "Update OBJECT:"
-        Write-Verbose (($UpdateObject | out-string -stream | % TrimEnd) -join "`n")
+        Write-Verbose (($UpdateObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
         if($Null -eq $InputObject) { return }
 
         if($InputObject -is [System.Collections.IDictionary]) {
@@ -554,7 +554,7 @@ function Update-Object {
        if($UpdateObject -is [System.Collections.IDictionary]) {
           $Keys = $UpdateObject.Keys
        } else {
-          $Keys = @($UpdateObject | Get-Member -Type Properties | Where { $p1 -notcontains $_.Name } | Select -expand Name)
+          $Keys = @($UpdateObject | Get-Member -MemberType Properties | Where-Object { $p1 -notcontains $_.Name } | Select-Object -ExpandProperty Name)
        }
 
        # Write-Debug "Keys: $Keys"
@@ -569,7 +569,7 @@ function Update-Object {
           if($OutputObject -is [System.Collections.IDictionary]) {
              $OutputObject.$key = $Value
           } else {
-             $OutputObject = Add-Member -InputObject $OutputObject -MemberType NoteProperty -Name $key -Value $Value -Passthru -Force
+             $OutputObject = Add-Member -InputObject $OutputObject -MemberType NoteProperty -Name $key -Value $Value -PassThru -Force
           }
        }
 
