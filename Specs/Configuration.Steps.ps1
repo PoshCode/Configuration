@@ -21,6 +21,12 @@ Given 'the configuration module is imported with a URL converter' {
             } -Scope Global
 }
 
+Given 'the manifest module is imported' {
+    param($Table)
+    Remove-Module Configuration, Manifest
+    Import-Module .\Manifest.psm1 -Scope Global
+}
+
 Given "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company>.+?)'|\s+\w+ the author '(?<author>.+?)')+" {
     param($name, $Company = "", $Author = "")
 
@@ -111,7 +117,7 @@ When "we update the settings with" {
     $script:Settings = $script:Settings | Update-Object $Update
 }
 
-When "a settings file named (\S+)(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
+When "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
     param($fileName, $hashtable, $Scope = $null, $Version = $null)
 
     if($Scope -and $Version) {
@@ -280,24 +286,29 @@ When "the settings file should (\w+)\s*(.*)?" {
     Get-Item ${Script:SettingsFile} | Should $operator $data
 }
 # This step will create verifiable/counting loggable mocks for Write-Warning, Write-Error, Write-Verbose
-When "we expect an? (?<type>warning|error|verbose)" {
-    param($type)
-    Mock -Module Metadata Write-$type { $true } -Verifiable
-    if($Type -eq "Error") {
-        Mock -Module Metadata WriteError { Write-Error "Error" -TargetObject $Args } -Verifiable
-        Mock -Module Metadata ThrowError { Write-Error "Error" -TargetObject $Args } -Verifiable
+When "we expect an? (?<type>warning|error|verbose) in (?<module>.*)" {
+    param($type, $module)
+
+    $Script:ErrorModule = $module
+
+    Mock -Module $Script:ErrorModule Write-$type { $true } -Verifiable
+    if($Type -eq "Error" -and ($Script:ErrorModule -eq "Metadata")) {
+        Mock -Module $Script:ErrorModule WriteError { Write-Error "Error" -TargetObject $Args } -Verifiable
     }
+    # if($Type -eq "Warning") {
+    #     Mock -Module Manifest WriteWarning { Write-Warning "Warning" -TargetObject $Args } -Verifiable
+    # }
 }
 
 # this step lets us verify the number of calls to those three mocks
-When "the (?<type>warning|error|verbose) is logged(?: (?<exactly>exactly) (\d+) times)?" {
+When "the (?<type>warning|error|verbose) is logged(?: (?<exactly>exactly) (\d+) times?)?" {
     param($count, $exactly, $type)
     $param = @{}
     if($count) {
         $param.Exactly = $Exactly -eq "Exactly"
         $param.Times = $count
     }
-    Assert-MockCalled -Module Metadata -Command Write-$type @param
+    Assert-MockCalled -Module $Script:ErrorModule -Command Write-$type @param
 }
 
 When "we add a converter that's not a scriptblock" {
@@ -350,9 +361,9 @@ Then "the settings object's (.*) should (be of type|be) (.*)" {
     }
 }
 
-Then "Key (\d) is (\w)" {
+Then "Key (\d+) is (\w+)" {
     param([int]$index, [string]$name)
-    $script:Settings.Keys[$index] | Should Be $Name   
+    $script:Settings.Keys | Select -Index $index | Should Be $Name   
 }
 
 Given "a mock PowerShell version (.*)" {
@@ -417,6 +428,51 @@ When "I call Export-Configuration with a Version" {
     param($configuration)
     iex "$configuration" | ExportConfigVersion
 }
+
+When "I call Get-ManifestValue (\S+)(?: (\S+))?" {
+    param($path, $name)
+    Push-Location $script:ModulePath
+    try {
+        if($name) {
+            $script:Result = Get-ManifestValue $path $name
+        } else {
+            $script:Result = Get-ManifestValue $path
+        }
+    } finally {
+        Pop-Location
+    }
+}
+
+When "I call Update-Manifest (\S+)(?: (\S+))?" {
+    param($path, $name)
+    Push-Location $script:ModulePath
+    try {
+        if($name) {
+            $script:Result = Update-Manifest $path $name
+        } else {
+            $script:Result = Update-Manifest $path
+        }
+    } finally {
+        Pop-Location
+    }
+}
+
+When "I call Update-Manifest (\S+) -Increment (\S+)" {
+    param($path, $name)
+    Push-Location $script:ModulePath
+    try {
+        $script:Result = Update-Manifest $path -Increment $name
+    } finally {
+        Pop-Location
+    }
+}
+
+
+Then "the result should be (.*)" {
+    param($value)
+    $script:Result | Should Be $value
+}
+
 
 Then "a settings file named (\S+) should exist(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
     param($fileName, $hashtable, $Scope = $null, $Version = $null)

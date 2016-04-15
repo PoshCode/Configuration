@@ -4,7 +4,7 @@
 ModuleToProcess = '.\Configuration.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.3.1'
+ModuleVersion = '0.4'
 
 # ID used to uniquely identify this module
 GUID = 'e56e5bec-4d97-4dfd-b138-abbaa14464a6'
@@ -15,15 +15,19 @@ Author = @('Joel Bennett')
 # Company or vendor of this module
 CompanyName = 'HuddledMasses.org'
 
+# HelpInfo URI of this module
+# HelpInfoURI = ''
+
 # Copyright statement for this module
-Copyright = 'Copyright (c) 2014 by Joel Bennett, all rights reserved.'
+Copyright = 'Copyright (c) 2014-2016 by Joel Bennett, all rights reserved.'
 
 # Description of the functionality provided by this module
 Description = 'A module for storing and reading configuration values, with full PS Data serialization, automatic configuration for modules and scripts, etc.'
 
 # We explicitly name the functions we want to be visible, but we export everything with '*'
 FunctionsToExport = 'Import-Configuration','Export-Configuration','Get-StoragePath','Add-MetadataConverter',
-                    'ConvertFrom-Metadata','ConvertTo-Metadata','Export-Metadata','Import-Metadata','*'
+                    'ConvertFrom-Metadata','ConvertTo-Metadata','Export-Metadata','Import-Metadata',
+                    'Update-Manifest','Get-ManifestValue','*'
 
 # Cmdlets to export from this module
 CmdletsToExport = '*'
@@ -35,7 +39,7 @@ VariablesToExport = '*'
 AliasesToExport = '*'
 
 # List of all files packaged with this module
-FileList = @('Configuration.psd1','Configuration.psm1','Metadata.psm1','README.md','LICENSE')
+FileList = @('Configuration.psd1','Configuration.psm1','Metadata.psm1','Manifest.psm1','README.md','LICENSE')
 
 PrivateData = @{
     # PSData is module packaging and gallery metadata embedded in PrivateData
@@ -53,19 +57,17 @@ PrivateData = @{
         LicenseUri = "http://opensource.org/licenses/MIT"
 
         # Release notes for this particular version of the module
-        ReleaseNotes = "Add Export-Configuration
-                        Add pipeline support for Import-Configuration"
+        ReleaseNotes = 'Added the awesome Update-Manifest function!'
 
         # Indicates this is a pre-release/testing version of the module.
         IsPrerelease = 'True'
     }
 }
 
-# HelpInfo URI of this module
-# HelpInfoURI = ''
-
-# Default prefix for commands exported from this module. Override the default prefix using Import-Module -Prefix.
-# DefaultCommandPrefix = ''
-
 }
+
+
+
+
+
 

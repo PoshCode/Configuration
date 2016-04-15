@@ -80,13 +80,13 @@ Feature: Serialize Hashtables or Custom Objects
     @Serialization @Enum
     Scenario: Unsupported types should be serialized as strings
         Given a settings hashtable with an Enum in it
-        Then we expect a warning
+        Then we expect a warning in metadata
         When we convert the settings to metadata
         And the warning is logged
 
     @Serialization @Error @Converter
     Scenario: Invalid converters should write non-terminating errors
-        Given we expect an error
+        Given we expect an error in metadata
         When we add a converter that's not a scriptblock
         And we add a converter with a number as a key
         Then the error is logged exactly 2 times
@@ -297,7 +297,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Serialization @Deserialization @File
     Scenario: Errors when you import missing files
-        Given we expect an error
+        Given we expect an error in metadata
         When we import the file to an object
         Then the error is logged
 

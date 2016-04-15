@@ -15,7 +15,8 @@ if(!$ConfigurationRoot) {
     $ConfigurationRoot = Split-Path $MyInvocation.MyCommand.Path -Parent
 }
 
-Import-Module "${ConfigurationRoot}\Metadata.psm1" -Args @($Converters)
+Import-Module "${ConfigurationRoot}\Metadata.psm1" -Force -Args @($Converters)
+Import-Module "${ConfigurationRoot}\Manifest.psm1" -Force
 
 function Get-StoragePath {
     #.Synopsis

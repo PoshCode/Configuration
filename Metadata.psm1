@@ -141,7 +141,7 @@ function ConvertTo-Metadata {
       }
       elseif($InputObject -is [String])  {
          # Write-verbose "String"
-         "'$InputObject'"
+         "'{0}'" -f $InputObject.ToString().Replace("'","''")
       }
       elseif($InputObject -is [DateTime])  {
          # Write-verbose "DateTime"
@@ -190,7 +190,7 @@ function ConvertTo-Metadata {
          # Write-verbose "Unknown!"
          # $MetadataConverters.Keys | %{ Write-Verbose "We have converters for: $($_.Name)" }
          Write-Warning "$($InputObject.GetType().FullName) is not serializable. Serializing as string"
-         "'{0}'" -f $InputObject.ToString()
+         "'{0}'" -f $InputObject.ToString().Replace("'","`'`'")
       }
    }
 }
@@ -250,7 +250,7 @@ function ConvertFrom-Metadata {
          $AST = [System.Management.Automation.Language.Parser]::ParseInput($InputObject, [ref]$Tokens, [ref]$ParseErrors)
       }
 
-      if($null -eq $ParseErrors) {
+      if($null -ne $ParseErrors -and $ParseErrors.Count -gt 0) {
          ThrowError -Exception (New-Object System.Management.Automation.ParseException (,[System.Management.Automation.Language.ParseError[]]$ParseErrors)) -ErrorId "Metadata Error" -Category "ParserError" -TargetObject $InputObject
       }
 
@@ -443,8 +443,8 @@ function PSCredential {
       .Parameter Value
          The hashtable of properties to add to the created objects
    #>
-   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingPlainTextForPassword")]
-   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingUserNameAndPasswordParams")]   
+   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("Security","PSAvoidUsingPlainTextForPassword")]
+   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("Security","PSAvoidUsingUserNameAndPasswordParams")]   
    param(
       # The UserName for this credential
       [string]$UserName, 
