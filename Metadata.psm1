@@ -483,6 +483,208 @@ function Export-Metadata {
     }
 }
 
+function Update-Metadata {
+    <#
+        .Synopsis
+           Update a single value in a PowerShell metadata file
+        .Description
+           By default Update-Metadata increments "ModuleVersion"
+           because my primary use of it is during builds, 
+           but you can pass the PropertyName and Value for any key in a module Manifest, its PrivateData, or the PSData in PrivateData. 
+        
+           NOTE: This will not currently create new keys, or uncomment keys.
+        .Example
+           Update-Metadata .\Configuration.psd1
+        
+           Increments the Build part of the ModuleVersion in the Configuration.psd1 file
+        .Example
+           Update-Metadata .\Configuration.psd1 -Increment Major
+        
+           Increments the Major version part of the ModuleVersion in the Configuration.psd1 file
+        .Example
+           Update-Metadata .\Configuration.psd1 -Value '0.4'
+        
+           Sets the ModuleVersion in the Configuration.psd1 file to 0.4
+        .Example
+           Update-Metadata .\Configuration.psd1 -Property ReleaseNotes -Value 'Add the awesome Update-Metadata function!'
+        
+           Sets the PrivateData.PSData.ReleaseNotes value in the Configuration.psd1 file!
+    #>
+    [CmdletBinding()]
+    param(
+        # The path to the module manifest file -- must be a .psd1 file
+        # As an easter egg, you can pass the CONTENT of a psd1 file instead, and the modified data will pass through
+        [Parameter(ValueFromPipelineByPropertyName="True", Position=0)]
+        [Alias("PSPath")]
+        [ValidateScript({ if([IO.Path]::GetExtension($_) -ne ".psd1") { throw "Path must point to a .psd1 file" } $true })]
+        [string]$Path,
+
+        # The property to be set in the manifest. It must already exist in the file (and not be commented out)
+        # This searches the Manifest root properties, then the properties PrivateData, then the PSData
+        [Parameter(ParameterSetName="Overwrite")]
+        [string]$PropertyName = 'ModuleVersion',
+
+        # A new value for the property
+        [Parameter(ParameterSetName="Overwrite", Mandatory)]
+        $Value,
+
+        # By default Update-Metadata increments ModuleVersion; this controls which part of the version number is incremented
+        [Parameter(ParameterSetName="IncrementVersion")]
+        [ValidateSet("Major","Minor","Build","Revision")]
+        [string]$Increment = "Build",
+
+        # When set, and incrementing the ModuleVersion, output the new version number.
+        [Parameter(ParameterSetName="IncrementVersion")]
+        [switch]$Passthru
+    )
+
+    $KeyValue = Get-Metadata $Path -PropertyName $PropertyName -Passthru
+
+    if($PSCmdlet.ParameterSetName -eq "IncrementVersion") {
+        $Version = [Version]$KeyValue.SafeGetValue()
+
+        $Version = switch($Increment) {
+            "Major" {
+                [Version]::new($Version.Major + 1, 0)
+            }
+            "Minor" {
+                $Minor = if($Version.Minor -le 0) { 1 } else { $Version.Minor + 1 }
+                [Version]::new($Version.Major, $Minor)
+            }
+            "Build" {
+                $Build = if($Version.Build -le 0) { 1 } else { $Version.Build + 1 }
+                [Version]::new($Version.Major, $Version.Minor, $Build)
+            }
+            "Revision" {
+                $Build = if($Version.Build -le 0) { 0 } else { $Version.Build }
+                $Revision = if($Version.Revision -le 0) { 1 } else { $Version.Revision + 1 }
+                [Version]::new($Version.Major, $Version.Minor, $Build, $Revision)
+            }
+        }
+
+        $Value = $Version
+
+        if($Passthru) { $Value }
+    }
+
+    $Value = ConvertTo-Metadata $Value
+
+    $Extent = $KeyValue.Extent
+    while($KeyValue.parent) { $KeyValue = $KeyValue.parent }
+
+    $ManifestContent = $KeyValue.Extent.Text.Remove(
+                                               $Extent.StartOffset, 
+                                               ($Extent.EndOffset - $Extent.StartOffset)
+                                           ).Insert($Extent.StartOffset, $Value)
+
+    if(Test-Path $Path) {
+        Set-Content $Path $ManifestContent
+    } else {
+        $ManifestContent
+    }
+}
+
+function FindHashKeyValue {
+    [CmdletBinding()]
+    param(
+        $SearchPath,
+        $Ast,
+        [string[]]
+        $CurrentPath = @()        
+    )
+    Write-Verbose "FindHashKeyValue: $SearchPath -eq $($CurrentPath -Join '.')"
+    if($SearchPath -eq ($CurrentPath -Join '.') -or $SearchPath -eq $CurrentPath[-1]) { 
+        return $Ast | 
+            Add-Member NoteProperty HashKeyPath ($CurrentPath -join '.') -PassThru -Force | 
+            Add-Member NoteProperty HashKeyName ($CurrentPath[-1]) -PassThru -Force
+    }
+
+    if($Ast.PipelineElements.Expression -is [System.Management.Automation.Language.HashtableAst] ) {
+        $KeyValue = $Ast.PipelineElements.Expression
+        foreach($KV in $KeyValue.KeyValuePairs) {
+            $result = FindHashKeyValue $SearchPath -Ast $KV.Item2 -CurrentPath ($CurrentPath + $KV.Item1.Value)
+            if($null -ne $result) {
+                $result
+            }
+        }
+    }
+}
+
+
+function Get-Metadata {
+    #.Synopsis
+    #   Reads a specific value from a PowerShell metdata file (e.g. a module manifest)
+    #.Description
+    #   By default Get-Metadata gets the ModuleVersion, but it can read any key in the metadata file
+    #.Example
+    #   Get-Metadata .\Configuration.psd1
+    #   
+    #   Returns the module version number (as a string)
+    #.Example
+    #   Get-Metadata .\Configuration.psd1 ReleaseNotes
+    #   
+    #   Returns the release notes!
+    [CmdletBinding()]
+    param(
+        # The path to the module manifest file
+        [Parameter(ValueFromPipelineByPropertyName="True", Position=0)]
+        [Alias("PSPath")]
+        [ValidateScript({ if([IO.Path]::GetExtension($_) -ne ".psd1") { throw "Path must point to a .psd1 file" } $true })]
+        [string]$Path,
+
+        # The property (or dotted property path) to be read from the manifest.
+        # Get-Metadata searches the Manifest root properties, and also the nested hashtable properties.
+        [Parameter(ParameterSetName="Overwrite", Position=1)]
+        [string]$PropertyName = 'ModuleVersion',
+
+        [switch]$Passthru
+    )
+    $ErrorActionPreference = "Stop"
+
+    if(Test-Path $Path) {
+        Write-Verbose "Found file for $Path, read raw content"
+        $ManifestContent = Get-Content $Path -Raw
+    } else { 
+        Write-Verbose "Treating Path as content: $Path"
+        $ManifestContent = $Path
+    }
+
+    $Tokens = $Null; $ParseErrors = $Null
+    $AST = [System.Management.Automation.Language.Parser]::ParseInput( $ManifestContent, $Path, [ref]$Tokens, [ref]$ParseErrors )
+
+    $KeyValue = $Ast.EndBlock.Statements
+    $KeyValue = @(FindHashKeyValue $PropertyName $KeyValue)
+    if($KeyValue.Count -eq 0) {
+        WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
+                   -Message "Can't find '$PropertyName' in $Path" `
+                   -ErrorId "PropertyNotFound,Metadata\Get-Metadata" `
+                   -Category "ObjectNotFound"            
+        return
+    }
+    if($KeyValue.Count -gt 1) {
+        $SingleKey = @($KeyValue | Where { $_.HashKeyPath -eq $PropertyName })
+
+        if($SingleKey.Count -gt 1) {
+            WriteError -ExceptionType System.Reflection.AmbiguousMatchException `
+                       -Message ("Found more than one '$PropertyName' in $Path. Please specify a dotted path instead. Matching paths include: '{0}'" -f ($KeyValue.HashKeyPath -join "', '")) `
+                       -ErrorId "AmbiguousMatch,Metadata\Get-Metadata" `
+                       -Category "InvalidArgument"
+            return
+        } else {
+            $KeyValue = $SingleKey
+        }
+    }
+    $KeyValue = $KeyValue[0]
+
+    if($Passthru) { $KeyValue } else { 
+        Write-Verbose "Start $($KeyValue.Extent.StartLineNumber) : $($KeyValue.Extent.StartColumnNumber) (char $($KeyValue.Extent.StartOffset))"
+        Write-Verbose "End   $($KeyValue.Extent.EndLineNumber) : $($KeyValue.Extent.EndColumnNumber) (char $($KeyValue.Extent.EndOffset))"
+        $KeyValue.SafeGetValue()
+    }
+}
+
+Set-Alias Update-Manifest Update-Metadata
+Set-Alias Get-ManifestValue Get-Metadata
 
 # These functions are simple helpers for use in data sections (see about_data_sections) and .psd1 files (see ConvertFrom-Metadata)
 function PSObject {
@@ -784,3 +986,5 @@ function WriteError {
         $Cmdlet.WriteError($errorRecord)
     }
 }
+
+Export-ModuleMember -Function *-*, PSObject, DateTime, DateTimeOffset, PSCredential -Alias *

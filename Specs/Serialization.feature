@@ -1,4 +1,3 @@
-
 Feature: Serialize Hashtables or Custom Objects
     To allow users to configure module preferences without editing their profiles
     A PowerShell Module Author

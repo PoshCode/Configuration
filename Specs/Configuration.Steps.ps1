@@ -429,39 +429,39 @@ When "I call Export-Configuration with a Version" {
     iex "$configuration" | ExportConfigVersion
 }
 
-When "I call Get-ManifestValue (\S+)(?: (\S+))?" {
+When "I call Get-Metadata (\S+)(?: (\S+))?" {
     param($path, $name)
     Push-Location $script:ModulePath
     try {
         if($name) {
-            $script:Result = Get-ManifestValue $path $name
+            $script:Result = Get-Metadata $path $name
         } else {
-            $script:Result = Get-ManifestValue $path
+            $script:Result = Get-Metadata $path
         }
     } finally {
         Pop-Location
     }
 }
 
-When "I call Update-Manifest (\S+)(?: (\S+))?" {
+When "I call Update-Metadata (\S+)(?: (\S+))?" {
     param($path, $name)
     Push-Location $script:ModulePath
     try {
         if($name) {
-            $script:Result = Update-Manifest $path $name
+            $script:Result = Update-Metadata $path $name
         } else {
-            $script:Result = Update-Manifest $path
+            $script:Result = Update-Metadata $path
         }
     } finally {
         Pop-Location
     }
 }
 
-When "I call Update-Manifest (\S+) -Increment (\S+)" {
+When "I call Update-Metadata (\S+) -Increment (\S+)" {
     param($path, $name)
     Push-Location $script:ModulePath
     try {
-        $script:Result = Update-Manifest $path -Increment $name
+        $script:Result = Update-Metadata $path -Increment $name
     } finally {
         Pop-Location
     }

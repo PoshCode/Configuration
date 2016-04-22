@@ -16,7 +16,6 @@ if(!$ConfigurationRoot) {
 }
 
 Import-Module "${ConfigurationRoot}\Metadata.psm1" -Force -Args @($Converters)
-Import-Module "${ConfigurationRoot}\Manifest.psm1" -Force
 
 function Get-StoragePath {
     #.Synopsis

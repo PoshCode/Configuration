@@ -2,9 +2,6 @@ Feature: Manifest Read and Write
     As a PowerShell Module Author
     I want to easily edit my manifest as part of my build script
 
-    Background:
-        Given the manifest module is imported
-
     @Modules @Import
     Scenario: Read ModuleVersion from a module manifest by default
         Given a module with the name 'ModuleName'
@@ -21,7 +18,7 @@ Feature: Manifest Read and Write
                 GUID = 'e56e5bec-4d97-4dfd-b138-abbaa14464a6'
             }
             """
-        When I call Get-ManifestValue ModuleName.psd1
+        When I call Get-Metadata ModuleName.psd1
         Then the result should be 0.4
 
     Scenario: Read a named value from a module manifest
@@ -38,7 +35,7 @@ Feature: Manifest Read and Write
                 Description = 'This is the day'
             }
             """
-        When I call Get-ManifestValue ModuleName.psd1 Description
+        When I call Get-Metadata ModuleName.psd1 Description
         Then the result should be This is the day
 
     Scenario: Read a named value from a module manifest PrivateData
@@ -54,11 +51,10 @@ Feature: Manifest Read and Write
 
                 PrivateData = @{
                     MyVeryOwnKey = "Test Value"
-
                 }
             }
             """
-        When I call Get-ManifestValue ModuleName.psd1 MyVeryOwnKey
+        When I call Get-Metadata ModuleName.psd1 MyVeryOwnKey
         Then the result should be Test Value
 
     Scenario: Read the release notes from a module manifest PSData
@@ -80,7 +76,7 @@ Feature: Manifest Read and Write
                 }
             }
             """
-        When I call Get-ManifestValue ModuleName.psd1 ReleaseNotes
+        When I call Get-Metadata ModuleName.psd1 ReleaseNotes
         Then the result should be Nothing has changed
 
 
@@ -96,8 +92,8 @@ Feature: Manifest Read and Write
                 ModuleVersion = '0.4'
             }
             """
-        Given we expect an error in Manifest
-        When I call Get-ManifestValue ModuleName.psd1 NoSuchThing
+        Given we expect an error in Metadata
+        When I call Get-Metadata ModuleName.psd1 NoSuchThing
         Then the error is logged exactly 1 time
 
 
@@ -113,8 +109,8 @@ Feature: Manifest Read and Write
                 ModuleVersion = '0.4'
             }
             """
-        When I call Update-Manifest ModuleName.psd1
-        And I call Get-ManifestValue ModuleName.psd1
+        When I call Update-Metadata ModuleName.psd1
+        And I call Get-Metadata ModuleName.psd1
         Then the result should be 0.4.1
 
     Scenario: Update the module major version
@@ -129,8 +125,8 @@ Feature: Manifest Read and Write
                 ModuleVersion = '0.4'
             }
             """
-        When I call Update-Manifest ModuleName.psd1 -Increment Major
-        And I call Get-ManifestValue ModuleName.psd1
+        When I call Update-Metadata ModuleName.psd1 -Increment Major
+        And I call Get-Metadata ModuleName.psd1
         Then the result should be 1.0
 
     Scenario: Update the module minor version
@@ -145,8 +141,8 @@ Feature: Manifest Read and Write
                 ModuleVersion = '0.4'
             }
             """
-        When I call Update-Manifest ModuleName.psd1 -Increment Minor
-        And I call Get-ManifestValue ModuleName.psd1
+        When I call Update-Metadata ModuleName.psd1 -Increment Minor
+        And I call Get-Metadata ModuleName.psd1
         Then the result should be 0.5
 
     Scenario: Update the module minor version when it's 0
@@ -161,8 +157,8 @@ Feature: Manifest Read and Write
                 ModuleVersion = '1.0'
             }
             """
-        When I call Update-Manifest ModuleName.psd1 -Increment Minor
-        And I call Get-ManifestValue ModuleName.psd1
+        When I call Update-Metadata ModuleName.psd1 -Increment Minor
+        And I call Get-Metadata ModuleName.psd1
         Then the result should be 1.1
 
     Scenario: Update the module build version
@@ -177,8 +173,8 @@ Feature: Manifest Read and Write
                 ModuleVersion = '0.4.1'
             }
             """
-        When I call Update-Manifest ModuleName.psd1 -Increment Build
-        And I call Get-ManifestValue ModuleName.psd1
+        When I call Update-Metadata ModuleName.psd1 -Increment Build
+        And I call Get-Metadata ModuleName.psd1
         Then the result should be 0.4.2
 
     Scenario: Update the module build version when it's 0
@@ -193,8 +189,8 @@ Feature: Manifest Read and Write
                 ModuleVersion = '0.4'
             }
             """
-        When I call Update-Manifest ModuleName.psd1 -Increment Build
-        And I call Get-ManifestValue ModuleName.psd1
+        When I call Update-Metadata ModuleName.psd1 -Increment Build
+        And I call Get-Metadata ModuleName.psd1
         Then the result should be 0.4.1
 
     Scenario: Update the module revision
@@ -209,8 +205,8 @@ Feature: Manifest Read and Write
                 ModuleVersion = '4.3.2.1'
             }
             """
-        When I call Update-Manifest ModuleName.psd1 -Increment Revision
-        And I call Get-ManifestValue ModuleName.psd1
+        When I call Update-Metadata ModuleName.psd1 -Increment Revision
+        And I call Get-Metadata ModuleName.psd1
         Then the result should be 4.3.2.2
 
     Scenario: Update the module revision when the build isn't set
@@ -225,6 +221,6 @@ Feature: Manifest Read and Write
                 ModuleVersion = '0.4'
             }
             """
-        When I call Update-Manifest ModuleName.psd1 -Increment Revision
-        And I call Get-ManifestValue ModuleName.psd1
+        When I call Update-Metadata ModuleName.psd1 -Increment Revision
+        And I call Get-Metadata ModuleName.psd1
         Then the result should be 0.4.0.1
