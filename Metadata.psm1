@@ -71,6 +71,18 @@ function Add-MetadataConverter {
          }
 
          Shows how to map a function for serializing Uri objects as strings with a Uri function that just casts them. Normally you wouldn't need to do that for Uri, since they output strings natively, and it's perfectly logical to store Uris as strings and only cast them when you really need to.
+
+      .Example
+         Add-MetadataConverter @{
+            [DateTimeOffset] = { "DateTimeOffset {0} {1}" -f $_.Ticks, $_.Offset }
+            "DateTimeOffset" = {param($ticks,$offset) [DateTimeOffset]::new( $ticks, $offset )}   
+         }
+
+         Shows how to change the DateTimeOffset serialization.
+
+         By default, DateTimeOffset values are (de)serialized using the 'o' RoundTrips formatting 
+         e.g.: [DateTimeOffset]::Now.ToString('o')
+
    #>
    [CmdletBinding()]
    param(
@@ -90,6 +102,8 @@ function Add-MetadataConverter {
          {
             Write-Verbose "Adding function $_"
             Set-Content "function:script:$_" $Converters.$_
+            # We need to store the given function name in MetadataConverters too
+            $MetadataConverters.$_ = $Converters.$_
             continue
          }
 
@@ -108,6 +122,43 @@ function Add-MetadataConverter {
 }
 
 function ConvertTo-Metadata {
+   #.Synopsis
+   #  Serializes objects to PowerShell Data language (PSD1)
+   #.Description
+   #  Converts objects to a texual representation that is valid in PSD1,
+   #  using the built-in registered converters (see Add-MetadataConverter).
+   #
+   #  NOTE: Any Converters that are passed in are temporarily added as though passed Add-MetadataConverter
+   #.Example
+   #  $Name = @{ First = "Joel"; Last = "Bennett" }
+   #  @{ Name = $Name; Id = 1; } | ConvertTo-Metadata
+   #
+   #  @{
+   #    Id = 1
+   #    Name = @{
+   #      Last = 'Bennett'
+   #      First = 'Joel'
+   #    }
+   #  }
+   #
+   #  Convert input objects into a formatted string suitable for storing in a psd1 file.
+   #.Example
+   #  Get-ChildItem -File | Select-Object FullName, *Utc, Length | ConvertTo-Metadata
+   #
+   #  Convert complex custom types to dynamic PSObjects using Select-Object.
+   #
+   #  ConvertTo-Metadata understands PSObjects automatically, so this allows us to proceed
+   #  without a custom serializer for File objects, but the serialized data 
+   #  will not be a FileInfo or a DirectoryInfo, just a custom PSObject
+   #.Example
+   #  ConvertTo-Metadata ([DateTimeOffset]::Now) -Converters @{ 
+   #     [DateTimeOffset] = { "DateTimeOffset {0} {1}" -f $_.Ticks, $_.Offset }
+   #  }
+   #
+   #  Shows how to temporarily add a MetadataConverter to convert a specific type while serializing the current DateTimeOffset.
+   #  Note that this serialization would require a "DateTimeOffset" function to exist in order to deserialize properly. 
+   #
+   #  See also the third example on ConvertFrom-Metadata and Add-MetadataConverter.
    [OutputType([string])]
    [CmdletBinding()]
    param(
@@ -139,19 +190,10 @@ function ConvertTo-Metadata {
          # Write-verbose "Numbers"
          "$InputObject"
       }
-      elseif($InputObject -is [String])  {
-         # Write-verbose "String"
-         "'{0}'" -f $InputObject.ToString().Replace("'","''")
+      elseif($InputObject -is [String]) {
+         "'{0}'" -f $InputObject.ToString().Replace("'","''") 
       }
-      elseif($InputObject -is [DateTime])  {
-         # Write-verbose "DateTime"
-         "DateTime '{0}'" -f $InputObject.ToString('o')
-      }
-      elseif($InputObject -is [DateTimeOffset])  {
-         # Write-verbose "DateTime"
-         "DateTimeOffset '{0}'" -f $InputObject.ToString('o')
-      }
-      elseif($InputObject -is [System.Collections.IDictionary]) {
+      elseif($InputObject -is [Collections.IDictionary]) {
          # Write-verbose "Dictionary"
          #Write-verbose "Dictionary:`n $($InputObject|ft|out-string -width 110)"
          "@{{`n$t{0}`n}}" -f ($(
@@ -166,12 +208,12 @@ function ConvertTo-Metadata {
       }
       elseif($InputObject -is [System.Collections.IEnumerable]) {
          # Write-verbose "Enumerable"
-         "@($($(ForEach($item in @($InputObject)) { ConvertTo-Metadata $item }) -join ','))"
+         "@($($(ForEach($item in @($InputObject)) { ConvertTo-Metadata $item }) -join ","))"
       }
       elseif($InputObject.GetType().FullName -eq 'System.Management.Automation.PSCustomObject') {
          # Write-verbose "PSCustomObject"
          # NOTE: we can't put [ordered] here because we need support for PS v2, but it's ok, because we put it in at parse-time
-         "PSObject @{{`n$t{0}`n}}" -f ($(
+         "(PSObject @{{`n$t{0}`n}})" -f ($(
             ForEach($key in $InputObject | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name) {
                if("$key" -match '^(\w+|-?\d+\.?\d*)$') {
                   "$key = " + (ConvertTo-Metadata $InputObject.($key))
@@ -183,8 +225,16 @@ function ConvertTo-Metadata {
          ) -split "`n" -join "`n$t")
       }
       elseif($MetadataConverters.ContainsKey($InputObject.GetType())) {
-         # Write-verbose "Using type converter for $($InputObject.GetType())"
-         ForEach-Object $MetadataConverters.($InputObject.GetType()) -InputObject $InputObject
+         $Str = ForEach-Object $MetadataConverters.($InputObject.GetType()) -InputObject $InputObject
+
+         [bool]$IsCommand = & {
+            $ErrorActionPreference = "Stop"
+            $Tokens = $Null; $ParseErrors = $Null
+            $AST = [System.Management.Automation.Language.Parser]::ParseInput( $Str, [ref]$Tokens, [ref]$ParseErrors)
+            $Null -ne $Ast.Find({$args[0] -is [System.Management.Automation.Language.CommandAst]}, $false)
+         }
+
+         if($IsCommand) { "($Str)" } else { $Str }
       }
       else {
          # Write-verbose "Unknown!"
@@ -196,6 +246,36 @@ function ConvertTo-Metadata {
 }
 
 function ConvertFrom-Metadata {
+   #.Synopsis
+   #  Deserializes objects from PowerShell Data language (PSD1)
+   #.Description
+   #  Converts psd1 notation to actual objects, and supports passing in additional converters 
+   #  in addition to using the built-in registered converters (see Add-MetadataConverter).
+   #
+   #  NOTE: Any Converters that are passed in are temporarily added as though passed Add-MetadataConverter
+   #.Example
+   #  ConvertFrom-Metadata 'PSObject @{ Name = PSObject @{ First = "Joel"; Last = "Bennett" }; Id = 1; }'
+   #
+   #  Id Name
+   #  -- ----
+   #   1 @{Last=Bennett; First=Joel}
+   #
+   #  Convert the example string into a real PSObject using the built-in object serializer.
+   #.Example
+   #  $data = ConvertFrom-Metadata .\Configuration.psd1 -Ordered
+   #
+   #  Convert a module manifest into a hashtable of properties for introspection, preserving the order in the file
+   #.Example
+   #  ConvertFrom-Metadata ("DateTimeOffset 635968680686066846 -05:00:00") -Converters @{
+   #     "DateTimeOffset" = {
+   #        param($ticks,$offset)
+   #        [DateTimeOffset]::new( $ticks, $offset )
+   #     }
+   #  }
+   #
+   #  Shows how to temporarily add a "ValidCommand" called "DateTimeOffset" to support extra data types in the metadata.
+   #
+   #  See also the third example on ConvertTo-Metadata and Add-MetadataConverter
    [CmdletBinding()]
    param(
       [Parameter(ValueFromPipelineByPropertyName="True", Position=0)]
@@ -213,7 +293,10 @@ function ConvertFrom-Metadata {
    begin {
       $Script:OriginalMetadataConverters = $Script:MetadataConverters.Clone()
       Add-MetadataConverter $Converters
-      [string[]]$ValidCommands = @("PSObject", "GUID", "DateTime", "DateTimeOffset", "ConvertFrom-StringData", "ConvertTo-SecureString", "Join-Path") +  @($MetadataConverters.Keys.GetEnumerator())
+      [string[]]$ValidCommands = @(
+         "PSObject", "ConvertFrom-StringData", "Join-Path", "ConvertTo-SecureString",
+         "Guid", "bool", "SecureString", "Version", "DateTime", "DateTimeOffset", "PSCredential"
+         ) + @($MetadataConverters.Keys.GetEnumerator() | Where-Object { $_ -isnot [Type] })
       [string[]]$ValidVariables = "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot","PSCulture","PSUICulture","True","False","Null"
    }
    end {
@@ -307,14 +390,19 @@ function ConvertFrom-Metadata {
 
 function Import-Metadata {
    <#
-       .Synopsis
-           Creates a data object from the items in a Metadata file (e.g. a .psd1)
+      .Synopsis
+         Creates a data object from the items in a Metadata file (e.g. a .psd1)
+      .Description
+         Serves as a wrapper for ConvertFrom-Metadata to explicitly support importing from files
+      .Example
+         $data = Import-Metadata .\Configuration.psd1 -Ordered
+   
+         Convert a module manifest into a hashtable of properties for introspection, preserving the order in the file
    #>
    [CmdletBinding()]
    param(
       [Parameter(ValueFromPipeline=$true, Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
       [Alias("PSPath","Content")]
-
       [string]$Path,
 
       [Hashtable]$Converters = @{},
@@ -350,12 +438,18 @@ function Export-Metadata {
       .Synopsis
          Creates a metadata file from a simple object
       .Description
-         Converts simple objects to psd1 data files
+         Serves as a wrapper for ConvertTo-Metadata to explicitly support exporting to files
+
          Note that exportable data is limited by the rules of data sections (see about_Data_Sections) and the available MetadataConverters (see Add-MetadataConverter)
 
          The only things inherently importable in PowerShell metadata files are Strings, Booleans, and Numbers ... and Arrays or Hashtables where the values (and keys) are all strings, booleans, or numbers.
 
          Note: this function and the matching Import-Metadata are extensible, and have included support for PSCustomObject, Guid, Version, etc.
+      .Example
+         $Configuration | Export-Metadata .\Configuration.psd1
+   
+         Export a configuration object (or hashtable) to the default Configuration.psd1 file for a module
+         The Configuration module uses Configuration.psd1 as it's default config file.  
    #>
    [CmdletBinding()]
    param(
@@ -454,7 +548,6 @@ function PSCredential {
    New-Object PSCredential $UserName, (ConvertTo-SecureString $EncodedPassword)
 }
 
-
 $MetadataConverters = @{}
 
 if($Converters -is [Collections.IDictionary]) {
@@ -487,99 +580,94 @@ Add-MetadataConverter @{
       [Guid]$Value
    }
    [Guid] = { "Guid '$_'" }
+
+   [DateTime] = { "DateTime '{0}'" -f $InputObject.ToString('o') }
+
+   [DateTimeOffset] = { "DateTimeOffset '{0}'" -f $InputObject.ToString('o') }
 }
 
 $Script:OriginalMetadataConverters = $MetadataConverters.Clone()
 
-function Optimize-Object {
+function Update-Object {
    <#
       .Synopsis
-         Remove duplicate data from an object
+         Recursively updates a hashtable or custom object with new values
       .Description
-         Removes values from the delta object that are in the base object
+         Updates the InputObject with data from the update object, updating or adding values.
+      .Example
+         Update-Object -Input @{
+            One = "Un"
+            Two = "Dos"
+         } -Update @{
+            One = "Uno"
+            Three = "Tres"
+         }
+
+         Updates the InputObject with the values in the UpdateObject,
+         will return the following object:
+
+         @{
+            One = "Uno"
+            Two = "Dos"
+            Three = "Tres"
+         }
    #>
+   [CmdletBinding()]
+   param(
+      [AllowNull()]
+      [Parameter(Position=0, Mandatory=$true)]
+      $UpdateObject,
+
+      [Parameter(ValueFromPipeline=$true, Mandatory = $true)]
+      $InputObject
+   )
+   process {
+      Write-Verbose "INPUT OBJECT:"
+      Write-Verbose (($InputObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
+      Write-Verbose "Update OBJECT:"
+      Write-Verbose (($UpdateObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
+      if($Null -eq $InputObject) { return }
+
+      if($InputObject -is [System.Collections.IDictionary]) {
+         $OutputObject = $InputObject
+      } else {
+         # Create a PSCustomObject with all the properties 
+         $OutputObject = $InputObject | Select-Object *
+      }
+
+      if(!$UpdateObject) {
+         Write-Output $OutputObject
+         return
+      }
+
+      if($UpdateObject -is [System.Collections.IDictionary]) {
+         $Keys = $UpdateObject.Keys
+      } else {
+         $Keys = @($UpdateObject | Get-Member -MemberType Properties | Where-Object { $p1 -notcontains $_.Name } | Select-Object -ExpandProperty Name)
+      }
+
+      # Write-Debug "Keys: $Keys"
+      ForEach($key in $Keys) {
+         if(($OutputObject.$Key -is [System.Collections.IDictionary] -or $OutputObject.$Key -is [PSObject]) -and 
+            ($InputObject.$Key -is  [System.Collections.IDictionary] -or $InputObject.$Key -is [PSObject])) {
+            $Value = Update-Object -InputObject $InputObject.$Key -UpdateObject $UpdateObject.$Key
+         } else {
+            $Value = $UpdateObject.$Key
+         } 
+
+         if($OutputObject -is [System.Collections.IDictionary]) {
+            $OutputObject.$key = $Value
+         } else {
+            $OutputObject = Add-Member -InputObject $OutputObject -MemberType NoteProperty -Name $key -Value $Value -PassThru -Force
+         }
+      }
+
+      $Keys = $OutputObject.Keys
+      #Write-Debug "Keys: $Keys"
+
+      Write-Output $OutputObject
+   }
 }
-
-function Update-Object {
-    <#
-        .Synopsis
-            Update a custom object (or hashtable) with new values
-        .Description
-            Updates the InputObject with data from the update object.
-        .Example
-            Update-Object -Input @{
-                One = "Un"
-                Two = "Dos"
-            } -Update @{
-                One = "Uno"
-                Three = "Tres"
-            }
-
-            Updates the InputObject with the values in the UpdateObject
-            will return the following object:
-            @{
-                One = "Uno"
-                Two = "Dos"
-                Three = "Tres"
-            }
-    #>
-    [CmdletBinding()]
-    param(
-        [AllowNull()]
-        [Parameter(Position=0, Mandatory=$true)]
-        $UpdateObject,
-
-        [Parameter(ValueFromPipeline=$true, Mandatory = $true)]
-        $InputObject
-    )
-    process {
-        Write-Verbose "INPUT OBJECT:"
-        Write-Verbose (($InputObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
-        Write-Verbose "Update OBJECT:"
-        Write-Verbose (($UpdateObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
-        if($Null -eq $InputObject) { return }
-
-        if($InputObject -is [System.Collections.IDictionary]) {
-            $OutputObject = $InputObject
-        } else {
-            # Create a PSCustomObject with all the properties 
-            $OutputObject = $InputObject | Select-Object *
-        }
-
-        if(!$UpdateObject) {
-            Write-Output $OutputObject
-            return
-        }
-
-       if($UpdateObject -is [System.Collections.IDictionary]) {
-          $Keys = $UpdateObject.Keys
-       } else {
-          $Keys = @($UpdateObject | Get-Member -MemberType Properties | Where-Object { $p1 -notcontains $_.Name } | Select-Object -ExpandProperty Name)
-       }
-
-       # Write-Debug "Keys: $Keys"
-       ForEach($key in $Keys) {
-          if(($OutputObject.$Key -is [System.Collections.IDictionary] -or $OutputObject.$Key -is [PSObject]) -and 
-             ($InputObject.$Key -is  [System.Collections.IDictionary] -or $InputObject.$Key -is [PSObject])) {
-             $Value = Update-Object -InputObject $InputObject.$Key -UpdateObject $UpdateObject.$Key
-          } else {
-             $Value = $UpdateObject.$Key
-          } 
-
-          if($OutputObject -is [System.Collections.IDictionary]) {
-             $OutputObject.$key = $Value
-          } else {
-             $OutputObject = Add-Member -InputObject $OutputObject -MemberType NoteProperty -Name $key -Value $Value -PassThru -Force
-          }
-       }
-
-       $Keys = $OutputObject.Keys
-       #Write-Debug "Keys: $Keys"
-
-       Write-Output $OutputObject
-    }
-}
-
 
 # Utility to throw an errorrecord
 function ThrowError {

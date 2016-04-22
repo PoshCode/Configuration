@@ -54,20 +54,20 @@ Feature: Serialize Hashtables or Custom Objects
     Scenario Outline: Should be able to serialize PSCredential
         Given a settings hashtable with a PSCredential in it
         When we convert the settings to metadata
-        Then the string version should match "TestCase = PSCredential"
+        Then the string version should match "TestCase = \(?PSCredential"
 
     @Serialization @SecureString
     Scenario Outline: Should be able to serialize SecureStrings
         Given a settings hashtable with a SecureString in it
         When we convert the settings to metadata
-        Then the string version should match "TestCase = ConvertTo-SecureString [a-z0-9]+"
+        Then the string version should match "TestCase = \(?ConvertTo-SecureString [a-z0-9]+"
 
 
     @Serialization
     Scenario Outline: Should support a few additional types
         Given a settings hashtable with a <type> in it
         When we convert the settings to metadata
-        Then the string version should match "TestCase = <type> "
+        Then the string version should match "TestCase = \(?<type> "
 
         Examples:
             | type           |
@@ -96,7 +96,7 @@ Feature: Serialize Hashtables or Custom Objects
         Given a settings hashtable with a Uri in it
         When we add a converter for Uri types
         And we convert the settings to metadata
-        Then the string version should match "TestCase = Uri '.*'"
+        Then the string version should match "TestCase = \(?Uri '.*'"
 
 
     @Serialization @File
@@ -151,8 +151,8 @@ Feature: Serialize Hashtables or Custom Objects
             }
             """
         When we convert the settings to metadata
-        Then the string version should match "Credential = PSCredential"
-        And the string version should match "Password = ConvertTo-SecureString [\"a-z0-9]*"
+        Then the string version should match "Credential = \(?PSCredential"
+        And the string version should match "Password = \(?ConvertTo-SecureString [\"a-z0-9]*"
         When we convert the metadata to an object
         Then the settings object should be of type hashtable
         Then the settings object should have a Credential of type PSCredential
@@ -162,7 +162,7 @@ Feature: Serialize Hashtables or Custom Objects
     Scenario Outline: Should be able to serialize SecureStrings
         Given a settings hashtable with a SecureString in it
         When we convert the settings to metadata
-        Then the string version should match "TestCase = ConvertTo-SecureString [a-z0-9]+"
+        Then the string version should match "TestCase = \(?ConvertTo-SecureString [a-z0-9]+"
 
     @Deserialization @Uri @Converter
     Scenario: I should be able to import serialized data even in PowerShell 2
@@ -173,7 +173,6 @@ Feature: Serialize Hashtables or Custom Objects
               Age = [Version]4.2
               LastUpdated = [DateTimeOffset](Get-Date).Date
               GUID = [GUID]::NewGuid()
-
             }
             """
         And we fake version 2.0 in the Metadata module
@@ -201,7 +200,7 @@ Feature: Serialize Hashtables or Custom Objects
         And we convert the settings to metadata
         Then the string version should match
             """
-              Homepage = Uri 'http://HuddledMasses.org/'
+              Homepage = \(?Uri 'http://HuddledMasses.org/'
             """        
         When we convert the metadata to an object
         Then the settings object should be of type hashtable
@@ -373,5 +372,18 @@ Feature: Serialize Hashtables or Custom Objects
         Then the settings object should be of type Collections.Specialized.OrderedDictionary
         And the settings object should have a FullName of type Collections.Specialized.OrderedDictionary
 
-
+    @Regression @Serialization
+    Scenario: Arrays of custom types
+        Given the configuration module is imported with a URL converter
+        And a settings hashtable 
+            """
+            @{
+              UserName = 'Joel'
+              Domains = [Uri]"http://HuddledMasses.org", [Uri]"http://PoshCode.org", [Uri]"http://JoelBennett.net"
+            }
+            """
+        When we convert the settings to metadata
+        Then the string version should match "Domains = @\(\(?\s*Uri"
+        And the string version should match "Uri 'http://huddledmasses.org/'"
+        And the string version should match "Uri 'http://poshcode.org'"
 
