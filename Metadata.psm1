@@ -295,7 +295,7 @@ function ConvertFrom-Metadata {
       Add-MetadataConverter $Converters
       [string[]]$ValidCommands = @(
          "PSObject", "ConvertFrom-StringData", "Join-Path", "ConvertTo-SecureString",
-         "Guid", "bool", "SecureString", "Version", "DateTime", "DateTimeOffset", "PSCredential"
+         "Guid", "bool", "SecureString", "Version", "DateTime", "DateTimeOffset", "PSCredential", "ConsoleColor"
          ) + @($MetadataConverters.Keys.GetEnumerator() | Where-Object { $_ -isnot [Type] })
       [string[]]$ValidVariables = "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot","PSCulture","PSUICulture","True","False","Null"
    }
@@ -434,42 +434,42 @@ function Import-Metadata {
 }
 
 function Export-Metadata {
-   <#
-      .Synopsis
-         Creates a metadata file from a simple object
-      .Description
-         Serves as a wrapper for ConvertTo-Metadata to explicitly support exporting to files
+    <#
+        .Synopsis
+            Creates a metadata file from a simple object
+        .Description
+            Serves as a wrapper for ConvertTo-Metadata to explicitly support exporting to files
 
-         Note that exportable data is limited by the rules of data sections (see about_Data_Sections) and the available MetadataConverters (see Add-MetadataConverter)
+            Note that exportable data is limited by the rules of data sections (see about_Data_Sections) and the available MetadataConverters (see Add-MetadataConverter)
 
-         The only things inherently importable in PowerShell metadata files are Strings, Booleans, and Numbers ... and Arrays or Hashtables where the values (and keys) are all strings, booleans, or numbers.
+            The only things inherently importable in PowerShell metadata files are Strings, Booleans, and Numbers ... and Arrays or Hashtables where the values (and keys) are all strings, booleans, or numbers.
 
-         Note: this function and the matching Import-Metadata are extensible, and have included support for PSCustomObject, Guid, Version, etc.
-      .Example
-         $Configuration | Export-Metadata .\Configuration.psd1
+            Note: this function and the matching Import-Metadata are extensible, and have included support for PSCustomObject, Guid, Version, etc.
+        .Example
+            $Configuration | Export-Metadata .\Configuration.psd1
    
-         Export a configuration object (or hashtable) to the default Configuration.psd1 file for a module
-         The Configuration module uses Configuration.psd1 as it's default config file.  
-   #>
-   [CmdletBinding()]
-   param(
-      # Specifies the path to the PSD1 output file.
-      [Parameter(Mandatory=$true, Position=0)]
-      $Path,
+            Export a configuration object (or hashtable) to the default Configuration.psd1 file for a module
+            The Configuration module uses Configuration.psd1 as it's default config file.  
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        # Specifies the path to the PSD1 output file.
+        [Parameter(Mandatory=$true, Position=0)]
+        $Path,
 
-      # comments to place on the top of the file (to explain settings or whatever for people who might edit it by hand)
-      [string[]]$CommentHeader,
+        # comments to place on the top of the file (to explain settings or whatever for people who might edit it by hand)
+        [string[]]$CommentHeader,
 
-      # Specifies the objects to export as metadata structures.
-      # Enter a variable that contains the objects or type a command or expression that gets the objects.
-      # You can also pipe objects to Export-Metadata.
-      [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
-      $InputObject,
+        # Specifies the objects to export as metadata structures.
+        # Enter a variable that contains the objects or type a command or expression that gets the objects.
+        # You can also pipe objects to Export-Metadata.
+        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        $InputObject,
 
-      [Hashtable]$Converters = @{},
+        [Hashtable]$Converters = @{},
 
-      # If set, output the nuspec file
-      [Switch]$Passthru
+        # If set, output the nuspec file
+        [Switch]$Passthru
     )
     begin { $data = @() }
     process { $data += @($InputObject) }
@@ -750,6 +750,20 @@ function PSCredential {
    New-Object PSCredential $UserName, (ConvertTo-SecureString $EncodedPassword)
 }
 
+function ConsoleColor {
+   <#
+      .Synopsis
+         Creates a ConsoleColor with the specified value
+      .Description
+         This is basically just a type cast to ConsoleColor, the string needs to be castable.
+         It exists purely for the sake of psd1 serialization
+      .Parameter Value
+         The ConsoleColor value, preferably from .ToString()
+   #>
+   param([string]$Value)
+   [ConsoleColor]$Value
+}
+
 $MetadataConverters = @{}
 
 if($Converters -is [Collections.IDictionary]) {
@@ -786,6 +800,8 @@ Add-MetadataConverter @{
    [DateTime] = { "DateTime '{0}'" -f $InputObject.ToString('o') }
 
    [DateTimeOffset] = { "DateTimeOffset '{0}'" -f $InputObject.ToString('o') }
+
+   [ConsoleColor] = { "ConsoleColor {0}" -f $InputObject.ToString() }
 }
 
 $Script:OriginalMetadataConverters = $MetadataConverters.Clone()
@@ -987,4 +1003,4 @@ function WriteError {
     }
 }
 
-Export-ModuleMember -Function *-*, PSObject, DateTime, DateTimeOffset, PSCredential -Alias *
+Export-ModuleMember -Function *-*, PSObject, DateTime, DateTimeOffset, PSCredential, ConsoleColor -Alias *
