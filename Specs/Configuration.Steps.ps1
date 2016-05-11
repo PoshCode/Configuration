@@ -195,6 +195,9 @@ When "a settings hashtable with an? (.+) in it" {
         "Hashtable" {
             $Settings.TestCase = @{ Key = "Value"; ANother = "Value" }
         }
+        "ConsoleColor" {
+            $Settings.TestCase = [ConsoleColor]::Red
+        }
         default {
             throw "missing test type"
         }

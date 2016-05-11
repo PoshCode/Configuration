@@ -18,6 +18,21 @@ Feature: Serialize Hashtables or Custom Objects
             }
             """
 
+    @Serialization @ConsoleColor
+    Scenario: Serialize a ConsoleColor to string
+        Given a settings hashtable
+            """
+            @{ UserName = "Joel"; BackgroundColor = ConsoleColor Black }
+            """
+        When we convert the settings to metadata
+        Then the string version should be
+            """
+            @{
+              UserName = 'Joel'
+              BackgroundColor = (ConsoleColor Black)
+            }
+            """
+
     @Serialization
     Scenario: Should be able to serialize core types:
         Given a settings hashtable with a String in it
@@ -75,6 +90,7 @@ Feature: Serialize Hashtables or Custom Objects
             | GUID           |
             | PSObject       |
             | PSCredential   |
+            | ConsoleColor   |
 
     @Serialization @Enum
     Scenario: Unsupported types should be serialized as strings
@@ -137,9 +153,6 @@ Feature: Serialize Hashtables or Custom Objects
         Then the settings object should have a LastUpdated of type DateTime
         Then the settings object should have a Homepage of type Uri
 
-
-
-
     @DeSerialization @SecureString @PSCredential
     Scenario Outline: I should be able to import serialized credentials and secure strings
         Given a settings hashtable 
@@ -172,6 +185,7 @@ Feature: Serialize Hashtables or Custom Objects
               Age = [Version]4.2
               LastUpdated = [DateTimeOffset](Get-Date).Date
               GUID = [GUID]::NewGuid()
+              Color = [ConsoleColor]::Red
             }
             """
         And we fake version 2.0 in the Metadata module
@@ -179,10 +193,11 @@ Feature: Serialize Hashtables or Custom Objects
         And we convert the settings to metadata
         When we convert the metadata to an object
         Then the settings object should be of type hashtable
-        Then the settings object should have a UserName of type PSObject
-        Then the settings object should have an Age of type String
-        Then the settings object should have a LastUpdated of type DateTimeOffset
-        Then the settings object should have a GUID of type GUID
+        And the settings object should have a UserName of type PSObject
+        And the settings object should have an Age of type String
+        And the settings object should have a LastUpdated of type DateTimeOffset
+        And the settings object should have a GUID of type GUID
+        And the settings object should have a Color of type ConsoleColor
 
     @Deserialization @Uri @Converter
     Scenario: I should be able to add converters at import time
@@ -290,8 +305,6 @@ Feature: Serialize Hashtables or Custom Objects
         Then the settings object should be of type hashtable
         Then the settings object should have a UserName of type String
         Then the settings object should have an Age of type Int32
-
-
 
     @Serialization @Deserialization @File
     Scenario: Errors when you import missing files
