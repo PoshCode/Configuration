@@ -4,7 +4,7 @@
 ModuleToProcess = '.\Configuration.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.7'
+ModuleVersion = '0.8'
 
 # ID used to uniquely identify this module
 GUID = 'e56e5bec-4d97-4dfd-b138-abbaa14464a6'
@@ -39,7 +39,7 @@ VariablesToExport = '*'
 AliasesToExport = '*'
 
 # List of all files packaged with this module
-FileList = @('Configuration.psd1','Configuration.psm1','Metadata.psm1','Manifest.psm1','README.md','LICENSE')
+FileList = @('Configuration.psd1','Configuration.psm1','Metadata.psm1','README.md','LICENSE')
 
 PrivateData = @{
     # PSData is module packaging and gallery metadata embedded in PrivateData
@@ -57,7 +57,7 @@ PrivateData = @{
         LicenseUri = "http://opensource.org/licenses/MIT"
 
         # Release notes for this particular version of the module
-        ReleaseNotes = 'Added the awesome Update-Manifest function!'
+        ReleaseNotes = 'Added a new converter for ConsoleColor and fixed some ScriptAnalyzer warnings.'
 
         # Indicates this is a pre-release/testing version of the module.
         IsPrerelease = 'True'
