@@ -578,7 +578,7 @@ function Update-Metadata {
                                            ).Insert($Extent.StartOffset, $Value)
 
     if(Test-Path $Path) {
-        Set-Content $Path $ManifestContent
+        Set-Content $Path $ManifestContent -NoNewline
     } else {
         $ManifestContent
     }
