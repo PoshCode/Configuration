@@ -26,6 +26,9 @@ Feature: Automatically Calculate Local Storage Paths
         Given a module with the name '<modulename>' by the author 'Joel Bennett'
         Then the module's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and '\\Joel Bennett\\<modulename>$'
         And the module's Enterprise path should exist already
+        """
+        There is a <modulename>
+        """
 
         Examples: A few different module names
             | modulename        |

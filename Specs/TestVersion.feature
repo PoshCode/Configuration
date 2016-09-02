@@ -4,6 +4,7 @@ Feature: A Mockable PowerShell Version test
     A PowerShell Module Author
     Needs a way to test the current version that can be mocked
 
+    @Changes
     Scenario: Test the current PowerShell version
         Given the actual PowerShell version
         Then the Version -eq the Version

@@ -75,12 +75,12 @@ function Add-MetadataConverter {
       .Example
          Add-MetadataConverter @{
             [DateTimeOffset] = { "DateTimeOffset {0} {1}" -f $_.Ticks, $_.Offset }
-            "DateTimeOffset" = {param($ticks,$offset) [DateTimeOffset]::new( $ticks, $offset )}   
+            "DateTimeOffset" = {param($ticks,$offset) [DateTimeOffset]::new( $ticks, $offset )}
          }
 
          Shows how to change the DateTimeOffset serialization.
 
-         By default, DateTimeOffset values are (de)serialized using the 'o' RoundTrips formatting 
+         By default, DateTimeOffset values are (de)serialized using the 'o' RoundTrips formatting
          e.g.: [DateTimeOffset]::Now.ToString('o')
 
    #>
@@ -148,15 +148,15 @@ function ConvertTo-Metadata {
    #  Convert complex custom types to dynamic PSObjects using Select-Object.
    #
    #  ConvertTo-Metadata understands PSObjects automatically, so this allows us to proceed
-   #  without a custom serializer for File objects, but the serialized data 
+   #  without a custom serializer for File objects, but the serialized data
    #  will not be a FileInfo or a DirectoryInfo, just a custom PSObject
    #.Example
-   #  ConvertTo-Metadata ([DateTimeOffset]::Now) -Converters @{ 
+   #  ConvertTo-Metadata ([DateTimeOffset]::Now) -Converters @{
    #     [DateTimeOffset] = { "DateTimeOffset {0} {1}" -f $_.Ticks, $_.Offset }
    #  }
    #
    #  Shows how to temporarily add a MetadataConverter to convert a specific type while serializing the current DateTimeOffset.
-   #  Note that this serialization would require a "DateTimeOffset" function to exist in order to deserialize properly. 
+   #  Note that this serialization would require a "DateTimeOffset" function to exist in order to deserialize properly.
    #
    #  See also the third example on ConvertFrom-Metadata and Add-MetadataConverter.
    [OutputType([string])]
@@ -191,7 +191,7 @@ function ConvertTo-Metadata {
          "$InputObject"
       }
       elseif($InputObject -is [String]) {
-         "'{0}'" -f $InputObject.ToString().Replace("'","''") 
+         "'{0}'" -f $InputObject.ToString().Replace("'","''")
       }
       elseif($InputObject -is [Collections.IDictionary]) {
          # Write-verbose "Dictionary"
@@ -246,36 +246,38 @@ function ConvertTo-Metadata {
 }
 
 function ConvertFrom-Metadata {
-   #.Synopsis
-   #  Deserializes objects from PowerShell Data language (PSD1)
-   #.Description
-   #  Converts psd1 notation to actual objects, and supports passing in additional converters 
-   #  in addition to using the built-in registered converters (see Add-MetadataConverter).
-   #
-   #  NOTE: Any Converters that are passed in are temporarily added as though passed Add-MetadataConverter
-   #.Example
-   #  ConvertFrom-Metadata 'PSObject @{ Name = PSObject @{ First = "Joel"; Last = "Bennett" }; Id = 1; }'
-   #
-   #  Id Name
-   #  -- ----
-   #   1 @{Last=Bennett; First=Joel}
-   #
-   #  Convert the example string into a real PSObject using the built-in object serializer.
-   #.Example
-   #  $data = ConvertFrom-Metadata .\Configuration.psd1 -Ordered
-   #
-   #  Convert a module manifest into a hashtable of properties for introspection, preserving the order in the file
-   #.Example
-   #  ConvertFrom-Metadata ("DateTimeOffset 635968680686066846 -05:00:00") -Converters @{
-   #     "DateTimeOffset" = {
-   #        param($ticks,$offset)
-   #        [DateTimeOffset]::new( $ticks, $offset )
-   #     }
-   #  }
-   #
-   #  Shows how to temporarily add a "ValidCommand" called "DateTimeOffset" to support extra data types in the metadata.
-   #
-   #  See also the third example on ConvertTo-Metadata and Add-MetadataConverter
+    <#
+    .Synopsis
+        Deserializes objects from PowerShell Data language (PSD1)
+    .Description
+        Converts psd1 notation to actual objects, and supports passing in additional converters
+        in addition to using the built-in registered converters (see Add-MetadataConverter).
+
+        NOTE: Any Converters that are passed in are temporarily added as though passed Add-MetadataConverter
+    .Example
+        ConvertFrom-Metadata 'PSObject @{ Name = PSObject @{ First = "Joel"; Last = "Bennett" }; Id = 1; }'
+
+        Id Name
+        -- ----
+        1 @{Last=Bennett; First=Joel}
+
+        Convert the example string into a real PSObject using the built-in object serializer.
+    .Example
+        $data = ConvertFrom-Metadata .\Configuration.psd1 -Ordered
+
+        Convert a module manifest into a hashtable of properties for introspection, preserving the order in the file
+    .Example
+        ConvertFrom-Metadata ("DateTimeOffset 635968680686066846 -05:00:00") -Converters @{
+        "DateTimeOffset" = {
+            param($ticks,$offset)
+            [DateTimeOffset]::new( $ticks, $offset )
+        }
+        }
+
+        Shows how to temporarily add a "ValidCommand" called "DateTimeOffset" to support extra data types in the metadata.
+
+        See also the third example on ConvertTo-Metadata and Add-MetadataConverter
+    #>
    [CmdletBinding()]
    param(
       [Parameter(ValueFromPipelineByPropertyName="True", Position=0)]
@@ -310,7 +312,7 @@ function ConvertFrom-Metadata {
          Write-Verbose "$InputObject"
          if(!(Test-Path $InputObject -ErrorAction SilentlyContinue)) {
             $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
-            Set-Content -Path $Path $InputObject
+            Set-Content -Encoding UTF8 -Path $Path $InputObject
             $InputObject = $Path
          } elseif(!"$InputObject".EndsWith($ModuleManifestExtension)) {
             $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
@@ -340,7 +342,7 @@ function ConvertFrom-Metadata {
       # Get the variables or subexpressions from strings which have them ("StringExpandable" vs "String") ...
       $Tokens += $Tokens | Where-Object { "StringExpandable" -eq $_.Kind } | Select-Object -ExpandProperty NestedTokens
 
-      # Work around PowerShell rules about magic variables 
+      # Work around PowerShell rules about magic variables
       # Replace "PSScriptRoot" magic variables with the non-reserved "ScriptRoot"
       if($scriptroots = @($Tokens | Where-Object { ("Variable" -eq $_.Kind) -and ($_.Name -eq "PSScriptRoot") } | ForEach-Object { $_.Extent } )) {
          $ScriptContent = $Ast.ToString()
@@ -363,7 +365,7 @@ function ConvertFrom-Metadata {
          if($Tokens | Where-Object { "AtCurly" -eq $_.Kind }) {
             $ScriptContent = $AST.ToString()
             $Hashtables = $AST.FindAll({$args[0] -is [System.Management.Automation.Language.HashtableAst] -and ("ordered" -ne $args[0].Parent.Type.TypeName)}, $Recurse)
-            $Hashtables = $Hashtables | ForEach-Object { 
+            $Hashtables = $Hashtables | ForEach-Object {
                                             New-Object PSObject -Property @{Type="([ordered]";Position=$_.Extent.StartOffset}
                                             New-Object PSObject -Property @{Type=")";Position=$_.Extent.EndOffset}
                                           } | Sort-Object Position -Descending
@@ -396,7 +398,7 @@ function Import-Metadata {
          Serves as a wrapper for ConvertFrom-Metadata to explicitly support importing from files
       .Example
          $data = Import-Metadata .\Configuration.psd1 -Ordered
-   
+
          Convert a module manifest into a hashtable of properties for introspection, preserving the order in the file
    #>
    [CmdletBinding()]
@@ -447,9 +449,9 @@ function Export-Metadata {
             Note: this function and the matching Import-Metadata are extensible, and have included support for PSCustomObject, Guid, Version, etc.
         .Example
             $Configuration | Export-Metadata .\Configuration.psd1
-   
+
             Export a configuration object (or hashtable) to the default Configuration.psd1 file for a module
-            The Configuration module uses Configuration.psd1 as it's default config file.  
+            The Configuration module uses Configuration.psd1 as it's default config file.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -476,7 +478,7 @@ function Export-Metadata {
     end {
         # Avoid arrays when they're not needed:
         if($data.Count -eq 1) { $data = $data[0] }
-        Set-Content -Path $Path -Value ((@($CommentHeader) + @(ConvertTo-Metadata -InputObject $data -Converters $Converters)) -Join "`n")
+        Set-Content -Encoding UTF8 -Path $Path -Value ((@($CommentHeader) + @(ConvertTo-Metadata -InputObject $data -Converters $Converters)) -Join "`n")
         if($Passthru) {
             Get-Item $Path
         }
@@ -489,25 +491,25 @@ function Update-Metadata {
            Update a single value in a PowerShell metadata file
         .Description
            By default Update-Metadata increments "ModuleVersion"
-           because my primary use of it is during builds, 
-           but you can pass the PropertyName and Value for any key in a module Manifest, its PrivateData, or the PSData in PrivateData. 
-        
+           because my primary use of it is during builds,
+           but you can pass the PropertyName and Value for any key in a module Manifest, its PrivateData, or the PSData in PrivateData.
+
            NOTE: This will not currently create new keys, or uncomment keys.
         .Example
            Update-Metadata .\Configuration.psd1
-        
+
            Increments the Build part of the ModuleVersion in the Configuration.psd1 file
         .Example
            Update-Metadata .\Configuration.psd1 -Increment Major
-        
+
            Increments the Major version part of the ModuleVersion in the Configuration.psd1 file
         .Example
            Update-Metadata .\Configuration.psd1 -Value '0.4'
-        
+
            Sets the ModuleVersion in the Configuration.psd1 file to 0.4
         .Example
            Update-Metadata .\Configuration.psd1 -Property ReleaseNotes -Value 'Add the awesome Update-Metadata function!'
-        
+
            Sets the PrivateData.PSData.ReleaseNotes value in the Configuration.psd1 file!
     #>
     [CmdletBinding()]
@@ -573,12 +575,12 @@ function Update-Metadata {
     while($KeyValue.parent) { $KeyValue = $KeyValue.parent }
 
     $ManifestContent = $KeyValue.Extent.Text.Remove(
-                                               $Extent.StartOffset, 
+                                               $Extent.StartOffset,
                                                ($Extent.EndOffset - $Extent.StartOffset)
                                            ).Insert($Extent.StartOffset, $Value)
 
     if(Test-Path $Path) {
-        Set-Content $Path $ManifestContent
+        Set-Content -Encoding UTF8 $Path $ManifestContent
     } else {
         $ManifestContent
     }
@@ -590,12 +592,12 @@ function FindHashKeyValue {
         $SearchPath,
         $Ast,
         [string[]]
-        $CurrentPath = @()        
+        $CurrentPath = @()
     )
     Write-Verbose "FindHashKeyValue: $SearchPath -eq $($CurrentPath -Join '.')"
-    if($SearchPath -eq ($CurrentPath -Join '.') -or $SearchPath -eq $CurrentPath[-1]) { 
-        return $Ast | 
-            Add-Member NoteProperty HashKeyPath ($CurrentPath -join '.') -PassThru -Force | 
+    if($SearchPath -eq ($CurrentPath -Join '.') -or $SearchPath -eq $CurrentPath[-1]) {
+        return $Ast |
+            Add-Member NoteProperty HashKeyPath ($CurrentPath -join '.') -PassThru -Force |
             Add-Member NoteProperty HashKeyName ($CurrentPath[-1]) -PassThru -Force
     }
 
@@ -618,11 +620,11 @@ function Get-Metadata {
     #   By default Get-Metadata gets the ModuleVersion, but it can read any key in the metadata file
     #.Example
     #   Get-Metadata .\Configuration.psd1
-    #   
+    #
     #   Returns the module version number (as a string)
     #.Example
     #   Get-Metadata .\Configuration.psd1 ReleaseNotes
-    #   
+    #
     #   Returns the release notes!
     [CmdletBinding()]
     param(
@@ -643,8 +645,8 @@ function Get-Metadata {
 
     if(Test-Path $Path) {
         Write-Verbose "Found file for $Path, read raw content"
-        $ManifestContent = Get-Content $Path -Raw
-    } else { 
+        $ManifestContent = Get-Content $Path -Raw -Encoding UTF8
+    } else {
         Write-Verbose "Treating Path as content: $Path"
         $ManifestContent = $Path
     }
@@ -658,7 +660,7 @@ function Get-Metadata {
         WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
                    -Message "Can't find '$PropertyName' in $Path" `
                    -ErrorId "PropertyNotFound,Metadata\Get-Metadata" `
-                   -Category "ObjectNotFound"            
+                   -Category "ObjectNotFound"
         return
     }
     if($KeyValue.Count -gt 1) {
@@ -676,7 +678,7 @@ function Get-Metadata {
     }
     $KeyValue = $KeyValue[0]
 
-    if($Passthru) { $KeyValue } else { 
+    if($Passthru) { $KeyValue } else {
         Write-Verbose "Start $($KeyValue.Extent.StartLineNumber) : $($KeyValue.Extent.StartColumnNumber) (char $($KeyValue.Extent.StartOffset))"
         Write-Verbose "End   $($KeyValue.Extent.EndLineNumber) : $($KeyValue.Extent.EndColumnNumber) (char $($KeyValue.Extent.EndOffset))"
         $KeyValue.SafeGetValue()
@@ -740,10 +742,10 @@ function PSCredential {
          The hashtable of properties to add to the created objects
    #>
    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingPlainTextForPassword","PSAvoidUsingPlainTextForPassword")]
-   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingUserNameAndPasswordParams","PSAvoidUsingUserNameAndPasswordParams")]   
+   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingUserNameAndPasswordParams","PSAvoidUsingUserNameAndPasswordParams")]
    param(
       # The UserName for this credential
-      [string]$UserName, 
+      [string]$UserName,
       # The Password for this credential, encoded via ConvertFrom-SecureString
       [string]$EncodedPassword
    )
@@ -849,7 +851,7 @@ function Update-Object {
       if($InputObject -is [System.Collections.IDictionary]) {
          $OutputObject = $InputObject
       } else {
-         # Create a PSCustomObject with all the properties 
+         # Create a PSCustomObject with all the properties
          $OutputObject = $InputObject | Select-Object *
       }
 
@@ -866,12 +868,12 @@ function Update-Object {
 
       # Write-Debug "Keys: $Keys"
       ForEach($key in $Keys) {
-         if(($OutputObject.$Key -is [System.Collections.IDictionary] -or $OutputObject.$Key -is [PSObject]) -and 
+         if(($OutputObject.$Key -is [System.Collections.IDictionary] -or $OutputObject.$Key -is [PSObject]) -and
             ($InputObject.$Key -is  [System.Collections.IDictionary] -or $InputObject.$Key -is [PSObject])) {
             $Value = Update-Object -InputObject $InputObject.$Key -UpdateObject $UpdateObject.$Key
          } else {
             $Value = $UpdateObject.$Key
-         } 
+         }
 
          if($OutputObject -is [System.Collections.IDictionary]) {
             $OutputObject.$key = $Value
@@ -890,7 +892,7 @@ function Update-Object {
 # Utility to throw an errorrecord
 function ThrowError {
     param
-    (        
+    (
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [System.Management.Automation.PSCmdlet]
@@ -904,18 +906,18 @@ function ThrowError {
 
         [Parameter(ParameterSetName="NewException", Position=2)]
         [ValidateNotNullOrEmpty()]
-        [System.String]        
+        [System.String]
         $ExceptionType="System.Management.Automation.RuntimeException",
 
         [Parameter(Mandatory = $true, ParameterSetName="NewException", Position=3)]
         [ValidateNotNullOrEmpty()]
         [System.String]
         $Message,
-        
+
         [Parameter(Mandatory = $false)]
         [System.Object]
         $TargetObject,
-        
+
         [Parameter(Mandatory = $true, ParameterSetName="ExistingException", Position=10)]
         [Parameter(Mandatory = $true, ParameterSetName="NewException", Position=10)]
         [ValidateNotNullOrEmpty()]
@@ -930,7 +932,7 @@ function ThrowError {
 
         [Parameter(Mandatory = $true, ParameterSetName="Rethrow", Position=1)]
         [System.Management.Automation.ErrorRecord]$ErrorRecord
-    ) 
+    )
     process {
         if(!$ErrorRecord) {
             if($PSCmdlet.ParameterSetName -eq "NewException") {
@@ -949,7 +951,7 @@ function ThrowError {
 # Utility to throw an errorrecord
 function WriteError {
     param
-    (        
+    (
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [System.Management.Automation.PSCmdlet]
@@ -963,18 +965,18 @@ function WriteError {
 
         [Parameter(ParameterSetName="NewException", Position=2)]
         [ValidateNotNullOrEmpty()]
-        [System.String]        
+        [System.String]
         $ExceptionType="System.Management.Automation.RuntimeException",
 
         [Parameter(Mandatory = $true, ParameterSetName="NewException", Position=3)]
         [ValidateNotNullOrEmpty()]
         [System.String]
         $Message,
-        
+
         [Parameter(Mandatory = $false)]
         [System.Object]
         $TargetObject,
-        
+
         [Parameter(Mandatory = $true, Position=10)]
         [ValidateNotNullOrEmpty()]
         [System.String]
@@ -987,7 +989,7 @@ function WriteError {
 
         [Parameter(Mandatory = $true, ParameterSetName="Rethrow", Position=1)]
         [System.Management.Automation.ErrorRecord]$ErrorRecord
-    ) 
+    )
     process {
         if(!$ErrorRecord) {
             if($PSCmdlet.ParameterSetName -eq "NewException") {
@@ -1004,132 +1006,3 @@ function WriteError {
 }
 
 Export-ModuleMember -Function *-*, PSObject, DateTime, DateTimeOffset, PSCredential, ConsoleColor -Alias *
-# SIG # Begin signature block
-# MIIXxAYJKoZIhvcNAQcCoIIXtTCCF7ECAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
-# gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUqmeCJF6iNMrrF+UO/Oozvhmm
-# uoygghL3MIID7jCCA1egAwIBAgIQfpPr+3zGTlnqS5p31Ab8OzANBgkqhkiG9w0B
-# AQUFADCBizELMAkGA1UEBhMCWkExFTATBgNVBAgTDFdlc3Rlcm4gQ2FwZTEUMBIG
-# A1UEBxMLRHVyYmFudmlsbGUxDzANBgNVBAoTBlRoYXd0ZTEdMBsGA1UECxMUVGhh
-# d3RlIENlcnRpZmljYXRpb24xHzAdBgNVBAMTFlRoYXd0ZSBUaW1lc3RhbXBpbmcg
-# Q0EwHhcNMTIxMjIxMDAwMDAwWhcNMjAxMjMwMjM1OTU5WjBeMQswCQYDVQQGEwJV
-# UzEdMBsGA1UEChMUU3ltYW50ZWMgQ29ycG9yYXRpb24xMDAuBgNVBAMTJ1N5bWFu
-# dGVjIFRpbWUgU3RhbXBpbmcgU2VydmljZXMgQ0EgLSBHMjCCASIwDQYJKoZIhvcN
-# AQEBBQADggEPADCCAQoCggEBALGss0lUS5ccEgrYJXmRIlcqb9y4JsRDc2vCvy5Q
-# WvsUwnaOQwElQ7Sh4kX06Ld7w3TMIte0lAAC903tv7S3RCRrzV9FO9FEzkMScxeC
-# i2m0K8uZHqxyGyZNcR+xMd37UWECU6aq9UksBXhFpS+JzueZ5/6M4lc/PcaS3Er4
-# ezPkeQr78HWIQZz/xQNRmarXbJ+TaYdlKYOFwmAUxMjJOxTawIHwHw103pIiq8r3
-# +3R8J+b3Sht/p8OeLa6K6qbmqicWfWH3mHERvOJQoUvlXfrlDqcsn6plINPYlujI
-# fKVOSET/GeJEB5IL12iEgF1qeGRFzWBGflTBE3zFefHJwXECAwEAAaOB+jCB9zAd
-# BgNVHQ4EFgQUX5r1blzMzHSa1N197z/b7EyALt0wMgYIKwYBBQUHAQEEJjAkMCIG
-# CCsGAQUFBzABhhZodHRwOi8vb2NzcC50aGF3dGUuY29tMBIGA1UdEwEB/wQIMAYB
-# Af8CAQAwPwYDVR0fBDgwNjA0oDKgMIYuaHR0cDovL2NybC50aGF3dGUuY29tL1Ro
-# YXd0ZVRpbWVzdGFtcGluZ0NBLmNybDATBgNVHSUEDDAKBggrBgEFBQcDCDAOBgNV
-# HQ8BAf8EBAMCAQYwKAYDVR0RBCEwH6QdMBsxGTAXBgNVBAMTEFRpbWVTdGFtcC0y
-# MDQ4LTEwDQYJKoZIhvcNAQEFBQADgYEAAwmbj3nvf1kwqu9otfrjCR27T4IGXTdf
-# plKfFo3qHJIJRG71betYfDDo+WmNI3MLEm9Hqa45EfgqsZuwGsOO61mWAK3ODE2y
-# 0DGmCFwqevzieh1XTKhlGOl5QGIllm7HxzdqgyEIjkHq3dlXPx13SYcqFgZepjhq
-# IhKjURmDfrYwggSjMIIDi6ADAgECAhAOz/Q4yP6/NW4E2GqYGxpQMA0GCSqGSIb3
-# DQEBBQUAMF4xCzAJBgNVBAYTAlVTMR0wGwYDVQQKExRTeW1hbnRlYyBDb3Jwb3Jh
-# dGlvbjEwMC4GA1UEAxMnU3ltYW50ZWMgVGltZSBTdGFtcGluZyBTZXJ2aWNlcyBD
-# QSAtIEcyMB4XDTEyMTAxODAwMDAwMFoXDTIwMTIyOTIzNTk1OVowYjELMAkGA1UE
-# BhMCVVMxHTAbBgNVBAoTFFN5bWFudGVjIENvcnBvcmF0aW9uMTQwMgYDVQQDEytT
-# eW1hbnRlYyBUaW1lIFN0YW1waW5nIFNlcnZpY2VzIFNpZ25lciAtIEc0MIIBIjAN
-# BgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAomMLOUS4uyOnREm7Dv+h8GEKU5Ow
-# mNutLA9KxW7/hjxTVQ8VzgQ/K/2plpbZvmF5C1vJTIZ25eBDSyKV7sIrQ8Gf2Gi0
-# jkBP7oU4uRHFI/JkWPAVMm9OV6GuiKQC1yoezUvh3WPVF4kyW7BemVqonShQDhfu
-# ltthO0VRHc8SVguSR/yrrvZmPUescHLnkudfzRC5xINklBm9JYDh6NIipdC6Anqh
-# d5NbZcPuF3S8QYYq3AhMjJKMkS2ed0QfaNaodHfbDlsyi1aLM73ZY8hJnTrFxeoz
-# C9Lxoxv0i77Zs1eLO94Ep3oisiSuLsdwxb5OgyYI+wu9qU+ZCOEQKHKqzQIDAQAB
-# o4IBVzCCAVMwDAYDVR0TAQH/BAIwADAWBgNVHSUBAf8EDDAKBggrBgEFBQcDCDAO
-# BgNVHQ8BAf8EBAMCB4AwcwYIKwYBBQUHAQEEZzBlMCoGCCsGAQUFBzABhh5odHRw
-# Oi8vdHMtb2NzcC53cy5zeW1hbnRlYy5jb20wNwYIKwYBBQUHMAKGK2h0dHA6Ly90
-# cy1haWEud3Muc3ltYW50ZWMuY29tL3Rzcy1jYS1nMi5jZXIwPAYDVR0fBDUwMzAx
-# oC+gLYYraHR0cDovL3RzLWNybC53cy5zeW1hbnRlYy5jb20vdHNzLWNhLWcyLmNy
-# bDAoBgNVHREEITAfpB0wGzEZMBcGA1UEAxMQVGltZVN0YW1wLTIwNDgtMjAdBgNV
-# HQ4EFgQURsZpow5KFB7VTNpSYxc/Xja8DeYwHwYDVR0jBBgwFoAUX5r1blzMzHSa
-# 1N197z/b7EyALt0wDQYJKoZIhvcNAQEFBQADggEBAHg7tJEqAEzwj2IwN3ijhCcH
-# bxiy3iXcoNSUA6qGTiWfmkADHN3O43nLIWgG2rYytG2/9CwmYzPkSWRtDebDZw73
-# BaQ1bHyJFsbpst+y6d0gxnEPzZV03LZc3r03H0N45ni1zSgEIKOq8UvEiCmRDoDR
-# EfzdXHZuT14ORUZBbg2w6jiasTraCXEQ/Bx5tIB7rGn0/Zy2DBYr8X9bCT2bW+IW
-# yhOBbQAuOA2oKY8s4bL0WqkBrxWcLC9JG9siu8P+eJRRw4axgohd8D20UaF5Mysu
-# e7ncIAkTcetqGVvP6KUwVyyJST+5z3/Jvz4iaGNTmr1pdKzFHTx/kuDDvBzYBHUw
-# ggUmMIIEDqADAgECAhACXbrxBhFj1/jVxh2rtd9BMA0GCSqGSIb3DQEBCwUAMHIx
-# CzAJBgNVBAYTAlVTMRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3
-# dy5kaWdpY2VydC5jb20xMTAvBgNVBAMTKERpZ2lDZXJ0IFNIQTIgQXNzdXJlZCBJ
-# RCBDb2RlIFNpZ25pbmcgQ0EwHhcNMTUwNTA0MDAwMDAwWhcNMTYwNTExMTIwMDAw
-# WjBtMQswCQYDVQQGEwJVUzERMA8GA1UECBMITmV3IFlvcmsxFzAVBgNVBAcTDldl
-# c3QgSGVucmlldHRhMRgwFgYDVQQKEw9Kb2VsIEguIEJlbm5ldHQxGDAWBgNVBAMT
-# D0pvZWwgSC4gQmVubmV0dDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB
-# AJfRKhfiDjMovUELYgagznWf+HFcDENk118Y/K6UkQDwKmVyVOvDyaVefjSmZZcV
-# NZqqYpm9d/Iajf2dauyC3pg3oay8KfXAADLHgbmbvYDc5zGuUNsTzMUOKlp9h13c
-# qsg898JwpRpI659xCQgJjZ6V83QJh+wnHvjA9ojjA4xkbwhGp4Eit6B/uGthEA11
-# IHcFcXeNI3fIkbwWiAw7ZoFtSLm688NFhxwm+JH3Xwj0HxuezsmU0Yc/po31CoST
-# nGPVN8wppHYZ0GfPwuNK4TwaI0FEXxwdwB+mEduxa5e4zB8DyUZByFW338XkGfc1
-# qcJJ+WTyNKFN7saevhwp02cCAwEAAaOCAbswggG3MB8GA1UdIwQYMBaAFFrEuXsq
-# CqOl6nEDwGD5LfZldQ5YMB0GA1UdDgQWBBQV0aryV1RTeVOG+wlr2Z2bOVFAbTAO
-# BgNVHQ8BAf8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwMwdwYDVR0fBHAwbjA1
-# oDOgMYYvaHR0cDovL2NybDMuZGlnaWNlcnQuY29tL3NoYTItYXNzdXJlZC1jcy1n
-# MS5jcmwwNaAzoDGGL2h0dHA6Ly9jcmw0LmRpZ2ljZXJ0LmNvbS9zaGEyLWFzc3Vy
-# ZWQtY3MtZzEuY3JsMEIGA1UdIAQ7MDkwNwYJYIZIAYb9bAMBMCowKAYIKwYBBQUH
-# AgEWHGh0dHBzOi8vd3d3LmRpZ2ljZXJ0LmNvbS9DUFMwgYQGCCsGAQUFBwEBBHgw
-# djAkBggrBgEFBQcwAYYYaHR0cDovL29jc3AuZGlnaWNlcnQuY29tME4GCCsGAQUF
-# BzAChkJodHRwOi8vY2FjZXJ0cy5kaWdpY2VydC5jb20vRGlnaUNlcnRTSEEyQXNz
-# dXJlZElEQ29kZVNpZ25pbmdDQS5jcnQwDAYDVR0TAQH/BAIwADANBgkqhkiG9w0B
-# AQsFAAOCAQEAIi5p+6eRu6bMOSwJt9HSBkGbaPZlqKkMd4e6AyKIqCRabyjLISwd
-# i32p8AT7r2oOubFy+R1LmbBMaPXORLLO9N88qxmJfwFSd+ZzfALevANdbGNp9+6A
-# khe3PiR0+eL8ZM5gPJv26OvpYaRebJTfU++T1sS5dYaPAztMNsDzY3krc92O27AS
-# WjTjWeILSryqRHXyj8KQbYyWpnG2gWRibjXi5ofL+BHyJQRET5pZbERvl2l9Bo4Z
-# st8CM9EQDrdG2vhELNiA6jwenxNPOa6tPkgf8cH8qpGRBVr9yuTMSHS1p9Rc+ybx
-# FSKiZkOw8iCR6ZQIeKkSVdwFf8V+HHPrETCCBTAwggQYoAMCAQICEAQJGBtf1btm
-# dVNDtW+VUAgwDQYJKoZIhvcNAQELBQAwZTELMAkGA1UEBhMCVVMxFTATBgNVBAoT
-# DERpZ2lDZXJ0IEluYzEZMBcGA1UECxMQd3d3LmRpZ2ljZXJ0LmNvbTEkMCIGA1UE
-# AxMbRGlnaUNlcnQgQXNzdXJlZCBJRCBSb290IENBMB4XDTEzMTAyMjEyMDAwMFoX
-# DTI4MTAyMjEyMDAwMFowcjELMAkGA1UEBhMCVVMxFTATBgNVBAoTDERpZ2lDZXJ0
-# IEluYzEZMBcGA1UECxMQd3d3LmRpZ2ljZXJ0LmNvbTExMC8GA1UEAxMoRGlnaUNl
-# cnQgU0hBMiBBc3N1cmVkIElEIENvZGUgU2lnbmluZyBDQTCCASIwDQYJKoZIhvcN
-# AQEBBQADggEPADCCAQoCggEBAPjTsxx/DhGvZ3cH0wsxSRnP0PtFmbE620T1f+Wo
-# ndsy13Hqdp0FLreP+pJDwKX5idQ3Gde2qvCchqXYJawOeSg6funRZ9PG+yknx9N7
-# I5TkkSOWkHeC+aGEI2YSVDNQdLEoJrskacLCUvIUZ4qJRdQtoaPpiCwgla4cSocI
-# 3wz14k1gGL6qxLKucDFmM3E+rHCiq85/6XzLkqHlOzEcz+ryCuRXu0q16XTmK/5s
-# y350OTYNkO/ktU6kqepqCquE86xnTrXE94zRICUj6whkPlKWwfIPEvTFjg/Bougs
-# UfdzvL2FsWKDc0GCB+Q4i2pzINAPZHM8np+mM6n9Gd8lk9ECAwEAAaOCAc0wggHJ
-# MBIGA1UdEwEB/wQIMAYBAf8CAQAwDgYDVR0PAQH/BAQDAgGGMBMGA1UdJQQMMAoG
-# CCsGAQUFBwMDMHkGCCsGAQUFBwEBBG0wazAkBggrBgEFBQcwAYYYaHR0cDovL29j
-# c3AuZGlnaWNlcnQuY29tMEMGCCsGAQUFBzAChjdodHRwOi8vY2FjZXJ0cy5kaWdp
-# Y2VydC5jb20vRGlnaUNlcnRBc3N1cmVkSURSb290Q0EuY3J0MIGBBgNVHR8EejB4
-# MDqgOKA2hjRodHRwOi8vY3JsNC5kaWdpY2VydC5jb20vRGlnaUNlcnRBc3N1cmVk
-# SURSb290Q0EuY3JsMDqgOKA2hjRodHRwOi8vY3JsMy5kaWdpY2VydC5jb20vRGln
-# aUNlcnRBc3N1cmVkSURSb290Q0EuY3JsME8GA1UdIARIMEYwOAYKYIZIAYb9bAAC
-# BDAqMCgGCCsGAQUFBwIBFhxodHRwczovL3d3dy5kaWdpY2VydC5jb20vQ1BTMAoG
-# CGCGSAGG/WwDMB0GA1UdDgQWBBRaxLl7KgqjpepxA8Bg+S32ZXUOWDAfBgNVHSME
-# GDAWgBRF66Kv9JLLgjEtUYunpyGd823IDzANBgkqhkiG9w0BAQsFAAOCAQEAPuwN
-# WiSz8yLRFcgsfCUpdqgdXRwtOhrE7zBh134LYP3DPQ/Er4v97yrfIFU3sOH20ZJ1
-# D1G0bqWOWuJeJIFOEKTuP3GOYw4TS63XX0R58zYUBor3nEZOXP+QsRsHDpEV+7qv
-# tVHCjSSuJMbHJyqhKSgaOnEoAjwukaPAJRHinBRHoXpoaK+bp1wgXNlxsQyPu6j4
-# xRJon89Ay0BEpRPw5mQMJQhCMrI2iiQC/i9yfhzXSUWW6Fkd6fp0ZGuy62ZD2rOw
-# jNXpDd32ASDOmTFjPQgaGLOBm0/GkxAG/AeB+ova+YJJ92JuoVP6EpQYhS6Skepo
-# bEQysmah5xikmmRR7zGCBDcwggQzAgEBMIGGMHIxCzAJBgNVBAYTAlVTMRUwEwYD
-# VQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xMTAv
-# BgNVBAMTKERpZ2lDZXJ0IFNIQTIgQXNzdXJlZCBJRCBDb2RlIFNpZ25pbmcgQ0EC
-# EAJduvEGEWPX+NXGHau130EwCQYFKw4DAhoFAKB4MBgGCisGAQQBgjcCAQwxCjAI
-# oAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwHAYKKwYBBAGCNwIB
-# CzEOMAwGCisGAQQBgjcCARUwIwYJKoZIhvcNAQkEMRYEFJqVqeIZP5g1rRpi3455
-# 6SWcAYczMA0GCSqGSIb3DQEBAQUABIIBACuKaA1JAB6LGPa1jIry9h+cE2jP5od2
-# mpJjADc15AMohCd+4D0ZCoJQ9eNP1tQwWx0zyXdk8JXNWkj2VmIB1CFRJ7mMOerZ
-# 5T9X8MSdRnZtHrRWtHogmQE3wPp/4WqGuDg4Ar5/LEE1geoVA5XEa+ceDF/IwY+j
-# fSUne3dX0KvCnL87yLTRt7fTBiBczMlyKArEljQMORbyEHG8iamtOuZv/n/FKNOE
-# dY+LVA9bprRmxJsXMZLf/OB9p+WoyzHaxNMIxL+ld8A/HmSGgL92LsGLjIj5mHiV
-# WI/K3jOXCcKqAdR+T2g7eZH01cAVVci4RjuuLPEhU5V0Y2yGMMhclx+hggILMIIC
-# BwYJKoZIhvcNAQkGMYIB+DCCAfQCAQEwcjBeMQswCQYDVQQGEwJVUzEdMBsGA1UE
-# ChMUU3ltYW50ZWMgQ29ycG9yYXRpb24xMDAuBgNVBAMTJ1N5bWFudGVjIFRpbWUg
-# U3RhbXBpbmcgU2VydmljZXMgQ0EgLSBHMgIQDs/0OMj+vzVuBNhqmBsaUDAJBgUr
-# DgMCGgUAoF0wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUx
-# DxcNMTYwNTExMDU0OTE0WjAjBgkqhkiG9w0BCQQxFgQUGxhzAJOQsXEO4+RY7NDT
-# 7QIDcYAwDQYJKoZIhvcNAQEBBQAEggEAOpSximW1Gb1fMHpyVEF0/GGcBxS8xD7m
-# dJ8baf1QjJ9DFJpnm4KOreLJ08SDB+evatYJFrN/RbI5ElpKkWlswD0fGCqDX75K
-# w52JmoFjpESZoXMNHwyI3PUxTcC8yGOjvqQw9WAkcKZyCkwDHoWae9UybpxHGEZG
-# 7y6sG/JSoAFl9lUTx+DqrsL/XhDsA2KuxdmV3khzfaRZ81DkXJUHl1SWhTpcqFWA
-# vUOEAp+EFLMQZP79xEoHuhFZQLPG2MOfaXtUnnZCuJfUTIKn6ruogJXfsPxn9SqH
-# fVOopVQOTr6m4R4z3vAb/oBdeSSM+Ioah808m3taTBgWSziDnRZ7XA==
-# SIG # End signature block
