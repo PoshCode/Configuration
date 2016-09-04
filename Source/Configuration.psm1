@@ -140,18 +140,19 @@ function Export-Configuration {
             Exports a configuration object to a specified path.
         .Description
             Exports the configuration object to a file, by default, in the Roaming AppData location
-        
+
             NOTE: this exports the FULL configuration to this file, which will override both defaults and local machine configuration when Import-Configuration is used.
         .Example
             @{UserName = $Env:UserName; LastUpdate = [DateTimeOffset]::Now } | Export-Configuration
-        
+
             This example shows how to use Export-Configuration in your module to cache some data.
-        
+
         .Example
             Get-Module Configuration | Export-Configuration @{UserName = $Env:UserName; LastUpdate = [DateTimeOffset]::Now }
-        
+
             This example shows how to use Export-Configuration to export data for use in a specific module.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSShouldProcess","")] # Because PSSCriptAnalyzer team refuses to listen to reason. See bugs:  #194 #283 #521 #608
     [CmdletBinding(DefaultParameterSetName='__ModuleInfo',SupportsShouldProcess)]
     param(
         # Specifies the objects to export as metadata structures.
@@ -314,7 +315,7 @@ function Import-Configuration {
     process {
         if(!$Name) {
             throw "Could not determine the configuration name. When you are not calling Import-Configuration from a module, you must specify the -Author and -Name parameter"
-        }        
+        }
 
         if(Test-Path $DefaultPath -Type Container) {
             $DefaultPath = Join-Path $DefaultPath Configuration.psd1

@@ -453,6 +453,7 @@ function Export-Metadata {
             Export a configuration object (or hashtable) to the default Configuration.psd1 file for a module
             The Configuration module uses Configuration.psd1 as it's default config file.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSShouldProcess","")] # Because PSSCriptAnalyzer team refuses to listen to reason. See bugs:  #194 #283 #521 #608
     [CmdletBinding(SupportsShouldProcess)]
     param(
         # Specifies the path to the PSD1 output file.
@@ -512,7 +513,8 @@ function Update-Metadata {
 
            Sets the PrivateData.PSData.ReleaseNotes value in the Configuration.psd1 file!
     #>
-    [CmdletBinding()]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSShouldProcess", "")] # Because PSSCriptAnalyzer team refuses to listen to reason. See bugs:  #194 #283 #521 #608
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         # The path to the module manifest file -- must be a .psd1 file
         # As an easter egg, you can pass the CONTENT of a psd1 file instead, and the modified data will pass through
@@ -741,8 +743,8 @@ function PSCredential {
       .Parameter Value
          The hashtable of properties to add to the created objects
    #>
-   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingPlainTextForPassword","PSAvoidUsingPlainTextForPassword")]
-   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingUserNameAndPasswordParams","PSAvoidUsingUserNameAndPasswordParams")]
+   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingPlainTextForPassword","EncodedPassword")]
+   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingUserNameAndPasswordParams","")]
    param(
       # The UserName for this credential
       [string]$UserName,
@@ -832,7 +834,8 @@ function Update-Object {
             Three = "Tres"
          }
    #>
-   [CmdletBinding()]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSShouldProcess","")] # Because PSSCriptAnalyzer team refuses to listen to reason. See bugs:  #194 #283 #521 #608
+    [CmdletBinding(SupportsShouldProcess)]
    param(
       [AllowNull()]
       [Parameter(Position=0, Mandatory=$true)]

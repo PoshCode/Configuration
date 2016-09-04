@@ -4,7 +4,7 @@
 ModuleToProcess = '.\Configuration.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.9.0'
+ModuleVersion = '1.0.0'
 
 # ID used to uniquely identify this module
 GUID = 'e56e5bec-4d97-4dfd-b138-abbaa14464a6'
@@ -57,7 +57,7 @@ PrivateData = @{
         LicenseUri = "http://opensource.org/licenses/MIT"
 
         # Release notes for this particular version of the module
-        ReleaseNotes = 'Force UTF8 encoding.'
+        ReleaseNotes = 'Squash annoying PowerShellGallery emails'
 
         # Indicates this is a pre-release/testing version of the module.
         IsPrerelease = 'True'

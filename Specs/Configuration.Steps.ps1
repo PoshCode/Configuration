@@ -1,18 +1,18 @@
 $PSModuleAutoLoadingPreference = "None"
 
-Remove-Module Configuration -EA 0
-Import-Module .\Configuration.psd1
-
 Given 'the configuration module is imported with testing paths:' {
     param($Table)
+    $ModuleBase = (Get-Module Configuration).ModuleBase
     Remove-Module Configuration -EA 0
-    Import-Module .\Configuration.psd1 -Args @($null, $Table.Enterprise, $Table.User, $Table.Machine) -Scope Global
+    Import-Module $ModuleBase\Configuration.psd1 -Args @($null, $Table.Enterprise, $Table.User, $Table.Machine) -Scope Global
 }
 
 Given 'the configuration module is imported with a URL converter' {
     param($Table)
+    $ModuleBase = "."
+    $ModuleBase = (Get-Module Configuration).ModuleBase
     Remove-Module Configuration -EA 0
-    Import-Module .\Configuration.psd1 -Args @{
+    Import-Module $ModuleBase\Configuration.psd1 -Args @{
                 [Uri] = { "Uri '$_' " }
                 "Uri" = {
                     param([string]$Value)
@@ -23,8 +23,9 @@ Given 'the configuration module is imported with a URL converter' {
 
 Given 'the manifest module is imported' {
     param($Table)
+    $ModuleBase = (Get-Module Configuration).ModuleBase
     Remove-Module Configuration, Manifest
-    Import-Module .\Manifest.psm1 -Scope Global
+    Import-Module $ModuleBase\Manifest.psm1 -Scope Global
 }
 
 Given "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company>.+?)'|\s+\w+ the author '(?<author>.+?)')+" {
@@ -366,7 +367,7 @@ Then "the settings object's (.*) should (be of type|be) (.*)" {
 
 Then "Key (\d+) is (\w+)" {
     param([int]$index, [string]$name)
-    $script:Settings.Keys | Select -Index $index | Should Be $Name   
+    $script:Settings.Keys | Select -Index $index | Should Be $Name
 }
 
 Given "a mock PowerShell version (.*)" {
