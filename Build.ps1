@@ -23,7 +23,10 @@ param(
     [Nullable[int]]$RevisionNumber = ${Env:APPVEYOR_BUILD_NUMBER},
 
     [ValidateNotNullOrEmpty()]
-    [String]$CodeCovToken = ${ENV:CODECOV_TOKEN}
+    [String]$CodeCovToken = ${ENV:CODECOV_TOKEN},
+
+    # The default language is your current UICulture
+    [Globalization.CultureInfo]$DefaultLanguage = $((Get-Culture).Name)
 )
 
 $Script:TraceVerboseTimer = New-Object System.Diagnostics.Stopwatch
@@ -75,7 +78,7 @@ function init {
             $Script:Build = if($Version.Build -le 0) { 1 } else { $Version.Build + 1}
         }
 
-        if([string]::IsNullOrEmpty($RevisionNumber)) {
+        if([string]::IsNullOrEmpty($RevisionNumber) -or $RevisionNumber -eq 0) {
             $Script:Version = New-Object Version $Version.Major, $Version.Minor, $Build
         } else {
             $Script:Version = New-Object Version $Version.Major, $Version.Minor, $Build, $RevisionNumber
@@ -226,7 +229,6 @@ function build {
             Where Name -ne $RootModule |
             Copy-Item -Destination $ReleasePath
 
-
         Update-Manifest $ReleaseManifest -Property FunctionsToExport -Value $FunctionsToExport
     } else {
         # Legacy modules just have "stuff" in the source folder and we need to copy all of it
@@ -238,9 +240,25 @@ function build {
         }
     }
 
+    # Copy the readme file as an about_ help
+    $ReadMe = Join-Path $Path Readme.md
+    if(Test-Path $ReadMe -PathType Leaf) {
+        $LanguagePath = Join-Path $ReleasePath $DefaultLanguage
+        $null = mkdir $LanguagePath -Force
+        $about_module = Join-Path $LanguagePath "about_${ModuleName}.help.txt"
+        if(!(Test-Path $about_module)) {
+            Trace-Message "Turn readme into about_module"
+            Copy-Item -LiteralPath $ReadMe -Destination $about_module
+        }
+    }
+
     ## Update the PSD1 Version:
     Trace-Message "       Update Module Version"
+    Push-Location $ReleasePath
+    $FileList = Get-ChildItem -Recurse -File | Resolve-Path -Relative
     Update-Metadata -Path $ReleaseManifest -PropertyName 'ModuleVersion' -Value $Version
+    Update-Metadata -Path $ReleaseManifest -PropertyName 'FileList' -Value $FileList
+    Pop-Location
     (Get-Module $ReleaseManifest -ListAvailable | Out-String -stream) -join "`n" | Trace-Message
 }
 
@@ -407,6 +425,8 @@ function Trace-Message {
 # First call to Trace-Message, pass in our TraceTimer to make sure we time EVERYTHING.
 Trace-Message "BUILDING: $ModuleName in $Path" -Stopwatch $TraceVerboseTimer
 
+Push-Location $Path
+
 init
 
 foreach($s in $step){
@@ -414,4 +434,5 @@ foreach($s in $step){
     &$s
 }
 
+Pop-Location
 Trace-Message "FINISHED: $ModuleName in $Path" -KillTimer
