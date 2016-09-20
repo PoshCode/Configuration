@@ -654,7 +654,7 @@ function Get-Metadata {
     }
 
     $Tokens = $Null; $ParseErrors = $Null
-    $AST = [System.Management.Automation.Language.Parser]::ParseInput( $ManifestContent, $Path, [ref]$Tokens, [ref]$ParseErrors )
+    $AST = [System.Management.Automation.Language.Parser]::ParseInput( $ManifestContent, [ref]$Tokens, [ref]$ParseErrors )
 
     $KeyValue = $Ast.EndBlock.Statements
     $KeyValue = @(FindHashKeyValue $PropertyName $KeyValue)
