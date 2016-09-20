@@ -642,16 +642,17 @@ function Get-Metadata {
     )
     $ErrorActionPreference = "Stop"
 
-    if(Test-Path $Path) {
-        Write-Debug "Found file for $Path, read raw content"
-        $ManifestContent = Get-Content $Path -Raw -Encoding UTF8
-    } else {
-        Write-Debug "Treating Path as content: $Path"
-        $ManifestContent = $Path
+    if(!(Test-Path $Path)) {
+        WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
+                  -Message "Can't find metadata file $Path" `
+                  -ErrorId "PathNotFound,Metadata\Import-Metadata" `
+                  -Category "ObjectNotFound"
+        return
     }
+    $Path = Convert-Path $Path
 
     $Tokens = $Null; $ParseErrors = $Null
-    $AST = [System.Management.Automation.Language.Parser]::ParseInput( $ManifestContent, $Path, [ref]$Tokens, [ref]$ParseErrors )
+    $AST = [System.Management.Automation.Language.Parser]::ParseFile( $Path, [ref]$Tokens, [ref]$ParseErrors )
 
     $KeyValue = $Ast.EndBlock.Statements
     $KeyValue = @(FindHashKeyValue $PropertyName $KeyValue)
