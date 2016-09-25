@@ -4,7 +4,7 @@
 ModuleToProcess = '.\Configuration.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.0.0'
+ModuleVersion = '1.0.1'
 
 # ID used to uniquely identify this module
 GUID = 'e56e5bec-4d97-4dfd-b138-abbaa14464a6'
@@ -57,10 +57,10 @@ PrivateData = @{
         LicenseUri = "http://opensource.org/licenses/MIT"
 
         # Release notes for this particular version of the module
-        ReleaseNotes = 'Squash annoying PowerShellGallery emails'
+        ReleaseNotes = 'Replace the Security.PolicyLevelType enum with a ValidateSet, to make this work on Core'
 
         # Indicates this is a pre-release/testing version of the module.
-        IsPrerelease = 'True'
+        IsPrerelease = 'False'
     }
 }
 

@@ -364,7 +364,7 @@ function test {
 
     if($FailedTestsCount -gt $FailLimit) {
         $exception = New-Object AggregateException "Failed Scenarios:`n`t`t'$($TestResults.FailedScenarios.Name -join "'`n`t`t'")'"
-        $errorRecord = New-Object System.Management.Automation.ErrorRecord $exception, "FailedScenarios", "LimitsExceeded", $Results
+        $errorRecord = New-Object System.Management.Automation.ErrorRecord $exception, "FailedScenarios", "LimitsExceeded", $TestResults
         $PSCmdlet.ThrowTerminatingError($errorRecord)
     }
 }

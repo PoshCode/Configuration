@@ -43,7 +43,8 @@ function Get-StoragePath {
     [CmdletBinding(DefaultParameterSetName = '__ModuleInfo')]
     param(
         # The scope to save at, defaults to Enterprise (which returns a path in "RoamingData")
-        [Security.PolicyLevelType]$Scope = "Enterprise",
+        [ValidateSet("User", "Machine", "Enterprise")]
+        [string]$Scope = "Enterprise",
 
         # A callstack. You should not ever pass this.
         # It is used to calculate the defaults for all the other parameters.
@@ -210,7 +211,8 @@ function Export-Configuration {
 
         # The scope to save at, defaults to Enterprise (which returns a path in "RoamingData")
         [Parameter(ParameterSetName = "ManualOverride")]
-        [Security.PolicyLevelType]$Scope = "Enterprise",
+        [ValidateSet("User", "Machine", "Enterprise")]
+        [string]$Scope = "Enterprise",
 
         # The version for saved settings -- if set, will be used in the returned path
         # NOTE: this is *NOT* calculated from the CallStack

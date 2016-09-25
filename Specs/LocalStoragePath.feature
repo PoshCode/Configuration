@@ -21,7 +21,7 @@ Feature: Automatically Calculate Local Storage Paths
          Given a script with the name 'SuperTestScript' that calls Get-StoragePath -Name TestScript -Author Author
          Then the script's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and 'Author\\TestScript'
 
-    @Modules 
+    @Modules
     Scenario Outline: Modules get automatic storage paths
         Given a module with the name '<modulename>' by the author 'Joel Bennett'
         Then the module's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and '\\Joel Bennett\\<modulename>$'
@@ -47,7 +47,6 @@ Feature: Automatically Calculate Local Storage Paths
             | Enterprise | SuperTestModule | TestDrive:\\\\EnterprisePath |
             | Machine    | SuperTestModule | TestDrive:\\\\MachinePath    |
             | User       | SuperTestModule | TestDrive:\\\\UserPath       |
-            | AppDomain  | SuperTestModule | TestDrive:\\\\EnterprisePath |
 
     @Modules
     Scenario Outline: To allow us to upgrade, settings should be versionable
