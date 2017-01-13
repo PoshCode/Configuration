@@ -32,8 +32,6 @@ function Test-PSVersion {
       [Version]$ne
    )
 
-   Write-Verbose "Version $Version"
-
    $all = @(
       if($lt) { $Version -lt $lt }
       if($gt) { $Version -gt $gt }
@@ -100,7 +98,7 @@ function Add-MetadataConverter {
 
          {$_ -is [String]}
          {
-            Write-Verbose "Adding function $_"
+            Write-Debug "Storing deserialization function: $_"
             Set-Content "function:script:$_" $Converters.$_
             # We need to store the given function name in MetadataConverters too
             $MetadataConverters.$_ = $Converters.$_
@@ -109,11 +107,10 @@ function Add-MetadataConverter {
 
          {$_ -is [Type]}
          {
-            Write-Verbose "Adding serializer for $($_.FullName)"
+            Write-Debug "Adding serializer for $($_.FullName)"
             $MetadataConverters.$_ = $Converters.$_
             continue
          }
-
          default {
             Write-Error "Unsupported key type in Converters: $_ is $($_.GetType())"
          }
@@ -309,7 +306,7 @@ function ConvertFrom-Metadata {
       $Tokens = $Null; $ParseErrors = $Null
 
       if(Test-PSVersion -lt "3.0") {
-         Write-Verbose "$InputObject"
+         #Write-Verbose "$InputObject"
          if(!(Test-Path $InputObject -ErrorAction SilentlyContinue)) {
             $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
             Set-Content -Encoding UTF8 -Path $Path $InputObject
@@ -415,7 +412,7 @@ function Import-Metadata {
    )
    process {
       if(Test-Path $Path) {
-         Write-Verbose "Importing Metadata file from `$Path: $Path"
+         Write-Debug "Importing Metadata file from `$Path: $Path"
          if(!(Test-Path $Path -PathType Leaf)) {
             $Path = Join-Path $Path ((Split-Path $Path -Leaf) + $ModuleManifestExtension)
          }
@@ -596,7 +593,7 @@ function FindHashKeyValue {
         [string[]]
         $CurrentPath = @()
     )
-    Write-Verbose "FindHashKeyValue: $SearchPath -eq $($CurrentPath -Join '.')"
+    Write-Debug "FindHashKeyValue: $SearchPath -eq $($CurrentPath -Join '.')"
     if($SearchPath -eq ($CurrentPath -Join '.') -or $SearchPath -eq $CurrentPath[-1]) {
         return $Ast |
             Add-Member NoteProperty HashKeyPath ($CurrentPath -join '.') -PassThru -Force |
@@ -646,10 +643,10 @@ function Get-Metadata {
     $ErrorActionPreference = "Stop"
 
     if(Test-Path $Path) {
-        Write-Verbose "Found file for $Path, read raw content"
+        Write-Debug "Found file for $Path, read raw content"
         $ManifestContent = Get-Content $Path -Raw -Encoding UTF8
     } else {
-        Write-Verbose "Treating Path as content: $Path"
+        Write-Debug "Treating Path as content: $Path"
         $ManifestContent = $Path
     }
 
@@ -681,8 +678,8 @@ function Get-Metadata {
     $KeyValue = $KeyValue[0]
 
     if($Passthru) { $KeyValue } else {
-        Write-Verbose "Start $($KeyValue.Extent.StartLineNumber) : $($KeyValue.Extent.StartColumnNumber) (char $($KeyValue.Extent.StartOffset))"
-        Write-Verbose "End   $($KeyValue.Extent.EndLineNumber) : $($KeyValue.Extent.EndColumnNumber) (char $($KeyValue.Extent.EndOffset))"
+        # Write-Debug "Start $($KeyValue.Extent.StartLineNumber) : $($KeyValue.Extent.StartColumnNumber) (char $($KeyValue.Extent.StartOffset))"
+        # Write-Debug "End   $($KeyValue.Extent.EndLineNumber) : $($KeyValue.Extent.EndColumnNumber) (char $($KeyValue.Extent.EndOffset))"
         $KeyValue.SafeGetValue()
     }
 }
@@ -845,10 +842,10 @@ function Update-Object {
       $InputObject
    )
    process {
-      Write-Verbose "INPUT OBJECT:"
-      Write-Verbose (($InputObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
-      Write-Verbose "Update OBJECT:"
-      Write-Verbose (($UpdateObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
+      Write-Debug "INPUT OBJECT:"
+      Write-Debug (($InputObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
+      Write-Debug "Update OBJECT:"
+      Write-Debug (($UpdateObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
       if($Null -eq $InputObject) { return }
 
       if($InputObject -is [System.Collections.IDictionary]) {

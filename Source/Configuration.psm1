@@ -114,7 +114,6 @@ function Get-StoragePath {
         }
         $CompanyName = $CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
 
-        Write-Verbose "Storage Root: $PathRoot"
         $PathRoot = Join-Path $PathRoot $Type
 
         if($CompanyName -and $CompanyName -ne "Unknown") {
@@ -127,7 +126,7 @@ function Get-StoragePath {
             $PathRoot = Join-Path $PathRoot $Version
         }
 
-        Write-Verbose "Storage Path: $PathRoot"
+        Write-Debug "Storage Path: $PathRoot"
 
         # Note: avoid using Convert-Path because drives aliases like "TestData:" get converted to a C:\ file system location
         $null = mkdir $PathRoot -Force
@@ -312,7 +311,7 @@ function Import-Configuration {
         [Switch]$Ordered
     )
     begin {
-        Write-Verbose "Module Name $Name"
+        Write-Debug "Import-Configuration for module $Name"
     }
     process {
         if(!$Name) {
@@ -323,11 +322,10 @@ function Import-Configuration {
             $DefaultPath = Join-Path $DefaultPath Configuration.psd1
         }
 
-        Write-Verbose "PSBoundParameters $($PSBoundParameters | Out-String)"
         $Configuration = if(Test-Path $DefaultPath) {
                              Import-Metadata $DefaultPath -ErrorAction Ignore -Ordered:$Ordered
                          } else { @{} }
-        Write-Verbose "Module ($DefaultPath)`n$($Configuration | Out-String)"
+        Write-Debug "Module Configuration: ($DefaultPath)`n$($Configuration | Out-String)"
 
         $Parameters = @{
             CompanyName = $CompanyName
@@ -342,7 +340,7 @@ function Import-Configuration {
         $Machine = if(Test-Path $MachinePath) {
                     Import-Metadata $MachinePath -ErrorAction Ignore -Ordered:$Ordered
                 } else { @{} }
-        Write-Verbose "Machine ($MachinePath)`n$($Machine | Out-String)"
+        Write-Debug "Machine Configuration: ($MachinePath)`n$($Machine | Out-String)"
 
 
         $EnterprisePath = Get-StoragePath @Parameters -Scope Enterprise
@@ -350,14 +348,14 @@ function Import-Configuration {
         $Enterprise = if(Test-Path $EnterprisePath) {
                     Import-Metadata $EnterprisePath -ErrorAction Ignore -Ordered:$Ordered
                 } else { @{} }
-        Write-Verbose "Enterprise ($EnterprisePath)`n$($Enterprise | Out-String)"
+        Write-Debug "Enterprise Configuration: ($EnterprisePath)`n$($Enterprise | Out-String)"
 
         $LocalUserPath = Get-StoragePath @Parameters -Scope User
         $LocalUserPath = Join-Path $LocalUserPath Configuration.psd1
         $LocalUser = if(Test-Path $LocalUserPath) {
                     Import-Metadata $LocalUserPath -ErrorAction Ignore -Ordered:$Ordered
                 } else { @{} }
-        Write-Verbose "LocalUser ($LocalUserPath)`n$($LocalUser | Out-String)"
+        Write-Debug "LocalUser Configuration: ($LocalUserPath)`n$($LocalUser | Out-String)"
 
         $Configuration | Update-Object $Machine |
                          Update-Object $Enterprise |
