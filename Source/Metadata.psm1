@@ -275,161 +275,160 @@ function ConvertFrom-Metadata {
 
         See also the third example on ConvertTo-Metadata and Add-MetadataConverter
     #>
-   [CmdletBinding()]
-   param(
-      [Parameter(ValueFromPipelineByPropertyName="True", Position=0)]
-      [Alias("PSPath")]
-      $InputObject,
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipelineByPropertyName="True", Position=0)]
+        [Alias("PSPath")]
+        $InputObject,
 
-      [Hashtable]$Converters = @{},
+        [Hashtable]$Converters = @{},
 
-      $ScriptRoot = '$PSScriptRoot',
+        $ScriptRoot = '$PSScriptRoot',
 
-      # If set (and PowerShell version 4 or later) preserve the file order of configuration
-      # This results in the output being an OrderedDictionary instead of Hashtable
-      [Switch]$Ordered
-   )
-   begin {
-      $Script:OriginalMetadataConverters = $Script:MetadataConverters.Clone()
-      Add-MetadataConverter $Converters
-      [string[]]$ValidCommands = @(
-         "PSObject", "ConvertFrom-StringData", "Join-Path", "ConvertTo-SecureString",
-         "Guid", "bool", "SecureString", "Version", "DateTime", "DateTimeOffset", "PSCredential", "ConsoleColor"
-         ) + @($MetadataConverters.Keys.GetEnumerator() | Where-Object { $_ -isnot [Type] })
-      [string[]]$ValidVariables = "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot","PSCulture","PSUICulture","True","False","Null"
-   }
-   end {
-      $Script:MetadataConverters = $Script:OriginalMetadataConverters.Clone()
-   }
-   process {
-      $ErrorActionPreference = "Stop"
-      $Tokens = $Null; $ParseErrors = $Null
+        # If set (and PowerShell version 4 or later) preserve the file order of configuration
+        # This results in the output being an OrderedDictionary instead of Hashtable
+        [Switch]$Ordered
+    )
+    begin {
+        $Script:OriginalMetadataConverters = $Script:MetadataConverters.Clone()
+        Add-MetadataConverter $Converters
+        [string[]]$ValidCommands = @(
+            "PSObject", "ConvertFrom-StringData", "Join-Path", "ConvertTo-SecureString",
+            "Guid", "bool", "SecureString", "Version", "DateTime", "DateTimeOffset", "PSCredential", "ConsoleColor"
+        ) + @($MetadataConverters.Keys.GetEnumerator() | Where-Object { $_ -isnot [Type] })
+        [string[]]$ValidVariables = "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot","PSCulture","PSUICulture","True","False","Null"
+    }
+    end {
+        $Script:MetadataConverters = $Script:OriginalMetadataConverters.Clone()
+    }
+    process {
+        $ErrorActionPreference = "Stop"
+        $Tokens = $Null; $ParseErrors = $Null
 
-      if(Test-PSVersion -lt "3.0") {
-         #Write-Verbose "$InputObject"
-         if(!(Test-Path $InputObject -ErrorAction SilentlyContinue)) {
-            $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
-            Set-Content -Encoding UTF8 -Path $Path $InputObject
-            $InputObject = $Path
-         } elseif(!"$InputObject".EndsWith($ModuleManifestExtension)) {
-            $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
-            Copy-Item "$InputObject" "$Path"
-            $InputObject = $Path
-         }
-         $Result = $null
-         Import-LocalizedData -BindingVariable Result -BaseDirectory (Split-Path $InputObject) -FileName (Split-Path $InputObject -Leaf) -SupportedCommand $ValidCommands
-         return $Result
-      }
+        if(Test-PSVersion -lt "3.0") {
+            # Write-Verbose "$InputObject"
+            if(!(Test-Path $InputObject -ErrorAction SilentlyContinue)) {
+                $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
+                Set-Content -Encoding UTF8 -Path $Path $InputObject
+                $InputObject = $Path
+            } 
+            elseif(!"$InputObject".EndsWith($ModuleManifestExtension)) {
+                $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
+                Copy-Item "$InputObject" "$Path"
+                $InputObject = $Path
+            }
+            $Result = $null
+            Import-LocalizedData -BindingVariable Result -BaseDirectory (Split-Path $InputObject) -FileName (Split-Path $InputObject -Leaf) -SupportedCommand $ValidCommands
+            return $Result
+        }
 
-      if(Test-Path $InputObject -ErrorAction SilentlyContinue) {
-         $AST = [System.Management.Automation.Language.Parser]::ParseFile( (Convert-Path $InputObject), [ref]$Tokens, [ref]$ParseErrors)
-         $ScriptRoot = Split-Path $InputObject
-      } else {
-         $ScriptRoot = $PoshCodeModuleRoot
-         $OFS = "`n"
-         # Remove SIGnature blocks, PowerShell doesn't parse them in .psd1 and chokes on them here.
-         $InputObject = "$InputObject" -replace "# SIG # Begin signature block(?s:.*)"
-         $AST = [System.Management.Automation.Language.Parser]::ParseInput($InputObject, [ref]$Tokens, [ref]$ParseErrors)
-      }
+        if(Test-Path $InputObject -ErrorAction SilentlyContinue) {
+            $AST = [System.Management.Automation.Language.Parser]::ParseFile( (Convert-Path $InputObject), [ref]$Tokens, [ref]$ParseErrors)
+            $ScriptRoot = Split-Path $InputObject
+        } else {
+            $ScriptRoot = $PoshCodeModuleRoot
+            $OFS = "`n"
+            # Remove SIGnature blocks, PowerShell doesn't parse them in .psd1 and chokes on them here.
+            $InputObject = "$InputObject" -replace "# SIG # Begin signature block(?s:.*)"
+            $AST = [System.Management.Automation.Language.Parser]::ParseInput($InputObject, [ref]$Tokens, [ref]$ParseErrors)
+        }
 
-      if($null -ne $ParseErrors -and $ParseErrors.Count -gt 0) {
-         ThrowError -Exception (New-Object System.Management.Automation.ParseException (,[System.Management.Automation.Language.ParseError[]]$ParseErrors)) -ErrorId "Metadata Error" -Category "ParserError" -TargetObject $InputObject
-      }
+        if($null -ne $ParseErrors -and $ParseErrors.Count -gt 0) {
+            ThrowError -Exception (New-Object System.Management.Automation.ParseException (,[System.Management.Automation.Language.ParseError[]]$ParseErrors)) -ErrorId "Metadata Error" -Category "ParserError" -TargetObject $InputObject
+        }
 
-      # Get the variables or subexpressions from strings which have them ("StringExpandable" vs "String") ...
-      $Tokens += $Tokens | Where-Object { "StringExpandable" -eq $_.Kind } | Select-Object -ExpandProperty NestedTokens
+        # Get the variables or subexpressions from strings which have them ("StringExpandable" vs "String") ...
+        $Tokens += $Tokens | Where-Object { "StringExpandable" -eq $_.Kind } | Select-Object -ExpandProperty NestedTokens
 
-      # Work around PowerShell rules about magic variables
-      # Replace "PSScriptRoot" magic variables with the non-reserved "ScriptRoot"
-      if($scriptroots = @($Tokens | Where-Object { ("Variable" -eq $_.Kind) -and ($_.Name -eq "PSScriptRoot") } | ForEach-Object { $_.Extent } )) {
-         $ScriptContent = $Ast.ToString()
-         for($r = $scriptroots.count - 1; $r -ge 0; $r--) {
-            $ScriptContent = $ScriptContent.Remove($scriptroots[$r].StartOffset, ($scriptroots[$r].EndOffset - $scriptroots[$r].StartOffset)).Insert($scriptroots[$r].StartOffset,'$ScriptRoot')
-         }
-         $AST = [System.Management.Automation.Language.Parser]::ParseInput($ScriptContent, [ref]$Tokens, [ref]$ParseErrors)
-      }
+        # Work around PowerShell rules about magic variables
+        # Replace "PSScriptRoot" magic variables with the non-reserved "ScriptRoot"
+        if($scriptroots = @($Tokens | Where-Object { ("Variable" -eq $_.Kind) -and ($_.Name -eq "PSScriptRoot") } | ForEach-Object { $_.Extent } )) {
+            $ScriptContent = $Ast.ToString()
+            for($r = $scriptroots.count - 1; $r -ge 0; $r--) {
+                $ScriptContent = $ScriptContent.Remove($scriptroots[$r].StartOffset, ($scriptroots[$r].EndOffset - $scriptroots[$r].StartOffset)).Insert($scriptroots[$r].StartOffset,'$ScriptRoot')
+            }
+            $AST = [System.Management.Automation.Language.Parser]::ParseInput($ScriptContent, [ref]$Tokens, [ref]$ParseErrors)
+        }
 
-      $Script = $AST.GetScriptBlock()
-      try {
-         $Script.CheckRestrictedLanguage( $ValidCommands, $ValidVariables, $true )
-      }
-      catch {
-         ThrowError -Exception $_.Exception.InnerException -ErrorId "Metadata Error" -Category "InvalidData" -TargetObject $Script
-      }
+        $Script = $AST.GetScriptBlock()
+        try {
+            $Script.CheckRestrictedLanguage( $ValidCommands, $ValidVariables, $true )
+        }
+        catch {
+            ThrowError -Exception $_.Exception.InnerException -ErrorId "Metadata Error" -Category "InvalidData" -TargetObject $Script
+        }
 
-      if($Ordered -and (Test-PSVersion -gt "3.0")) {
-         # Make all the hashtables ordered, so that the output objects make more sense to humans...
-         if($Tokens | Where-Object { "AtCurly" -eq $_.Kind }) {
-            $ScriptContent = $AST.ToString()
-            $Hashtables = $AST.FindAll({$args[0] -is [System.Management.Automation.Language.HashtableAst] -and ("ordered" -ne $args[0].Parent.Type.TypeName)}, $Recurse)
-            $Hashtables = $Hashtables | ForEach-Object {
+        if($Ordered -and (Test-PSVersion -gt "3.0")) {
+            # Make all the hashtables ordered, so that the output objects make more sense to humans...
+            if($Tokens | Where-Object { "AtCurly" -eq $_.Kind }) {
+                $ScriptContent = $AST.ToString()
+                $Hashtables = $AST.FindAll({$args[0] -is [System.Management.Automation.Language.HashtableAst] -and ("ordered" -ne $args[0].Parent.Type.TypeName)}, $Recurse)
+                $Hashtables = $Hashtables | ForEach-Object {
                                             New-Object PSObject -Property @{Type="([ordered]";Position=$_.Extent.StartOffset}
                                             New-Object PSObject -Property @{Type=")";Position=$_.Extent.EndOffset}
                                           } | Sort-Object Position -Descending
-            foreach($point in $Hashtables) {
-               $ScriptContent = $ScriptContent.Insert($point.Position, $point.Type)
+                foreach($point in $Hashtables) {
+                    $ScriptContent = $ScriptContent.Insert($point.Position, $point.Type)
+                }
+                $AST = [System.Management.Automation.Language.Parser]::ParseInput($ScriptContent, [ref]$Tokens, [ref]$ParseErrors)
+                $Script = $AST.GetScriptBlock()
             }
-            $AST = [System.Management.Automation.Language.Parser]::ParseInput($ScriptContent, [ref]$Tokens, [ref]$ParseErrors)
-            $Script = $AST.GetScriptBlock()
-         }
-      }
+        }
 
-      # Write-Debug $ScriptContent
+        $Mode, $ExecutionContext.SessionState.LanguageMode = $ExecutionContext.SessionState.LanguageMode, "RestrictedLanguage"
 
-      $Mode, $ExecutionContext.SessionState.LanguageMode = $ExecutionContext.SessionState.LanguageMode, "RestrictedLanguage"
-
-      try {
-         $Script.InvokeReturnAsIs(@())
-      }
-      finally {
-         $ExecutionContext.SessionState.LanguageMode = $Mode
-      }
-   }
+        try {
+            $Script.InvokeReturnAsIs(@())
+        }
+        finally {
+            $ExecutionContext.SessionState.LanguageMode = $Mode
+        }
+    }
 }
 
 function Import-Metadata {
-   <#
-      .Synopsis
-         Creates a data object from the items in a Metadata file (e.g. a .psd1)
-      .Description
-         Serves as a wrapper for ConvertFrom-Metadata to explicitly support importing from files
-      .Example
-         $data = Import-Metadata .\Configuration.psd1 -Ordered
+    <#
+        .Synopsis
+            Creates a data object from the items in a Metadata file (e.g. a .psd1)
+        .Description
+            Serves as a wrapper for ConvertFrom-Metadata to explicitly support importing from files
+        .Example
+            $data = Import-Metadata .\Configuration.psd1 -Ordered
 
-         Convert a module manifest into a hashtable of properties for introspection, preserving the order in the file
-   #>
-   [CmdletBinding()]
-   param(
-      [Parameter(ValueFromPipeline=$true, Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
-      [Alias("PSPath","Content")]
-      [string]$Path,
+            Convert a module manifest into a hashtable of properties for introspection, preserving the order in the file
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipeline=$true, Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
+        [Alias("PSPath","Content")]
+        [string]$Path,
 
-      [Hashtable]$Converters = @{},
+        [Hashtable]$Converters = @{},
 
-       # If set (and PowerShell version 4 or later) preserve the file order of configuration
-       # This results in the output being an OrderedDictionary instead of Hashtable
-      [Switch]$Ordered
-   )
-   process {
-      if(Test-Path $Path) {
-         Write-Debug "Importing Metadata file from `$Path: $Path"
-         if(!(Test-Path $Path -PathType Leaf)) {
-            $Path = Join-Path $Path ((Split-Path $Path -Leaf) + $ModuleManifestExtension)
-         }
-      }
-      if(!(Test-Path $Path)) {
-         WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
-                     -Message "Can't find settings file $Path" `
-                     -ErrorId "PathNotFound,Metadata\Import-Metadata" `
-                     -Category "ObjectNotFound"
-         return
-      }
-      try {
-         ConvertFrom-Metadata -InputObject $Path -Converters $Converters -Ordered:$Ordered
-      } catch {
-         ThrowError $_
-      }
-   }
+        # If set (and PowerShell version 4 or later) preserve the file order of configuration
+        # This results in the output being an OrderedDictionary instead of Hashtable
+        [Switch]$Ordered
+    )
+    process {
+        if(Test-Path $Path) {
+            Write-Debug "Importing Metadata file from `$Path: $Path"
+            if(!(Test-Path $Path -PathType Leaf)) {
+                $Path = Join-Path $Path ((Split-Path $Path -Leaf) + $ModuleManifestExtension)
+            }
+        }
+        if(!(Test-Path $Path)) {
+            WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
+                       -Message "Can't find metadata file $Path" `
+                       -ErrorId "PathNotFound,Metadata\Import-Metadata" `
+                       -Category "ObjectNotFound"
+            return
+        }
+        try {
+            ConvertFrom-Metadata -InputObject $Path -Converters $Converters -Ordered:$Ordered
+        } catch {
+            ThrowError $_
+        }
+    }
 }
 
 function Export-Metadata {
@@ -610,7 +609,6 @@ function FindHashKeyValue {
         }
     }
 }
-
 
 function Get-Metadata {
     #.Synopsis
