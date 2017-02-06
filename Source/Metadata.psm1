@@ -293,7 +293,7 @@ function ConvertFrom-Metadata {
         $Script:OriginalMetadataConverters = $Script:MetadataConverters.Clone()
         Add-MetadataConverter $Converters
         [string[]]$ValidCommands = @(
-            "PSObject", "ConvertFrom-StringData", "Join-Path", "ConvertTo-SecureString",
+            "PSObject", "ConvertFrom-StringData", "Join-Path", "Split-Path", "ConvertTo-SecureString",
             "Guid", "bool", "SecureString", "Version", "DateTime", "DateTimeOffset", "PSCredential", "ConsoleColor"
         ) + @($MetadataConverters.Keys.GetEnumerator() | Where-Object { $_ -isnot [Type] })
         [string[]]$ValidVariables = "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot","PSCulture","PSUICulture","True","False","Null"
@@ -311,7 +311,7 @@ function ConvertFrom-Metadata {
                 $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
                 Set-Content -Encoding UTF8 -Path $Path $InputObject
                 $InputObject = $Path
-            } 
+            }
             elseif(!"$InputObject".EndsWith($ModuleManifestExtension)) {
                 $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
                 Copy-Item "$InputObject" "$Path"
