@@ -1,9 +1,17 @@
 $PSModuleAutoLoadingPreference = "None"
 
+BeforeEachFeature {
+    Remove-Module Configuration -ErrorAction Ignore -Force
+}
+AfterEachFeature {
+    Remove-Module Configuration -ErrorAction Ignore -Force
+    Import-Module Configuration
+}
+
 Given 'the configuration module is imported with testing paths:' {
     param($Table)
-    $ModuleBase = (Get-Module Configuration).ModuleBase
-    Remove-Module Configuration -EA 0
+    $ModuleBase = (Get-Module Configuration -ListAvailable | Sort Version -Descending)[0].ModuleBase
+    Remove-Module Configuration -ErrorAction Ignore -Force
     Import-Module $ModuleBase\Configuration.psd1 -Args @($null, $Table.Enterprise, $Table.User, $Table.Machine) -Scope Global
 }
 
@@ -11,7 +19,7 @@ Given 'the configuration module is imported with a URL converter' {
     param($Table)
     $ModuleBase = "."
     $ModuleBase = (Get-Module Configuration).ModuleBase
-    Remove-Module Configuration -EA 0
+    Remove-Module Configuration -ErrorAction Ignore -Force
     Import-Module $ModuleBase\Configuration.psd1 -Args @{
                 [Uri] = { "Uri '$_' " }
                 "Uri" = {
@@ -31,9 +39,9 @@ Given 'the manifest module is imported' {
 Given "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company>.+?)'|\s+\w+ the author '(?<author>.+?)')+" {
     param($name, $Company = "", $Author = "")
 
-    $Script:ModulePath = "TestDrive:\Modules\$name"
-    Remove-Module $name -ErrorAction SilentlyContinue
-    Remove-Item $ModulePath -Recurse -ErrorAction SilentlyContinue
+    $ModulePath = "TestDrive:\Modules\$name"
+    Remove-Module $name -ErrorAction Ignore
+    Remove-Item $ModulePath -Recurse -ErrorAction Ignore
     $null = mkdir $ModulePath -Force
     $Env:PSModulePath = $Env:PSModulePath + ";TestDrive:\Modules" -replace "(;TestDrive:\\Modules)+?$", ";TestDrive:\Modules"
 
@@ -63,25 +71,25 @@ When "the module's (\w+) path should (\w+) (.+)$" {
 
     [string[]]$Path = $Path -split "\s*and\s*" | %{ $_.Trim("['`"]") }
 
-    $script:LocalStoragePath = GetStoragePath -Scope $Scope
+    $LocalStoragePath = GetStoragePath -Scope $Scope
     foreach($PathAssertion in $Path) {
-        $script:LocalStoragePath | Should $Comparator $PathAssertion
+        $LocalStoragePath | Should $Comparator $PathAssertion
     }
 }
 
 Given "a script with the name '(.+)' that calls Get-StoragePath with no parameters" {
     param($name)
     Set-Content "TestDrive:\${name}.ps1" "Get-StoragePath"
-    $Script:ScriptName = $Name
+    $ScriptName = $Name
 }
 Given "a script with the name '(?<File>.+)' that calls Get-StoragePath (?:-Name (?<Name>\w*) ?|-Author (?<Author>\w*) ?){2}" {
     param($File, $Name, $Author)
     Set-Content "TestDrive:\${File}.ps1" "Get-StoragePath -Name $Name -Author $Author"
-    $Script:ScriptName = $File
+    $ScriptName = $File
 }
 
 Then "the script should throw an exception$" {
-    { $script:LocalStoragePath = iex "TestDrive:\${ScriptName}.ps1" } | Should throw
+    { $LocalStoragePath = iex "TestDrive:\${ScriptName}.ps1" } | Should throw
 }
 
 
@@ -90,9 +98,9 @@ Then "the script's (\w+) path should (\w+) (.+)$" {
 
     [string[]]$Path = $Path -split "\s*and\s*" | %{ $_.Trim("['`"]") }
 
-    $script:LocalStoragePath = iex "TestDrive:\${Script:ScriptName}.ps1"
+    $LocalStoragePath = iex "TestDrive:\${ScriptName}.ps1"
     foreach($PathAssertion in $Path) {
-        $script:LocalStoragePath | Should $Comparator $PathAssertion
+        $LocalStoragePath | Should $Comparator $PathAssertion
     }
 }
 
@@ -104,7 +112,7 @@ When "the module's storage path should end with a version number if one is passe
 
 When "a settings hashtable" {
     param($hashtable)
-    $script:Settings = iex "[ordered]$hashtable"
+    $Settings = iex "[ordered]$hashtable"
 }
 
 When "we update the settings with" {
@@ -115,7 +123,7 @@ When "we update the settings with" {
         $null
     }
 
-    $script:Settings = $script:Settings | Update-Object $Update
+    $Settings = $Settings | Update-Object $Update
 }
 
 When "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
@@ -127,27 +135,27 @@ When "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+)
         $folder = GetStoragePath -Scope $Scope
     } elseif($Version) {
         $folder = GetStoragePath -Version $Version
-    } elseif(Test-Path "${Script:ModulePath}") {
-        $folder = $Script:ModulePath
+    } elseif(Test-Path "$ModulePath") {
+        $folder = $ModulePath
     } else {
         $folder = "TestDrive:\"
     }
-    $Script:SettingsFile = Join-Path $folder $fileName
+    $SettingsFile = Join-Path $folder $fileName
 
-    $Parent = Split-Path $Script:SettingsFile
+    $Parent = Split-Path $SettingsFile
     if(!(Test-Path $Parent)) {
         $null = mkdir $Parent -Force -EA 0
     }
-    Set-Content $Script:SettingsFile -Value $hashtable
+    Set-Content $SettingsFile -Value $hashtable
 }
 
 Then "the settings object MyPath should match the file's path" {
-    $script:Settings.MyPath | Should Be ${Script:SettingsFile}
+    $Settings.MyPath | Should Be ${SettingsFile}
 }
 
 When "a settings hashtable with an? (.+) in it" {
     param($type)
-    $script:Settings = @{
+    $Settings = @{
         UserName = $Env:UserName
     }
 
@@ -224,59 +232,59 @@ When "we add a converter for (.*) types" {
 }
 
 When "we convert the settings to metadata" {
-    $script:SettingsMetadata = ConvertTo-Metadata $script:Settings
+    $SettingsMetadata = ConvertTo-Metadata $Settings
 
-    # Write-Debug $script:SettingsMetadata
+    # Write-Debug $SettingsMetadata
     $Wide = $Host.UI.RawUI.WindowSize.Width
-    Write-Verbose $script:SettingsMetadata
+    Write-Verbose $SettingsMetadata
 }
 
 When "we export to a settings file named (.*)" {
     param($fileName)
-    if(!$Script:ModulePath -or !(Test-Path $Script:ModulePath)) {
-        $Script:ModulePath = "TestDrive:\"
+    if(!$ModulePath -or !(Test-Path $ModulePath)) {
+        $ModulePath = "TestDrive:\"
     }
-    $Script:SettingsFile = Join-Path $Script:ModulePath $fileName
-    $File = $script:Settings | Export-Metadata ${Script:SettingsFile} -Passthru
+    $SettingsFile = Join-Path $ModulePath $fileName
+    $File = $Settings | Export-Metadata ${SettingsFile} -Passthru
     $File.FullName | Should Be (Convert-Path $SettingsFile)
 }
 
 
 When "we convert the metadata to an object" {
-    $script:Settings = ConvertFrom-Metadata $script:SettingsMetadata
+    $Settings = ConvertFrom-Metadata $SettingsMetadata
 
-    Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+    Write-Verbose (($Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
 
 
 When "we import the file to an object" {
-    $script:Settings = Import-Metadata ${Script:SettingsFile}
+    $Settings = Import-Metadata ${SettingsFile}
 
-    Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+    Write-Verbose (($Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
 
 
 When "we import the file with ordered" {
-    $script:Settings = Import-Metadata ${Script:SettingsFile} -Ordered
+    $Settings = Import-Metadata ${SettingsFile} -Ordered
 
-    Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+    Write-Verbose (($Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
 
 When "we import the folder path" {
-    $script:Settings = Import-Metadata (Split-Path ${Script:SettingsFile})
+    $Settings = Import-Metadata (Split-Path ${SettingsFile})
 
-    Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+    Write-Verbose (($Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
 
 When "trying to import the file to an object should throw(.*)" {
     param([string]$Message)
-    { $script:Settings = Import-Metadata ${Script:SettingsFile} } | Should Throw $Message.trim()
+    { $Settings = Import-Metadata ${SettingsFile} } | Should Throw $Message.trim()
 }
 
 When "the string version should (\w+)\s*(.*)?" {
     param($operator, $data)
-    # I have to normalize line endings:
-    $meta = ($script:SettingsMetadata -replace "\r?\n","`n")
+    # Normalize line endings, because the module does:
+    $meta = ($SettingsMetadata -replace "\r?\n","`n")
     $data = $data.trim('"''')  -replace "\r?\n","`n"
     # And then actually test it
     $meta | Should $operator $data
@@ -284,24 +292,36 @@ When "the string version should (\w+)\s*(.*)?" {
 
 When "the settings file should (\w+)\s*(.*)?" {
     param($operator, $data)
-                    # I have to normalize line endings:
-    $data = [regex]::escape(($data -replace "\r?\n","`n"))
+    # Normalize line endings, because the module does:
+    $data = [regex]::escape(($data -replace "\r?\n","`n")) -replace '\\n','\r?\n'
     if($operator -eq "Contain"){ $operator = "ContainMultiline"}
-    Get-Item ${Script:SettingsFile} | Should $operator $data
+    ${SettingsFile} | Should $operator $data
 }
-# This step will create verifiable/counting loggable mocks for Write-Warning, Write-Error, Write-Verbose
-When "we expect an? (?<type>warning|error|verbose) in (?<module>.*)" {
-    param($type, $module)
 
-    $Script:ErrorModule = $module
-
-    Mock -Module $Script:ErrorModule Write-$type { $true } -Verifiable
-    if($Type -eq "Error" -and ($Script:ErrorModule -eq "Metadata")) {
-        Mock -Module $Script:ErrorModule WriteError { Write-Error "Error" -TargetObject $Args } -Verifiable
+Given "the settings file does not exist" {
+    #
+    if(!$ModulePath -or !(Test-Path $ModulePath)) {
+        $ModulePath = "TestDrive:\"
     }
-    # if($Type -eq "Warning") {
-    #     Mock -Module Manifest WriteWarning { Write-Warning "Warning" -TargetObject $Args } -Verifiable
-    # }
+    if(!${SettingsFile}) {
+        $SettingsFile = Join-Path $ModulePath "NoSuchFile.psd1"
+    }
+    if(Test-Path $SettingsFile) {
+        Remove-Item $SettingsFile
+    }
+}
+
+
+# This step will create verifiable/counting loggable mocks for Write-Warning, Write-Error, Write-Verbose
+When "we expect an? (?<type>warning|error|verbose) in the (?<module>.*) module" {
+    param($type, $module)
+    $ErrorModule = $module
+
+    Mock -Module $ErrorModule Write-$type { $true } -Verifiable
+    # The Metadata module hides itself a little bit
+    if($Type -eq "Error" -and ($ErrorModule -eq "Metadata")) {
+        Mock -Module $ErrorModule WriteError { Write-Error "Error" -TargetObject $Args }
+    }
 }
 
 # this step lets us verify the number of calls to those three mocks
@@ -312,7 +332,8 @@ When "the (?<type>warning|error|verbose) is logged(?: (?<exactly>exactly) (\d+) 
         $param.Exactly = $Exactly -eq "Exactly"
         $param.Times = $count
     }
-    Assert-MockCalled -Module $Script:ErrorModule -Command Write-$type @param
+
+    Assert-MockCalled -Module $ErrorModule -Command Write-$type @param
 }
 
 When "we add a converter that's not a scriptblock" {
@@ -337,18 +358,18 @@ When "we add a converter with a number as a key" {
 
 Then "the settings object should be of type (.*)" {
     param([Type]$Type)
-    $script:Settings | Should BeOfType $Type
+    $Settings | Should BeOfType $Type
 }
 
 
 Then "the settings object should have an? (.*) of type (.*)" {
     param([String]$Parameter, [Type]$Type)
-    $script:Settings.$Parameter | Should BeOfType $Type
+    $Settings.$Parameter | Should BeOfType $Type
 }
 
 Then "the settings object's (.*) should (be of type|be) (.*)" {
     param([String]$Parameter, [String]$operator, $Expected)
-    $Value = $script:Settings
+    $Value = $Settings
 
     # Write-Debug ($Settings | Out-String)
 
@@ -367,19 +388,19 @@ Then "the settings object's (.*) should (be of type|be) (.*)" {
 
 Then "Key (\d+) is (\w+)" {
     param([int]$index, [string]$name)
-    $script:Settings.Keys | Select -Index $index | Should Be $Name
+    $Settings.Keys | Select -Index $index | Should Be $Name
 }
 
 Given "a mock PowerShell version (.*)" {
     param($version)
-    $script:PSVersion = [Version]$version
-    $script:PSDefaultParameterValues."Test-PSVersion:Version" = $script:PSVersion
+    $PSVersion = [Version]$version
+    $PSDefaultParameterValues."Test-PSVersion:Version" = $PSVersion
 }
 
 When "we fake version 2.0 in the Metadata module" {
     &(Get-Module Configuration) {
         &(Get-Module Metadata) {
-            $script:PSDefaultParameterValues."Test-PSVersion:Version" = [Version]"2.0"
+            $PSDefaultParameterValues."Test-PSVersion:Version" = [Version]"2.0"
         }
     }
 }
@@ -387,22 +408,22 @@ When "we fake version 2.0 in the Metadata module" {
 When "we're using PowerShell 4 or higher in the Metadata module" {
     &(Get-Module Configuration) {
         &(Get-Module Metadata) {
-            $null = $script:PSDefaultParameterValues.Remove("Test-PSVersion:Version")
+            $null = $PSDefaultParameterValues.Remove("Test-PSVersion:Version")
             $PSVersionTable.PSVersion -ge ([Version]"4.0") | Should Be $True
         }
     }
 }
 
 Given "the actual PowerShell version" {
-    $script:PSVersion = $PSVersionTable.PSVersion
-    $null = $script:PSDefaultParameterValues.Remove("Test-PSVersion:Version")
+    $PSVersion = $PSVersionTable.PSVersion
+    $null = $PSDefaultParameterValues.Remove("Test-PSVersion:Version")
 }
 
 Then "the Version -(..) (.*)" {
     param($comparator, $version)
 
     if($version -eq "the version") {
-        [Version]$version = $script:PSVersion
+        [Version]$version = $PSVersion
     } else {
         [Version]$version = $version
     }
@@ -412,15 +433,15 @@ Then "the Version -(..) (.*)" {
 }
 
 When "I call Import-Configuration" {
-    $script:Settings = ImportConfiguration
+    $Settings = ImportConfiguration
 
-    Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+    Write-Verbose (($Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
 
 When "I call Import-Configuration with a Version" {
-    $script:Settings = ImportConfigVersion
+    $Settings = ImportConfigVersion
 
-    Write-Verbose (($script:Settings | Out-String -Stream | % TrimEnd) -join "`n")
+    Write-Verbose (($Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
 
 When "I call Export-Configuration with" {
@@ -435,12 +456,12 @@ When "I call Export-Configuration with a Version" {
 
 When "I call Get-Metadata (\S+)(?: (\S+))?" {
     param($path, $name)
-    Push-Location $script:ModulePath
+    Push-Location $ModulePath
     try {
         if($name) {
-            $script:Result = Get-Metadata $path $name
+            $Result = Get-Metadata $path $name
         } else {
-            $script:Result = Get-Metadata $path
+            $Result = Get-Metadata $path
         }
     } finally {
         Pop-Location
@@ -449,12 +470,12 @@ When "I call Get-Metadata (\S+)(?: (\S+))?" {
 
 When "I call Update-Metadata (\S+)(?: (\S+))?" {
     param($path, $name)
-    Push-Location $script:ModulePath
+    Push-Location $ModulePath
     try {
         if($name) {
-            $script:Result = Update-Metadata $path $name
+            $Result = Update-Metadata $path $name
         } else {
-            $script:Result = Update-Metadata $path
+            $Result = Update-Metadata $path
         }
     } finally {
         Pop-Location
@@ -463,9 +484,9 @@ When "I call Update-Metadata (\S+)(?: (\S+))?" {
 
 When "I call Update-Metadata (\S+) -Increment (\S+)" {
     param($path, $name)
-    Push-Location $script:ModulePath
+    Push-Location $ModulePath
     try {
-        $script:Result = Update-Metadata $path -Increment $name
+        $Result = Update-Metadata $path -Increment $name
     } finally {
         Pop-Location
     }
@@ -474,7 +495,7 @@ When "I call Update-Metadata (\S+) -Increment (\S+)" {
 
 Then "the result should be (.*)" {
     param($value)
-    $script:Result | Should Be $value
+    $Result | Should Be $value
 }
 
 
@@ -487,11 +508,11 @@ Then "a settings file named (\S+) should exist(?:(?: in the (?<Scope>\S+) folder
         $folder = GetStoragePath -Scope $Scope
     } elseif($Version) {
         $folder = GetStoragePath -Version $Version
-    } elseif(Test-Path "${Script:ModulePath}") {
-        $folder = $Script:ModulePath
+    } elseif(Test-Path "${ModulePath}") {
+        $folder = $ModulePath
     } else {
         $folder = "TestDrive:\"
     }
-    $Script:SettingsFile = Join-Path $folder $fileName
-    $Script:SettingsFile | Should Exist
+    $SettingsFile = Join-Path $folder $fileName
+    $SettingsFile | Should Exist
 }

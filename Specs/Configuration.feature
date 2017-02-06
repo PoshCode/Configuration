@@ -8,7 +8,6 @@ Feature: Module Configuration
         | Enterprise                | User                | Machine                |
         | TestDrive:\EnterprisePath | TestDrive:\UserPath | TestDrive:\MachinePath |
 
-
     @Modules @Import
     Scenario: Loading Default Settings
         Given a module with the name 'MyModule1'
@@ -19,7 +18,7 @@ Feature: Module Configuration
               Age = 42
             }
             """
-        When I call Import-Configuration 
+        When I call Import-Configuration
         Then the settings object should be of type hashtable
         And the settings object should have a UserName of type String
         And the settings object should have an Age of type Int32
