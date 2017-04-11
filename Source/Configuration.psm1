@@ -53,44 +53,23 @@ function Get-StoragePath {
 
         # The Module you're importing configuration for
         [Parameter(ParameterSetName = "__ModuleInfo", ValueFromPipeline = $true)]
-        [System.Management.Automation.PSModuleInfo]$Module = $(
-            $mi = ($CallStack)[0].InvocationInfo.MyCommand.Module
-            if($mi -and $mi.ExportedCommands.Count -eq 0) {
-                if($mi2 = Get-Module $mi.ModuleBase -ListAvailable | Where-Object Name -eq $mi.Name | Where-Object ExportedCommands | Select-Object -First 1) {
-                   return $mi2
-                }
-            }
-            return $mi
-        ),
+        [System.Management.Automation.PSModuleInfo]$Module,
 
         # An optional module qualifier (by default, this is blank)
         [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
         [Alias("Author")]
-        [String]$CompanyName = $(
-            if($Module){
-                $Name = $Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
-                if($Name -eq "Unknown" -or -not $Name) {
-                    $Name = $Module.Author
-                    if($Name -eq "Unknown" -or -not $Name) {
-                        $Name = "AnonymousModules"
-                    }
-                }
-                $Name
-            } else {
-                "AnonymousScripts"
-            }
-        ),
+        [String]$CompanyName = "AnonymousScripts",
 
         # The name of the module or script
         # Will be used in the returned storage path
         [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
-        [String]$Name = $(if($Module) { $Module.Name }),
+        [String]$Name,
 
         # The full path (including file name) of a default Configuration.psd1 file
         # By default, this is expected to be in the same folder as your module manifest, or adjacent to your script file
         [Parameter(ParameterSetName = "ManualOverride", ValueFromPipelineByPropertyName=$true)]
         [Alias("ModuleBase")]
-        [String]$DefaultPath = $(if($Module) { Join-Path $Module.ModuleBase Configuration.psd1 }),
+        [String]$DefaultPath,
 
 
         # The version for saved settings -- if set, will be used in the returned path
@@ -109,7 +88,32 @@ function Get-StoragePath {
     }
 
     process {
+        if (!$Module -and $CallStack) {
+            $Module = ($CallStack)[0].InvocationInfo.MyCommand.Module
+            if ($Module -and $Module.ExportedCommands.Count -eq 0) {
+                if ($mi2 = Get-Module $Module.ModuleBase -ListAvailable | Where-Object Name -eq $Module.Name | Where-Object ExportedCommands | Select-Object -First 1) {
+                    $Module = $mi2
+                }
+            }
+        }
+
+        if ($Module) {
+            if($CompanyName -eq "AnonymousScripts") {
+                $CompanyName = $Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
+                if ($CompanyName -eq "Unknown" -or [string]::IsNullOrWhiteSpace($CompanyName)) {
+                    $CompanyName = $Module.Author
+                    if ($CompanyName -eq "Unknown" -or [string]::IsNullOrWhiteSpace($CompanyName)) {
+                        $CompanyName = "AnonymousModules"
+                    }
+                }
+            }
+            if(!$Name) {
+                $Name = $Module.Name
+            }
+        }
+
         if(!$Name) {
+            Write-Error "Empty Name ($Name) in $($PSCmdlet.ParameterSetName): $($PSBoundParameters | Format-List | Out-String)"
             throw "Could not determine the storage name, Get-StoragePath should only be called from inside a script or module."
         }
         $CompanyName = $CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
