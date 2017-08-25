@@ -26,7 +26,7 @@ Feature: Multiple settings files should layer
               UserName = 'Joel Bennett'
             }
             """
-        When I call Import-Configuration 
+        When I call Import-Configuration
         Then the settings object should be of type hashtable
         And the settings object's UserName should be Joel Bennett
         And the settings object's Age should be 42
@@ -102,7 +102,7 @@ Feature: Multiple settings files should layer
         And the settings object's BirthDay should be of type PSCustomObject
         And the settings object's BirthDay.Month should be May
         And the settings object's BirthDay.Day should be 22
-        
+
     @Modules @Import @Layering
     Scenario: Loading User Overrides
         Given a module with the name 'MyModule1'
@@ -131,7 +131,7 @@ Feature: Multiple settings files should layer
               FullName = 'Joel Bennett'
             }
             """
-        When I call Import-Configuration 
+        When I call Import-Configuration
         Then the settings object should be of type hashtable
         And the settings object's UserName should be Jaykul
         And the settings object's FullName should be Joel Bennett
@@ -157,7 +157,7 @@ Feature: Multiple settings files should layer
         And the settings object's FullName should be Joel Bennett
         And the settings object's BirthDay should be of type hashtable
         And the settings object's BirthDay.Month should be May
-        And the settings object's BirthDay.Day should be 22        
+        And the settings object's BirthDay.Day should be 22
 
     @Layering @WIP
     Scenario: Save shouldn't overwrite default settings
@@ -168,6 +168,19 @@ Feature: Multiple settings files should layer
               UserName = 'Joel'
               Age = 42
             }
-            """    
-        When I save the configuration
-        Then the settings should not overwrite the default file
+            """
+        When I call Export-Configuration with
+            """
+            @{
+              UserName = 'Joel Bennett'
+            }
+            """
+        # The settings file should not be changed:
+        Then the settings file should contain
+            """
+            @{
+              UserName = 'Joel'
+              Age = 42
+            }
+            """
+

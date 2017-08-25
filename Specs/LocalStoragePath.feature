@@ -59,3 +59,9 @@ Feature: Automatically Calculate Local Storage Paths
         Given a module with the name 'SuperTestModule' by the company 'PoshCode' and the author 'Jaykul'
         Then the module's Enterprise path should match '^TestDrive:\\EnterprisePath\\' and '\\PoshCode\\SuperTestModule$'
         And the module's storage path should end with a version number if one is passed in
+
+    @Modules @EndUsers
+    Scenario: End users should be able to find the storage path for a module
+        Given a module with the name 'SuperTestModule' by the company 'PoshCode' and the author 'Jaykul'
+        When the ModuleInfo is piped to Get-StoragePath
+        Then the module's storage path should match '^TestDrive:\\EnterprisePath\\' and '\\PoshCode\\SuperTestModule$'

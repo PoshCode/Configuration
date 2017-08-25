@@ -3,6 +3,11 @@ Feature: Serialize Hashtables or Custom Objects
     A PowerShell Module Author
     Needs to serialize a preferences object in a user-editable format we call metadata
 
+    Background:
+        Given the configuration module is imported with testing paths:
+        | Enterprise                | User                | Machine                |
+        | TestDrive:\EnterprisePath | TestDrive:\UserPath | TestDrive:\MachinePath |
+
     @Serialization
     Scenario: Serialize a hashtable to string
         Given a settings hashtable
@@ -95,13 +100,13 @@ Feature: Serialize Hashtables or Custom Objects
     @Serialization @Enum
     Scenario: Unsupported types should be serialized as strings
         Given a settings hashtable with an Enum in it
-        Then we expect a warning in metadata
+        Then we expect a warning in the Metadata module
         When we convert the settings to metadata
         And the warning is logged
 
     @Serialization @Error @Converter
     Scenario: Invalid converters should write non-terminating errors
-        Given we expect an error in metadata
+        Given we expect an error in the Metadata module
         When we add a converter that's not a scriptblock
         And we add a converter with a number as a key
         Then the error is logged exactly 2 times
@@ -116,7 +121,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Serialization @File
     Scenario: Developers should be able to export straight to file
-        Given a settings hashtable 
+        Given a settings hashtable
             """
             @{
               UserName = 'Joel'
@@ -134,7 +139,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Deserialization @Uri @Converter
     Scenario: I should be able to import serialized data
-        Given a settings hashtable 
+        Given a settings hashtable
             """
             @{
               UserName = 'Joel'
@@ -155,7 +160,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @DeSerialization @SecureString @PSCredential
     Scenario Outline: I should be able to import serialized credentials and secure strings
-        Given a settings hashtable 
+        Given a settings hashtable
             """
             @{
               Credential = PSCredential "UserName" $(ConvertTo-SecureString Password -AsPlainText -Force | ConvertFrom-SecureString)
@@ -178,7 +183,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Deserialization @Uri @Converter
     Scenario: I should be able to import serialized data even in PowerShell 2
-        Given a settings hashtable 
+        Given a settings hashtable
             """
             @{
               UserName = New-Object PSObject -Property @{ FirstName = 'Joel'; LastName = 'Bennett' }
@@ -202,7 +207,7 @@ Feature: Serialize Hashtables or Custom Objects
     @Deserialization @Uri @Converter
     Scenario: I should be able to add converters at import time
         Given the configuration module is imported with a URL converter
-        And a settings hashtable 
+        And a settings hashtable
             """
             @{
               UserName = 'Joel'
@@ -215,7 +220,7 @@ Feature: Serialize Hashtables or Custom Objects
         Then the string version should match
             """
               Homepage = \(?Uri 'http://HuddledMasses.org/'
-            """        
+            """
         When we convert the metadata to an object
         Then the settings object should be of type hashtable
         And the settings object should have a UserName of type String
@@ -225,6 +230,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Deserialization @File
     Scenario: I should be able to import serialized data from files even in PowerShell 2
+        Given a module with the name 'TestModule1'
         Given a settings file named Configuration.psd1
             """
             @{
@@ -241,6 +247,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Deserialization @File
     Scenario: I should be able to import serialized data regardless of file extension
+        Given a module with the name 'TestModule1'
         Given a settings file named Settings.data
             """
             @{
@@ -255,6 +262,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Deserialization @File
     Scenario: Imported metadata files should be able to use PSScriptRoot
+        Given a module with the name 'TestModule1'
         Given a settings file named Configuration.psd1
             """
             @{
@@ -270,6 +278,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Deserialization @File
     Scenario: Bad data should generate useful errors
+        Given a module with the name 'TestModule1'
         Given a settings file named Configuration.psd1
             """
             @{ UserName = }
@@ -281,9 +290,10 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Deserialization @File
     Scenario: Disallowed commands should generate useful errors
+        Given a module with the name 'TestModule1'
         Given a settings file named Configuration.psd1
             """
-            @{ 
+            @{
                 UserName = New-Object PSObject -Property @{ First = "Joel" }
             }
             """
@@ -294,6 +304,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Serialization @Deserialization @File
     Scenario: Handling the default module manifest
+        Given a module with the name 'TestModule1'
         Given a settings file named ModuleName\ModuleName.psd1
             """
             @{
@@ -308,14 +319,15 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Serialization @Deserialization @File
     Scenario: Errors when you import missing files
-        Given we expect an error in metadata
+        Given the settings file does not exist
+        And we expect an error in the metadata module
         When we import the file to an object
         Then the error is logged
 
 
     @UpdateObject
     Scenario: Update An Object
-        Given a settings hashtable 
+        Given a settings hashtable
             """
             @{
               UserName = 'Joel'
@@ -334,7 +346,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @UpdateObject
     Scenario: Try to Update An Object With Nothing
-        Given a settings hashtable 
+        Given a settings hashtable
             """
             @{
               UserName = 'Joel'
@@ -351,6 +363,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Serialization @Deserialization @File
     Scenario: I should be able to import a manifest in order
+        Given a module with the name 'TestModule1'
         Given a settings file named Configuration.psd1
             """
             @{
@@ -370,6 +383,7 @@ Feature: Serialize Hashtables or Custom Objects
 
     @Serialization @Deserialization @File
     Scenario: The ordered hashtable should recurse
+        Given a module with the name 'TestModule1'
         Given a settings file named Configuration.psd1
             """
             @{
@@ -387,7 +401,7 @@ Feature: Serialize Hashtables or Custom Objects
     @Regression @Serialization
     Scenario: Arrays of custom types
         Given the configuration module is imported with a URL converter
-        And a settings hashtable 
+        And a settings hashtable
             """
             @{
               UserName = 'Joel'

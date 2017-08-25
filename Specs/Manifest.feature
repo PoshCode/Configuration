@@ -2,6 +2,11 @@ Feature: Manifest Read and Write
     As a PowerShell Module Author
     I want to easily edit my manifest as part of my build script
 
+    Background:
+        Given the configuration module is imported with testing paths:
+        | Enterprise                | User                | Machine                |
+        | TestDrive:\EnterprisePath | TestDrive:\UserPath | TestDrive:\MachinePath |
+
     @Modules @Import
     Scenario: Read ModuleVersion from a module manifest by default
         Given a module with the name 'ModuleName'
@@ -92,7 +97,7 @@ Feature: Manifest Read and Write
                 ModuleVersion = '0.4'
             }
             """
-        Given we expect an error in Metadata
+        Given we expect an error in the Metadata module
         When I call Get-Metadata ModuleName.psd1 NoSuchThing
         Then the error is logged exactly 1 time
 

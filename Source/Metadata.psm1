@@ -32,8 +32,6 @@ function Test-PSVersion {
       [Version]$ne
    )
 
-   Write-Verbose "Version $Version"
-
    $all = @(
       if($lt) { $Version -lt $lt }
       if($gt) { $Version -gt $gt }
@@ -75,12 +73,12 @@ function Add-MetadataConverter {
       .Example
          Add-MetadataConverter @{
             [DateTimeOffset] = { "DateTimeOffset {0} {1}" -f $_.Ticks, $_.Offset }
-            "DateTimeOffset" = {param($ticks,$offset) [DateTimeOffset]::new( $ticks, $offset )}
+            "DateTimeOffset" = {param($ticks,$offset) [DateTimeOffset]::new( $ticks, $offset )}   
          }
 
          Shows how to change the DateTimeOffset serialization.
 
-         By default, DateTimeOffset values are (de)serialized using the 'o' RoundTrips formatting
+         By default, DateTimeOffset values are (de)serialized using the 'o' RoundTrips formatting 
          e.g.: [DateTimeOffset]::Now.ToString('o')
 
    #>
@@ -100,7 +98,7 @@ function Add-MetadataConverter {
 
          {$_ -is [String]}
          {
-            Write-Verbose "Adding function $_"
+            Write-Debug "Storing deserialization function: $_"
             Set-Content "function:script:$_" $Converters.$_
             # We need to store the given function name in MetadataConverters too
             $MetadataConverters.$_ = $Converters.$_
@@ -109,11 +107,10 @@ function Add-MetadataConverter {
 
          {$_ -is [Type]}
          {
-            Write-Verbose "Adding serializer for $($_.FullName)"
+            Write-Debug "Adding serializer for $($_.FullName)"
             $MetadataConverters.$_ = $Converters.$_
             continue
          }
-
          default {
             Write-Error "Unsupported key type in Converters: $_ is $($_.GetType())"
          }
@@ -148,15 +145,15 @@ function ConvertTo-Metadata {
    #  Convert complex custom types to dynamic PSObjects using Select-Object.
    #
    #  ConvertTo-Metadata understands PSObjects automatically, so this allows us to proceed
-   #  without a custom serializer for File objects, but the serialized data
+   #  without a custom serializer for File objects, but the serialized data 
    #  will not be a FileInfo or a DirectoryInfo, just a custom PSObject
    #.Example
-   #  ConvertTo-Metadata ([DateTimeOffset]::Now) -Converters @{
+   #  ConvertTo-Metadata ([DateTimeOffset]::Now) -Converters @{ 
    #     [DateTimeOffset] = { "DateTimeOffset {0} {1}" -f $_.Ticks, $_.Offset }
    #  }
    #
    #  Shows how to temporarily add a MetadataConverter to convert a specific type while serializing the current DateTimeOffset.
-   #  Note that this serialization would require a "DateTimeOffset" function to exist in order to deserialize properly.
+   #  Note that this serialization would require a "DateTimeOffset" function to exist in order to deserialize properly. 
    #
    #  See also the third example on ConvertFrom-Metadata and Add-MetadataConverter.
    [OutputType([string])]
@@ -191,7 +188,7 @@ function ConvertTo-Metadata {
          "$InputObject"
       }
       elseif($InputObject -is [String]) {
-         "'{0}'" -f $InputObject.ToString().Replace("'","''")
+         "'{0}'" -f $InputObject.ToString().Replace("'","''") 
       }
       elseif($InputObject -is [Collections.IDictionary]) {
          # Write-verbose "Dictionary"
@@ -296,7 +293,7 @@ function ConvertFrom-Metadata {
       $Script:OriginalMetadataConverters = $Script:MetadataConverters.Clone()
       Add-MetadataConverter $Converters
       [string[]]$ValidCommands = @(
-         "PSObject", "ConvertFrom-StringData", "Join-Path", "ConvertTo-SecureString",
+            "PSObject", "ConvertFrom-StringData", "Join-Path", "Split-Path", "ConvertTo-SecureString",
          "Guid", "bool", "SecureString", "Version", "DateTime", "DateTimeOffset", "PSCredential", "ConsoleColor"
          ) + @($MetadataConverters.Keys.GetEnumerator() | Where-Object { $_ -isnot [Type] })
       [string[]]$ValidVariables = "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot","PSCulture","PSUICulture","True","False","Null"
@@ -309,7 +306,7 @@ function ConvertFrom-Metadata {
       $Tokens = $Null; $ParseErrors = $Null
 
       if(Test-PSVersion -lt "3.0") {
-         Write-Verbose "$InputObject"
+         Write-Debug "$InputObject"
          if(!(Test-Path $InputObject -ErrorAction SilentlyContinue)) {
             $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
             Set-Content -Encoding UTF8 -Path $Path $InputObject
@@ -342,7 +339,7 @@ function ConvertFrom-Metadata {
       # Get the variables or subexpressions from strings which have them ("StringExpandable" vs "String") ...
       $Tokens += $Tokens | Where-Object { "StringExpandable" -eq $_.Kind } | Select-Object -ExpandProperty NestedTokens
 
-      # Work around PowerShell rules about magic variables
+      # Work around PowerShell rules about magic variables 
       # Replace "PSScriptRoot" magic variables with the non-reserved "ScriptRoot"
       if($scriptroots = @($Tokens | Where-Object { ("Variable" -eq $_.Kind) -and ($_.Name -eq "PSScriptRoot") } | ForEach-Object { $_.Extent } )) {
          $ScriptContent = $Ast.ToString()
@@ -365,7 +362,7 @@ function ConvertFrom-Metadata {
          if($Tokens | Where-Object { "AtCurly" -eq $_.Kind }) {
             $ScriptContent = $AST.ToString()
             $Hashtables = $AST.FindAll({$args[0] -is [System.Management.Automation.Language.HashtableAst] -and ("ordered" -ne $args[0].Parent.Type.TypeName)}, $Recurse)
-            $Hashtables = $Hashtables | ForEach-Object {
+            $Hashtables = $Hashtables | ForEach-Object { 
                                             New-Object PSObject -Property @{Type="([ordered]";Position=$_.Extent.StartOffset}
                                             New-Object PSObject -Property @{Type=")";Position=$_.Extent.EndOffset}
                                           } | Sort-Object Position -Descending
@@ -376,8 +373,6 @@ function ConvertFrom-Metadata {
             $Script = $AST.GetScriptBlock()
          }
       }
-
-      # Write-Debug $ScriptContent
 
       $Mode, $ExecutionContext.SessionState.LanguageMode = $ExecutionContext.SessionState.LanguageMode, "RestrictedLanguage"
 
@@ -398,7 +393,7 @@ function Import-Metadata {
          Serves as a wrapper for ConvertFrom-Metadata to explicitly support importing from files
       .Example
          $data = Import-Metadata .\Configuration.psd1 -Ordered
-
+   
          Convert a module manifest into a hashtable of properties for introspection, preserving the order in the file
    #>
    [CmdletBinding()]
@@ -415,14 +410,14 @@ function Import-Metadata {
    )
    process {
       if(Test-Path $Path) {
-         Write-Verbose "Importing Metadata file from `$Path: $Path"
+         Write-Debug "Importing Metadata file from `$Path: $Path"
          if(!(Test-Path $Path -PathType Leaf)) {
             $Path = Join-Path $Path ((Split-Path $Path -Leaf) + $ModuleManifestExtension)
          }
       }
       if(!(Test-Path $Path)) {
          WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
-                     -Message "Can't find settings file $Path" `
+                       -Message "Can't find file $Path" `
                      -ErrorId "PathNotFound,Metadata\Import-Metadata" `
                      -Category "ObjectNotFound"
          return
@@ -449,9 +444,9 @@ function Export-Metadata {
             Note: this function and the matching Import-Metadata are extensible, and have included support for PSCustomObject, Guid, Version, etc.
         .Example
             $Configuration | Export-Metadata .\Configuration.psd1
-
+   
             Export a configuration object (or hashtable) to the default Configuration.psd1 file for a module
-            The Configuration module uses Configuration.psd1 as it's default config file.
+            The Configuration module uses Configuration.psd1 as it's default config file.  
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSShouldProcess","")] # Because PSSCriptAnalyzer team refuses to listen to reason. See bugs:  #194 #283 #521 #608
     [CmdletBinding(SupportsShouldProcess)]
@@ -492,25 +487,25 @@ function Update-Metadata {
            Update a single value in a PowerShell metadata file
         .Description
            By default Update-Metadata increments "ModuleVersion"
-           because my primary use of it is during builds,
-           but you can pass the PropertyName and Value for any key in a module Manifest, its PrivateData, or the PSData in PrivateData.
-
+           because my primary use of it is during builds, 
+           but you can pass the PropertyName and Value for any key in a module Manifest, its PrivateData, or the PSData in PrivateData. 
+        
            NOTE: This will not currently create new keys, or uncomment keys.
         .Example
            Update-Metadata .\Configuration.psd1
-
+        
            Increments the Build part of the ModuleVersion in the Configuration.psd1 file
         .Example
            Update-Metadata .\Configuration.psd1 -Increment Major
-
+        
            Increments the Major version part of the ModuleVersion in the Configuration.psd1 file
         .Example
            Update-Metadata .\Configuration.psd1 -Value '0.4'
-
+        
            Sets the ModuleVersion in the Configuration.psd1 file to 0.4
         .Example
            Update-Metadata .\Configuration.psd1 -Property ReleaseNotes -Value 'Add the awesome Update-Metadata function!'
-
+        
            Sets the PrivateData.PSData.ReleaseNotes value in the Configuration.psd1 file!
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSShouldProcess", "")] # Because PSSCriptAnalyzer team refuses to listen to reason. See bugs:  #194 #283 #521 #608
@@ -577,12 +572,12 @@ function Update-Metadata {
     while($KeyValue.parent) { $KeyValue = $KeyValue.parent }
 
     $ManifestContent = $KeyValue.Extent.Text.Remove(
-                                               $Extent.StartOffset,
+                                               $Extent.StartOffset, 
                                                ($Extent.EndOffset - $Extent.StartOffset)
                                            ).Insert($Extent.StartOffset, $Value)
 
     if(Test-Path $Path) {
-        Set-Content -Encoding UTF8 $Path $ManifestContent
+        Set-Content -Encoding UTF8 -Path $Path -Value $ManifestContent -NoNewline
     } else {
         $ManifestContent
     }
@@ -594,12 +589,12 @@ function FindHashKeyValue {
         $SearchPath,
         $Ast,
         [string[]]
-        $CurrentPath = @()
+        $CurrentPath = @()        
     )
-    Write-Verbose "FindHashKeyValue: $SearchPath -eq $($CurrentPath -Join '.')"
-    if($SearchPath -eq ($CurrentPath -Join '.') -or $SearchPath -eq $CurrentPath[-1]) {
-        return $Ast |
-            Add-Member NoteProperty HashKeyPath ($CurrentPath -join '.') -PassThru -Force |
+    Write-Debug "FindHashKeyValue: $SearchPath -eq $($CurrentPath -Join '.')"
+    if($SearchPath -eq ($CurrentPath -Join '.') -or $SearchPath -eq $CurrentPath[-1]) { 
+        return $Ast | 
+            Add-Member NoteProperty HashKeyPath ($CurrentPath -join '.') -PassThru -Force | 
             Add-Member NoteProperty HashKeyName ($CurrentPath[-1]) -PassThru -Force
     }
 
@@ -614,7 +609,6 @@ function FindHashKeyValue {
     }
 }
 
-
 function Get-Metadata {
     #.Synopsis
     #   Reads a specific value from a PowerShell metdata file (e.g. a module manifest)
@@ -622,11 +616,11 @@ function Get-Metadata {
     #   By default Get-Metadata gets the ModuleVersion, but it can read any key in the metadata file
     #.Example
     #   Get-Metadata .\Configuration.psd1
-    #
+    #   
     #   Returns the module version number (as a string)
     #.Example
     #   Get-Metadata .\Configuration.psd1 ReleaseNotes
-    #
+    #   
     #   Returns the release notes!
     [CmdletBinding()]
     param(
@@ -645,16 +639,17 @@ function Get-Metadata {
     )
     $ErrorActionPreference = "Stop"
 
-    if(Test-Path $Path) {
-        Write-Verbose "Found file for $Path, read raw content"
-        $ManifestContent = Get-Content $Path -Raw -Encoding UTF8
-    } else {
-        Write-Verbose "Treating Path as content: $Path"
-        $ManifestContent = $Path
+    if(!(Test-Path $Path)) {
+        WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
+                  -Message "Can't find file $Path" `
+                  -ErrorId "PathNotFound,Metadata\Import-Metadata" `
+                  -Category "ObjectNotFound"
+        return
     }
+    $Path = Convert-Path $Path
 
     $Tokens = $Null; $ParseErrors = $Null
-    $AST = [System.Management.Automation.Language.Parser]::ParseInput( $ManifestContent, $Path, [ref]$Tokens, [ref]$ParseErrors )
+    $AST = [System.Management.Automation.Language.Parser]::ParseFile( $Path, [ref]$Tokens, [ref]$ParseErrors )
 
     $KeyValue = $Ast.EndBlock.Statements
     $KeyValue = @(FindHashKeyValue $PropertyName $KeyValue)
@@ -662,7 +657,7 @@ function Get-Metadata {
         WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
                    -Message "Can't find '$PropertyName' in $Path" `
                    -ErrorId "PropertyNotFound,Metadata\Get-Metadata" `
-                   -Category "ObjectNotFound"
+                   -Category "ObjectNotFound"            
         return
     }
     if($KeyValue.Count -gt 1) {
@@ -680,9 +675,9 @@ function Get-Metadata {
     }
     $KeyValue = $KeyValue[0]
 
-    if($Passthru) { $KeyValue } else {
-        Write-Verbose "Start $($KeyValue.Extent.StartLineNumber) : $($KeyValue.Extent.StartColumnNumber) (char $($KeyValue.Extent.StartOffset))"
-        Write-Verbose "End   $($KeyValue.Extent.EndLineNumber) : $($KeyValue.Extent.EndColumnNumber) (char $($KeyValue.Extent.EndOffset))"
+    if($Passthru) { $KeyValue } else { 
+        # Write-Debug "Start $($KeyValue.Extent.StartLineNumber) : $($KeyValue.Extent.StartColumnNumber) (char $($KeyValue.Extent.StartOffset))"
+        # Write-Debug "End   $($KeyValue.Extent.EndLineNumber) : $($KeyValue.Extent.EndColumnNumber) (char $($KeyValue.Extent.EndOffset))"
         $KeyValue.SafeGetValue()
     }
 }
@@ -747,7 +742,7 @@ function PSCredential {
    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingUserNameAndPasswordParams","")]
    param(
       # The UserName for this credential
-      [string]$UserName,
+      [string]$UserName, 
       # The Password for this credential, encoded via ConvertFrom-SecureString
       [string]$EncodedPassword
    )
@@ -845,16 +840,16 @@ function Update-Object {
       $InputObject
    )
    process {
-      Write-Verbose "INPUT OBJECT:"
-      Write-Verbose (($InputObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
-      Write-Verbose "Update OBJECT:"
-      Write-Verbose (($UpdateObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
+      Write-Debug "INPUT OBJECT:"
+      Write-Debug (($InputObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
+      Write-Debug "Update OBJECT:"
+      Write-Debug (($UpdateObject | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
       if($Null -eq $InputObject) { return }
 
       if($InputObject -is [System.Collections.IDictionary]) {
          $OutputObject = $InputObject
       } else {
-         # Create a PSCustomObject with all the properties
+         # Create a PSCustomObject with all the properties 
          $OutputObject = $InputObject | Select-Object *
       }
 
@@ -871,12 +866,12 @@ function Update-Object {
 
       # Write-Debug "Keys: $Keys"
       ForEach($key in $Keys) {
-         if(($OutputObject.$Key -is [System.Collections.IDictionary] -or $OutputObject.$Key -is [PSObject]) -and
+         if(($OutputObject.$Key -is [System.Collections.IDictionary] -or $OutputObject.$Key -is [PSObject]) -and 
             ($InputObject.$Key -is  [System.Collections.IDictionary] -or $InputObject.$Key -is [PSObject])) {
             $Value = Update-Object -InputObject $InputObject.$Key -UpdateObject $UpdateObject.$Key
          } else {
             $Value = $UpdateObject.$Key
-         }
+         } 
 
          if($OutputObject -is [System.Collections.IDictionary]) {
             $OutputObject.$key = $Value
@@ -895,7 +890,7 @@ function Update-Object {
 # Utility to throw an errorrecord
 function ThrowError {
     param
-    (
+    (        
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [System.Management.Automation.PSCmdlet]
@@ -909,18 +904,18 @@ function ThrowError {
 
         [Parameter(ParameterSetName="NewException", Position=2)]
         [ValidateNotNullOrEmpty()]
-        [System.String]
+        [System.String]        
         $ExceptionType="System.Management.Automation.RuntimeException",
 
         [Parameter(Mandatory = $true, ParameterSetName="NewException", Position=3)]
         [ValidateNotNullOrEmpty()]
         [System.String]
         $Message,
-
+        
         [Parameter(Mandatory = $false)]
         [System.Object]
         $TargetObject,
-
+        
         [Parameter(Mandatory = $true, ParameterSetName="ExistingException", Position=10)]
         [Parameter(Mandatory = $true, ParameterSetName="NewException", Position=10)]
         [ValidateNotNullOrEmpty()]
@@ -935,7 +930,7 @@ function ThrowError {
 
         [Parameter(Mandatory = $true, ParameterSetName="Rethrow", Position=1)]
         [System.Management.Automation.ErrorRecord]$ErrorRecord
-    )
+    ) 
     process {
         if(!$ErrorRecord) {
             if($PSCmdlet.ParameterSetName -eq "NewException") {
@@ -954,7 +949,7 @@ function ThrowError {
 # Utility to throw an errorrecord
 function WriteError {
     param
-    (
+    (        
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [System.Management.Automation.PSCmdlet]
@@ -968,18 +963,18 @@ function WriteError {
 
         [Parameter(ParameterSetName="NewException", Position=2)]
         [ValidateNotNullOrEmpty()]
-        [System.String]
+        [System.String]        
         $ExceptionType="System.Management.Automation.RuntimeException",
 
         [Parameter(Mandatory = $true, ParameterSetName="NewException", Position=3)]
         [ValidateNotNullOrEmpty()]
         [System.String]
         $Message,
-
+        
         [Parameter(Mandatory = $false)]
         [System.Object]
         $TargetObject,
-
+        
         [Parameter(Mandatory = $true, Position=10)]
         [ValidateNotNullOrEmpty()]
         [System.String]
@@ -992,7 +987,7 @@ function WriteError {
 
         [Parameter(Mandatory = $true, ParameterSetName="Rethrow", Position=1)]
         [System.Management.Automation.ErrorRecord]$ErrorRecord
-    )
+    ) 
     process {
         if(!$ErrorRecord) {
             if($PSCmdlet.ParameterSetName -eq "NewException") {
