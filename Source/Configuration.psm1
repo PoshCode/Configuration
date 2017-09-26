@@ -130,7 +130,7 @@ function Get-StoragePath {
             $PathRoot = Join-Path $PathRoot $Version
         }
 
-        Write-Debug "Storage Path: $PathRoot"
+        # Write-Debug "Storage Path: $PathRoot"
 
         # Note: avoid using Convert-Path because drives aliases like "TestData:" get converted to a C:\ file system location
         $null = mkdir $PathRoot -Force
@@ -315,21 +315,22 @@ function Import-Configuration {
         [Switch]$Ordered
     )
     begin {
-        Write-Debug "Import-Configuration for module $Name"
+        # Write-Debug "Import-Configuration for module $Name"
     }
     process {
         if(!$Name) {
             throw "Could not determine the configuration name. When you are not calling Import-Configuration from a module, you must specify the -Author and -Name parameter"
         }
 
-        if(Test-Path $DefaultPath -Type Container) {
+        if($DefaultPath -and (Test-Path $DefaultPath -Type Container)) {
             $DefaultPath = Join-Path $DefaultPath Configuration.psd1
         }
 
-        $Configuration = if(Test-Path $DefaultPath) {
+        $Configuration = if($DefaultPath -and (Test-Path $DefaultPath)) {
                              Import-Metadata $DefaultPath -ErrorAction Ignore -Ordered:$Ordered
                          } else { @{} }
-        Write-Debug "Module Configuration: ($DefaultPath)`n$($Configuration | Out-String)"
+        # Write-Debug "Module Configuration: ($DefaultPath)`n$($Configuration | Out-String)"
+
 
         $Parameters = @{
             CompanyName = $CompanyName
@@ -344,7 +345,7 @@ function Import-Configuration {
         $Machine = if(Test-Path $MachinePath) {
                     Import-Metadata $MachinePath -ErrorAction Ignore -Ordered:$Ordered
                 } else { @{} }
-        Write-Debug "Machine Configuration: ($MachinePath)`n$($Machine | Out-String)"
+        # Write-Debug "Machine Configuration: ($MachinePath)`n$($Machine | Out-String)"
 
 
         $EnterprisePath = Get-StoragePath @Parameters -Scope Enterprise
@@ -352,14 +353,14 @@ function Import-Configuration {
         $Enterprise = if(Test-Path $EnterprisePath) {
                     Import-Metadata $EnterprisePath -ErrorAction Ignore -Ordered:$Ordered
                 } else { @{} }
-        Write-Debug "Enterprise Configuration: ($EnterprisePath)`n$($Enterprise | Out-String)"
+        # Write-Debug "Enterprise Configuration: ($EnterprisePath)`n$($Enterprise | Out-String)"
 
         $LocalUserPath = Get-StoragePath @Parameters -Scope User
         $LocalUserPath = Join-Path $LocalUserPath Configuration.psd1
         $LocalUser = if(Test-Path $LocalUserPath) {
                     Import-Metadata $LocalUserPath -ErrorAction Ignore -Ordered:$Ordered
                 } else { @{} }
-        Write-Debug "LocalUser Configuration: ($LocalUserPath)`n$($LocalUser | Out-String)"
+        # Write-Debug "LocalUser Configuration: ($LocalUserPath)`n$($LocalUser | Out-String)"
 
         $Configuration | Update-Object $Machine |
                          Update-Object $Enterprise |

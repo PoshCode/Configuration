@@ -234,7 +234,7 @@ When "we add a converter for (.*) types" {
 When "we convert the settings to metadata" {
     $SettingsMetadata = ConvertTo-Metadata $Settings
 
-    # Write-Debug $SettingsMetadata
+    # # Write-Debug $SettingsMetadata
     $Wide = $Host.UI.RawUI.WindowSize.Width
     Write-Verbose $SettingsMetadata
 }
@@ -371,7 +371,7 @@ Then "the settings object's (.*) should (be of type|be) (.*)" {
     param([String]$Parameter, [String]$operator, $Expected)
     $Value = $Settings
 
-    # Write-Debug ($Settings | Out-String)
+    # # Write-Debug ($Settings | Out-String)
 
     foreach($property in $Parameter.Split(".")) {
         $value = $value.$property

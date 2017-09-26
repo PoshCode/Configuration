@@ -23,6 +23,37 @@ Feature: Module Configuration
         And the settings object should have a UserName of type String
         And the settings object should have an Age of type Int32
 
+
+    @Modules @EndUsers
+    Scenario: End users should be able to read the configuration data for a module
+        Given a module with the name 'SuperTestModule' by the company 'PoshCode' and the author 'Jaykul'
+        And a settings file named Configuration.psd1
+            """
+            @{
+              UserName = 'Joel'
+              Age = 42
+            }
+            """
+        When the ModuleInfo is piped to Import-Configuration
+        Then the settings object should be of type hashtable
+        And the settings object should have a UserName of type String
+        And the settings object should have an Age of type Int32
+
+    @Modules @Import @EndUsers
+    Scenario: End users should be able to work with configuration data outside the module
+        Given a module with the name 'SuperTestModule'
+        And a settings file named Configuration.psd1 in the Enterprise folder
+            """
+            @{
+              UserName = 'Joel'
+              Age = 42
+            }
+            """
+        When the ModuleInfo is piped to Import-Configuration
+        Then the settings object should be of type hashtable
+        And the settings object should have a UserName of type String
+        And the settings object should have an Age of type Int32
+
     @Modules @Import
     Scenario: SxS Versions
         Given a module with the name 'MyModule1'
