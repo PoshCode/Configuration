@@ -204,10 +204,13 @@ function ConvertTo-Metadata {
          }) -split "`n" -join "`n$t")
       }
       elseif($InputObject -is [System.Collections.IEnumerable]) {
-         # Write-verbose "Enumerable"
-         "@($($(ForEach($item in @($InputObject)) { ConvertTo-Metadata $item }) -join ","))"
-      }
-      elseif($InputObject.GetType().FullName -eq 'System.Management.Automation.PSCustomObject') {
+        # Write-verbose "Enumerable"
+        "@($($(ForEach($item in @($InputObject)) { ConvertTo-Metadata $item }) -join ","))"
+     }
+     elseif($InputObject -is [System.Management.Automation.ScriptBlock]) {
+         "(ScriptBlock '$InputObject')"
+     }
+     elseif($InputObject.GetType().FullName -eq 'System.Management.Automation.PSCustomObject') {
          # Write-verbose "PSCustomObject"
          # NOTE: we can't put [ordered] here because we need support for PS v2, but it's ok, because we put it in at parse-time
          "(PSObject @{{`n$t{0}`n}})" -f ($(
@@ -294,7 +297,7 @@ function ConvertFrom-Metadata {
       Add-MetadataConverter $Converters
       [string[]]$ValidCommands = @(
             "PSObject", "ConvertFrom-StringData", "Join-Path", "Split-Path", "ConvertTo-SecureString",
-         "Guid", "bool", "SecureString", "Version", "DateTime", "DateTimeOffset", "PSCredential", "ConsoleColor"
+         "Guid", "bool", "SecureString", "Version", "DateTime", "DateTimeOffset", "PSCredential", "ConsoleColor", "ScriptBlock"
          ) + @($MetadataConverters.Keys.GetEnumerator() | Where-Object { $_ -isnot [Type] })
       [string[]]$ValidVariables = "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot","PSCulture","PSUICulture","True","False","Null"
    }
@@ -763,6 +766,20 @@ function ConsoleColor {
    [ConsoleColor]$Value
 }
 
+function ScriptBlock {
+    <#
+       .Synopsis
+          Creates a ScriptBlock from a string
+       .Description
+          Just calls [ScriptBlock]::Create with the passed-in value
+       .Parameter Value
+          The ScriptBlock as a string
+    #>
+    param([string]$Value)
+    [scriptblock]::Create($Value)
+ }
+
+
 $MetadataConverters = @{}
 
 if($Converters -is [Collections.IDictionary]) {
@@ -772,6 +789,8 @@ if($Converters -is [Collections.IDictionary]) {
 # The OriginalMetadataConverters
 Add-MetadataConverter @{
    [bool]    = { if($_) { '$True' } else { '$False' } }
+
+   [System.Management.Automation.SwitchParameter] = { if($_) { '$True' } else { '$False' } }
 
    [Version] = { "'$_'" }
 
