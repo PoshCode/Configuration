@@ -17,6 +17,46 @@ if(!$ConfigurationRoot) {
 
 Import-Module "${ConfigurationRoot}\Metadata.psm1" -Force -Args @($Converters)
 
+function ParameterBinder {
+    if(!$Module) {
+        [System.Management.Automation.PSModuleInfo]$Module = . {
+            $mi = ($CallStack)[0].InvocationInfo.MyCommand.Module
+            if($mi -and $mi.ExportedCommands.Count -eq 0) {
+                if($mi2 = Get-Module $mi.ModuleBase -ListAvailable | Where-Object Name -eq $mi.Name | Where-Object ExportedCommands | Select-Object -First 1) {
+                   $mi = $mi2
+                }
+            }
+            $mi
+        }
+    }
+
+    if(!$CompanyName) {
+        [String]$CompanyName = . {
+            if($Module){
+                $CName = $Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
+                if($CName -eq "Unknown" -or -not $CName) {
+                    $CName = $Module.Author
+                    if($CName -eq "Unknown" -or -not $CName) {
+                        $CName = "AnonymousModules"
+                    }
+                }
+                $CName
+            } else {
+                "AnonymousScripts"
+            }
+        }
+    }
+
+    if(!$Name) {
+        [String]$Name = $(if($Module) { $Module.Name } <# else { ($CallStack)[0].InvocationInfo.MyCommand.Name } #>)
+    }
+
+    if(!$DefaultPath -and $Module) {
+        [String]$DefaultPath = $(if($Module) { Join-Path $Module.ModuleBase Configuration.psd1 })
+    }
+}
+
+
 function Get-StoragePath {
     #.Synopsis
     #   Gets an application storage path outside the module storage folder
@@ -58,19 +98,12 @@ function Get-StoragePath {
         # An optional module qualifier (by default, this is blank)
         [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
         [Alias("Author")]
-        [String]$CompanyName = "AnonymousScripts",
+        [String]$CompanyName,
 
         # The name of the module or script
         # Will be used in the returned storage path
         [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
         [String]$Name,
-
-        # The full path (including file name) of a default Configuration.psd1 file
-        # By default, this is expected to be in the same folder as your module manifest, or adjacent to your script file
-        [Parameter(ParameterSetName = "ManualOverride", ValueFromPipelineByPropertyName=$true)]
-        [Alias("ModuleBase")]
-        [String]$DefaultPath,
-
 
         # The version for saved settings -- if set, will be used in the returned path
         # NOTE: this is *NOT* calculated from the CallStack
@@ -88,29 +121,7 @@ function Get-StoragePath {
     }
 
     process {
-        if (!$Module -and $CallStack) {
-            $Module = ($CallStack)[0].InvocationInfo.MyCommand.Module
-            if ($Module -and $Module.ExportedCommands.Count -eq 0) {
-                if ($mi2 = Get-Module $Module.ModuleBase -ListAvailable | Where-Object Name -eq $Module.Name | Where-Object ExportedCommands | Select-Object -First 1) {
-                    $Module = $mi2
-                }
-            }
-        }
-
-        if ($Module) {
-            if($CompanyName -eq "AnonymousScripts") {
-                $CompanyName = $Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
-                if ($CompanyName -eq "Unknown" -or [string]::IsNullOrWhiteSpace($CompanyName)) {
-                    $CompanyName = $Module.Author
-                    if ($CompanyName -eq "Unknown" -or [string]::IsNullOrWhiteSpace($CompanyName)) {
-                        $CompanyName = "AnonymousModules"
-                    }
-                }
-            }
-            if(!$Name) {
-                $Name = $Module.Name
-            }
-        }
+        . ParameterBinder
 
         if(!$Name) {
             Write-Error "Empty Name ($Name) in $($PSCmdlet.ParameterSetName): $($PSBoundParameters | Format-List | Out-String)"
@@ -165,6 +176,9 @@ function Export-Configuration {
         [Parameter(Mandatory=$true, ValueFromPipeline=$true, Position=0)]
         $InputObject,
 
+        # Serialize objects as hashtables
+        [switch]$AsHashtable,
+
         # A callstack. You should not ever pass this.
         # It is used to calculate the defaults for all the other parameters.
         [Parameter(ParameterSetName = "__CallStack")]
@@ -172,45 +186,24 @@ function Export-Configuration {
 
         # The Module you're importing configuration for
         [Parameter(ParameterSetName = "__ModuleInfo", ValueFromPipeline = $true)]
-        [System.Management.Automation.PSModuleInfo]$Module = $(
-            $mi = ($CallStack)[0].InvocationInfo.MyCommand.Module
-            if($mi -and $mi.ExportedCommands.Count -eq 0) {
-                if($mi2 = Get-Module $mi.ModuleBase -ListAvailable | Where-Object Name -eq $mi.Name | Where-Object ExportedCommands | Select-Object -First 1) {
-                   return $mi2
-                }
-            }
-            return $mi
-        ),
+        [System.Management.Automation.PSModuleInfo]$Module,
 
 
         # An optional module qualifier (by default, this is blank)
         [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
         [Alias("Author")]
-        [String]$CompanyName = $(
-            if($Module){
-                $Name = $Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
-                if($Name -eq "Unknown" -or -not $Name) {
-                    $Name = $Module.Author
-                    if($Name -eq "Unknown" -or -not $Name) {
-                        $Name = "AnonymousModules"
-                    }
-                }
-                $Name
-            } else {
-                "AnonymousScripts"
-            }
-        ),
+        [String]$CompanyName,
 
         # The name of the module or script
         # Will be used in the returned storage path
         [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
-        [String]$Name = $(if($Module) { $Module.Name }),
+        [String]$Name,
 
         # The full path (including file name) of a default Configuration.psd1 file
         # By default, this is expected to be in the same folder as your module manifest, or adjacent to your script file
         [Parameter(ParameterSetName = "ManualOverride", ValueFromPipelineByPropertyName=$true)]
         [Alias("ModuleBase")]
-        [String]$DefaultPath = $(if($Module) { Join-Path $Module.ModuleBase Configuration.psd1 }),
+        [String]$DefaultPath,
 
         # The scope to save at, defaults to Enterprise (which returns a path in "RoamingData")
         [Parameter(ParameterSetName = "ManualOverride")]
@@ -222,6 +215,7 @@ function Export-Configuration {
         [Version]$Version
     )
     process {
+        . ParameterBinder
         if(!$Name) {
             throw "Could not determine the storage name, Get-StoragePath should only be called from inside a script or module."
         }
@@ -238,7 +232,7 @@ function Export-Configuration {
 
         $ConfigurationPath = Join-Path $MachinePath "Configuration.psd1"
 
-        $InputObject | Export-Metadata $ConfigurationPath
+        $InputObject | Export-Metadata $ConfigurationPath -AsHashtable:$AsHashtable
     }
 }
 
@@ -267,44 +261,23 @@ function Import-Configuration {
 
         # The Module you're importing configuration for
         [Parameter(ParameterSetName = "__ModuleInfo", ValueFromPipeline = $true)]
-        [System.Management.Automation.PSModuleInfo]$Module = $(
-            $mi = ($CallStack)[0].InvocationInfo.MyCommand.Module
-            if($mi -and $mi.ExportedCommands.Count -eq 0) {
-                if($mi2 = Get-Module $mi.ModuleBase -ListAvailable | Where-Object Name -eq $mi.Name | Where-Object ExportedCommands | Select-Object -First 1) {
-                   return $mi2
-                }
-            }
-            return $mi
-        ),
+        [System.Management.Automation.PSModuleInfo]$Module,
 
         # An optional module qualifier (by default, this is blank)
         [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
         [Alias("Author")]
-        [String]$CompanyName = $(
-            if($Module){
-                $Name = $Module.CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
-                if($Name -eq "Unknown" -or -not $Name) {
-                    $Name = $Module.Author
-                    if($Name -eq "Unknown" -or -not $Name) {
-                        $Name = "AnonymousModules"
-                    }
-                }
-                $Name
-            } else {
-                "AnonymousScripts"
-            }
-        ),
+        [String]$CompanyName,
 
         # The name of the module or script
         # Will be used in the returned storage path
         [Parameter(ParameterSetName = "ManualOverride", Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
-        [String]$Name = $(if($Module) { $Module.Name }),
+        [String]$Name,
 
         # The full path (including file name) of a default Configuration.psd1 file
         # By default, this is expected to be in the same folder as your module manifest, or adjacent to your script file
         [Parameter(ParameterSetName = "ManualOverride", ValueFromPipelineByPropertyName=$true)]
         [Alias("ModuleBase")]
-        [String]$DefaultPath = $(if($Module) { Join-Path $Module.ModuleBase Configuration.psd1 }),
+        [String]$DefaultPath,
 
         # The version for saved settings -- if set, will be used in the returned path
         # NOTE: this is *never* calculated, if you use version numbers, you must manage them on your own
@@ -318,6 +291,8 @@ function Import-Configuration {
         # Write-Debug "Import-Configuration for module $Name"
     }
     process {
+        . ParameterBinder
+
         if(!$Name) {
             throw "Could not determine the configuration name. When you are not calling Import-Configuration from a module, you must specify the -Author and -Name parameter"
         }

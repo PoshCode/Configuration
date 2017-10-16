@@ -284,6 +284,8 @@ function test {
 
     Trace-Message "TESTING $ModuleName v$Version" -Verbose:(!$Quiet)
     Remove-Module $ModuleName -ErrorAction SilentlyContinue
+    Write-Host $(prompt) -NoNewLine
+    Write-Host Remove-Module $ModuleName -ErrorAction SilentlyContinue
 
     $Options = @{
         OutputFormat = "NUnitXml"

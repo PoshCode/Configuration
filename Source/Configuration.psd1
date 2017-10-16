@@ -19,7 +19,7 @@ CompanyName = 'HuddledMasses.org'
 # HelpInfoURI = ''
 
 # Copyright statement for this module
-Copyright = 'Copyright (c) 2014-2016 by Joel Bennett, all rights reserved.'
+Copyright = 'Copyright (c) 2014-2017 by Joel Bennett, all rights reserved.'
 
 # Description of the functionality provided by this module
 Description = 'A module for storing and reading configuration values, with full PS Data serialization, automatic configuration for modules and scripts, etc.'
@@ -58,7 +58,9 @@ PrivateData = @{
 
         # Release notes for this particular version of the module
         ReleaseNotes = '
+        v1.1.0:
             Added support for ScriptBlocks and SwitchParameters
+            Added support for serializing objects as hashtables
         '
 
         # Indicates this is a pre-release/testing version of the module.

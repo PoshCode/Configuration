@@ -77,6 +77,16 @@ When "the module's (\w+) path should (\w+) (.+)$" {
     }
 }
 
+When "the resulting path should (\w+) (.+)$" {
+    param($Comparator, $Path)
+
+    [string[]]$Path = $Path -split "\s*and\s*" | %{ $_.Trim("['`"]") }
+
+    foreach($PathAssertion in $Path) {
+        $folder | Should $Comparator $PathAssertion
+    }
+}
+
 Given "a script with the name '(.+)' that calls Get-StoragePath with no parameters" {
     param($name)
     Set-Content "TestDrive:\${name}.ps1" "Get-StoragePath"
@@ -436,6 +446,16 @@ When "I call Import-Configuration" {
     $Settings = ImportConfiguration
 
     Write-Verbose (($Settings | Out-String -Stream | % TrimEnd) -join "`n")
+}
+
+When "the ModuleInfo is piped to Import-Configuration" {
+    $Settings = Get-Module SuperTestModule | Import-Configuration -ErrorAction Stop
+
+    Write-Verbose (($Settings | Out-String -Stream | % TrimEnd) -join "`n")
+}
+
+When "the ModuleInfo is piped to Get-StoragePath" {
+    $folder = Get-Module SuperTestModule | Get-StoragePath -ErrorAction Stop
 }
 
 When "I call Import-Configuration with a Version" {

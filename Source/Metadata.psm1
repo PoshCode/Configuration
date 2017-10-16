@@ -159,9 +159,14 @@ function ConvertTo-Metadata {
    [OutputType([string])]
    [CmdletBinding()]
    param(
+      # The object to convert to metadata
       [Parameter(ValueFromPipeline = $True)]
       $InputObject,
 
+      # Serialize objects as hashtables
+      [switch]$AsHashtable,
+
+      # Additional converters
       [Hashtable]$Converters = @{}
    )
    begin {
@@ -173,9 +178,7 @@ function ConvertTo-Metadata {
       $Script:MetadataConverters = $Script:OriginalMetadataConverters.Clone()
    }
    process {
-      # Write-verbose ("Type {0}" -f $InputObject.GetType().FullName)
       if($Null -eq $InputObject) {
-        # Write-verbose "Null"
         '""'
       } elseif( $InputObject -is [Int16] -or
                 $InputObject -is [Int32] -or
@@ -184,42 +187,41 @@ function ConvertTo-Metadata {
                 $InputObject -is [Decimal] -or
                 $InputObject -is [Byte] )
       {
-         # Write-verbose "Numbers"
          "$InputObject"
       }
       elseif($InputObject -is [String]) {
          "'{0}'" -f $InputObject.ToString().Replace("'","''")
       }
       elseif($InputObject -is [Collections.IDictionary]) {
-         # Write-verbose "Dictionary"
-         #Write-verbose "Dictionary:`n $($InputObject|ft|out-string -width 110)"
          "@{{`n$t{0}`n}}" -f ($(
          ForEach($key in @($InputObject.Keys)) {
             if("$key" -match '^(\w+|-?\d+\.?\d*)$') {
-               "$key = " + (ConvertTo-Metadata $InputObject.($key))
+               "$key = " + (ConvertTo-Metadata $InputObject.($key) -AsHashtable:$AsHashtable)
             }
             else {
-               "'$key' = " + (ConvertTo-Metadata $InputObject.($key))
+               "'$key' = " + (ConvertTo-Metadata $InputObject.($key) -AsHashtable:$AsHashtable)
             }
          }) -split "`n" -join "`n$t")
       }
       elseif($InputObject -is [System.Collections.IEnumerable]) {
-        # Write-verbose "Enumerable"
-        "@($($(ForEach($item in @($InputObject)) { ConvertTo-Metadata $item }) -join ","))"
-     }
-     elseif($InputObject -is [System.Management.Automation.ScriptBlock]) {
+         "@($($(ForEach($item in @($InputObject)) { ConvertTo-Metadata $item -AsHashtable:$AsHashtable}) -join ","))"
+      }
+      elseif($InputObject -is [System.Management.Automation.ScriptBlock]) {
          "(ScriptBlock '$InputObject')"
-     }
-     elseif($InputObject.GetType().FullName -eq 'System.Management.Automation.PSCustomObject') {
-         # Write-verbose "PSCustomObject"
+      }
+      elseif($InputObject.GetType().FullName -eq 'System.Management.Automation.PSCustomObject') {
          # NOTE: we can't put [ordered] here because we need support for PS v2, but it's ok, because we put it in at parse-time
-         "(PSObject @{{`n$t{0}`n}})" -f ($(
+         $(if($AsHashtable) {
+             "@{{`n$t{0}`n}}"
+         } else {
+            "(PSObject @{{`n$t{0}`n}})"
+         }) -f ($(
             ForEach($key in $InputObject | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name) {
                if("$key" -match '^(\w+|-?\d+\.?\d*)$') {
-                  "$key = " + (ConvertTo-Metadata $InputObject.($key))
+                  "$key = " + (ConvertTo-Metadata $InputObject.($key) -AsHashtable:$AsHashtable)
                }
                else {
-                  "'$key' = " + (ConvertTo-Metadata $InputObject.($key))
+                  "'$key' = " + (ConvertTo-Metadata $InputObject.($key) -AsHashtable:$AsHashtable)
                }
             }
          ) -split "`n" -join "`n$t")
@@ -237,8 +239,6 @@ function ConvertTo-Metadata {
          if($IsCommand) { "($Str)" } else { $Str }
       }
       else {
-         # Write-verbose "Unknown!"
-         # $MetadataConverters.Keys | %{ Write-Verbose "We have converters for: $($_.Name)" }
          Write-Warning "$($InputObject.GetType().FullName) is not serializable. Serializing as string"
          "'{0}'" -f $InputObject.ToString().Replace("'","`'`'")
       }
@@ -467,6 +467,9 @@ function Export-Metadata {
         [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
         $InputObject,
 
+        # Serialize objects as hashtables
+        [switch]$AsHashtable,
+
         [Hashtable]$Converters = @{},
 
         # If set, output the nuspec file
@@ -477,7 +480,7 @@ function Export-Metadata {
     end {
         # Avoid arrays when they're not needed:
         if($data.Count -eq 1) { $data = $data[0] }
-        Set-Content -Encoding UTF8 -Path $Path -Value ((@($CommentHeader) + @(ConvertTo-Metadata -InputObject $data -Converters $Converters)) -Join "`n")
+        Set-Content -Encoding UTF8 -Path $Path -Value ((@($CommentHeader) + @(ConvertTo-Metadata -InputObject $data -Converters $Converters -AsHashtable:$AsHashtable)) -Join "`n")
         if($Passthru) {
             Get-Item $Path
         }
@@ -1022,4 +1025,4 @@ function WriteError {
     }
 }
 
-Export-ModuleMember -Function *-*, PSObject, DateTime, DateTimeOffset, PSCredential, ConsoleColor -Alias *
+Export-ModuleMember -Function *-* -Alias *
