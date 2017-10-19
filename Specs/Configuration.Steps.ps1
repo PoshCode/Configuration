@@ -209,6 +209,12 @@ When "a settings hashtable with an? (.+) in it" {
         "SecureString" {
             $Settings.TestCase = ConvertTo-SecureString -AsPlainText -Force -String "Password"
         }
+        "ScriptBlock" {
+            $Settings.TestCase = { Get-ChildItem }
+        }
+        "SwitchParameter" {
+            $Settings.TestCase = [switch]$true
+        }
         "Uri" {
             $Settings.TestCase = [Uri]"http://HuddledMasses.org"
         }

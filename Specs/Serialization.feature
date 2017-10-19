@@ -413,3 +413,14 @@ Feature: Serialize Hashtables or Custom Objects
         And the string version should match "Uri 'http://huddledmasses.org/'"
         And the string version should match "Uri 'http://poshcode.org'"
 
+    @Serialization @ScriptBlock
+    Scenario Outline: Should be able to serialize ScriptBlocks
+        Given a settings hashtable with a ScriptBlock in it
+        When we convert the settings to metadata
+        Then the string version should match "TestCase = \(?ScriptBlock '"
+
+    @Serialization
+    Scenario Outline: Should serialize Switch statements as booleans
+        Given a settings hashtable with a SwitchParameter in it
+        When we convert the settings to metadata
+        Then the string version should match "TestCase = \`$True"
