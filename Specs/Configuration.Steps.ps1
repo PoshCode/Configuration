@@ -2,10 +2,11 @@ $PSModuleAutoLoadingPreference = "None"
 
 BeforeEachFeature {
     Remove-Module Configuration -ErrorAction Ignore -Force
+    Import-Module Configuration -MinimumVersion 1.1
 }
 AfterEachFeature {
     Remove-Module Configuration -ErrorAction Ignore -Force
-    Import-Module Configuration
+    Import-Module Configuration -MinimumVersion 1.1
 }
 
 Given 'the configuration module is imported with testing paths:' {

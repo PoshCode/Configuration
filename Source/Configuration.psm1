@@ -22,7 +22,7 @@ function ParameterBinder {
         [System.Management.Automation.PSModuleInfo]$Module = . {
             $mi = ($CallStack)[0].InvocationInfo.MyCommand.Module
             if($mi -and $mi.ExportedCommands.Count -eq 0) {
-                if($mi2 = Get-Module $mi.ModuleBase -ListAvailable | Where-Object Name -eq $mi.Name | Where-Object ExportedCommands | Select-Object -First 1) {
+                if($mi2 = Get-Module $mi.ModuleBase -ListAvailable | Where-Object { ($_.Name -eq $mi.Name) -and $_.ExportedCommands } | Select-Object -First 1) {
                    $mi = $mi2
                 }
             }

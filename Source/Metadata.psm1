@@ -91,24 +91,24 @@ function Add-MetadataConverter {
 
    if($Converters.Count) {
       switch ($Converters.Keys.GetEnumerator()) {
-         {$Converters.$_ -isnot [ScriptBlock]} {
-            Write-Error "Ignoring $_ converter, value must be ScriptBlock"
+         {$Converters[$_] -isnot [ScriptBlock]} {
+            Write-Error "Ignoring $_ converter, the value must be ScriptBlock!"
             continue
          }
 
          {$_ -is [String]}
          {
             # Write-Debug "Storing deserialization function: $_"
-            Set-Content "function:script:$_" $Converters.$_
-            # We need to store the given function name in MetadataConverters too
-            $MetadataConverters.$_ = $Converters.$_
+            Set-Content "function:script:$_" $Converters[$_]
+            # We need to store the function in MetadataDeserializers
+            $MetadataDeserializers[$_] = $Converters[$_]
             continue
          }
 
          {$_ -is [Type]}
          {
             # Write-Debug "Adding serializer for $($_.FullName)"
-            $MetadataConverters.$_ = $Converters.$_
+            $MetadataSerializers[$_] = $Converters[$_]
             continue
          }
          default {
@@ -171,11 +171,13 @@ function ConvertTo-Metadata {
    )
    begin {
       $t = "  "
-      $Script:OriginalMetadataConverters = $Script:MetadataConverters.Clone()
+      $Script:OriginalMetadataSerializers = $Script:MetadataSerializers.Clone()
+      $Script:OriginalMetadataDeserializers = $Script:MetadataDeserializers.Clone()
       Add-MetadataConverter $Converters
    }
    end {
-      $Script:MetadataConverters = $Script:OriginalMetadataConverters.Clone()
+      $Script:MetadataSerializers = $Script:OriginalMetadataSerializers.Clone()
+      $Script:MetadataDeserializers = $Script:OriginalMetadataDeserializers.Clone()
    }
    process {
       if($Null -eq $InputObject) {
@@ -218,16 +220,16 @@ function ConvertTo-Metadata {
          }) -f ($(
             ForEach($key in $InputObject | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name) {
                if("$key" -match '^(\w+|-?\d+\.?\d*)$') {
-                  "$key = " + (ConvertTo-Metadata $InputObject.($key) -AsHashtable:$AsHashtable)
+                  "$key = " + (ConvertTo-Metadata $InputObject[$key] -AsHashtable:$AsHashtable)
                }
                else {
-                  "'$key' = " + (ConvertTo-Metadata $InputObject.($key) -AsHashtable:$AsHashtable)
+                  "'$key' = " + (ConvertTo-Metadata $InputObject[$key] -AsHashtable:$AsHashtable)
                }
             }
          ) -split "`n" -join "`n$t")
       }
-      elseif($MetadataConverters.ContainsKey($InputObject.GetType())) {
-         $Str = ForEach-Object $MetadataConverters.($InputObject.GetType()) -InputObject $InputObject
+      elseif($MetadataSerializers.ContainsKey($InputObject.GetType())) {
+         $Str = ForEach-Object $MetadataSerializers.($InputObject.GetType()) -InputObject $InputObject
 
          [bool]$IsCommand = & {
             $ErrorActionPreference = "Stop"
@@ -293,16 +295,17 @@ function ConvertFrom-Metadata {
       [Switch]$Ordered
    )
    begin {
-      $Script:OriginalMetadataConverters = $Script:MetadataConverters.Clone()
+      $Script:OriginalMetadataSerializers = $Script:MetadataSerializers.Clone()
+      $Script:OriginalMetadataDeserializers = $Script:MetadataDeserializers.Clone()
       Add-MetadataConverter $Converters
       [string[]]$ValidCommands = @(
-            "PSObject", "ConvertFrom-StringData", "Join-Path", "Split-Path", "ConvertTo-SecureString",
-         "Guid", "bool", "SecureString", "Version", "DateTime", "DateTimeOffset", "PSCredential", "ConsoleColor", "ScriptBlock"
-         ) + @($MetadataConverters.Keys.GetEnumerator() | Where-Object { $_ -isnot [Type] })
+            "ConvertFrom-StringData", "Join-Path", "Split-Path", "ConvertTo-SecureString"
+         ) + @($MetadataDeserializers.Keys)
       [string[]]$ValidVariables = "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot","PSCulture","PSUICulture","True","False","Null"
    }
    end {
-      $Script:MetadataConverters = $Script:OriginalMetadataConverters.Clone()
+      $Script:MetadataSerializers = $Script:OriginalMetadataSerializers.Clone()
+      $Script:MetadataDeserializers = $Script:OriginalMetadataDeserializers.Clone()
    }
    process {
       $ErrorActionPreference = "Stop"
@@ -420,9 +423,9 @@ function Import-Metadata {
       }
       if(!(Test-Path $Path)) {
          WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
-                       -Message "Can't find file $Path" `
-                     -ErrorId "PathNotFound,Metadata\Import-Metadata" `
-                     -Category "ObjectNotFound"
+                    -Message "Can't find file $Path" `
+                    -ErrorId "PathNotFound,Metadata\Import-Metadata" `
+                    -Category "ObjectNotFound"
          return
       }
       try {
@@ -440,7 +443,7 @@ function Export-Metadata {
         .Description
             Serves as a wrapper for ConvertTo-Metadata to explicitly support exporting to files
 
-            Note that exportable data is limited by the rules of data sections (see about_Data_Sections) and the available MetadataConverters (see Add-MetadataConverter)
+            Note that exportable data is limited by the rules of data sections (see about_Data_Sections) and the available MetadataSerializers (see Add-MetadataConverter)
 
             The only things inherently importable in PowerShell metadata files are Strings, Booleans, and Numbers ... and Arrays or Hashtables where the values (and keys) are all strings, booleans, or numbers.
 
@@ -691,141 +694,59 @@ function Get-Metadata {
 Set-Alias Update-Manifest Update-Metadata
 Set-Alias Get-ManifestValue Get-Metadata
 
-# These functions are simple helpers for use in data sections (see about_data_sections) and .psd1 files (see ConvertFrom-Metadata)
-function PSObject {
-   <#
-      .Synopsis
-         Creates a new PSCustomObject with the specified properties
-      .Description
-         This is just a wrapper for the PSObject constructor with -Property $Value
-         It exists purely for the sake of psd1 serialization
-      .Parameter Value
-         The hashtable of properties to add to the created objects
-   #>
-   param([hashtable]$Value)
-   New-Object System.Management.Automation.PSObject -Property $Value
-}
-
-function DateTime {
-   <#
-      .Synopsis
-         Creates a DateTime with the specified value
-      .Description
-         This is basically just a type cast to DateTime, the string needs to be castable.
-         It exists purely for the sake of psd1 serialization
-      .Parameter Value
-         The DateTime value, preferably from .Format('o'), the .Net round-trip format
-   #>
-   param([string]$Value)
-   [DateTime]$Value
-}
-
-function DateTimeOffset {
-   <#
-      .Synopsis
-         Creates a DateTimeOffset with the specified value
-      .Description
-         This is basically just a type cast to DateTimeOffset, the string needs to be castable.
-         It exists purely for the sake of psd1 serialization
-      .Parameter Value
-         The DateTimeOffset value, preferably from .Format('o'), the .Net round-trip format
-   #>
-   param([string]$Value)
-   [DateTimeOffset]$Value
-}
-
-function PSCredential {
-   <#
-      .Synopsis
-         Creates a new PSCredential with the specified properties
-      .Description
-         This is just a wrapper for the PSObject constructor with -Property $Value
-         It exists purely for the sake of psd1 serialization
-      .Parameter Value
-         The hashtable of properties to add to the created objects
-   #>
-   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingPlainTextForPassword","EncodedPassword")]
-   [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingUserNameAndPasswordParams","")]
-   param(
-      # The UserName for this credential
-      [string]$UserName,
-      # The Password for this credential, encoded via ConvertFrom-SecureString
-      [string]$EncodedPassword
-   )
-   New-Object PSCredential $UserName, (ConvertTo-SecureString $EncodedPassword)
-}
-
-function ConsoleColor {
-   <#
-      .Synopsis
-         Creates a ConsoleColor with the specified value
-      .Description
-         This is basically just a type cast to ConsoleColor, the string needs to be castable.
-         It exists purely for the sake of psd1 serialization
-      .Parameter Value
-         The ConsoleColor value, preferably from .ToString()
-   #>
-   param([string]$Value)
-   [ConsoleColor]$Value
-}
-
-function ScriptBlock {
-    <#
-       .Synopsis
-          Creates a ScriptBlock from a string
-       .Description
-          Just calls [ScriptBlock]::Create with the passed-in value
-       .Parameter Value
-          The ScriptBlock as a string
-    #>
-    param([string]$Value)
-    [scriptblock]::Create($Value)
- }
-
-
-$MetadataConverters = @{}
+$MetadataSerializers = @{}
+$MetadataDeserializers = @{}
 
 if($Converters -is [Collections.IDictionary]) {
    Add-MetadataConverter $Converters
 }
 
-# The OriginalMetadataConverters
+# The OriginalMetadataSerializers
 Add-MetadataConverter @{
-   [bool]    = { if($_) { '$True' } else { '$False' } }
+   [bool]           = { if($_) { '$True' } else { '$False' } }
+   [Version]        = { "'$_'" }
+   [PSCredential]   = { 'PSCredential "{0}" "{1}"' -f $_.UserName, (ConvertFrom-SecureString $_.Password) }
+   [SecureString]   = { "ConvertTo-SecureString {0}" -f (ConvertFrom-SecureString $_) }
+   [Guid]           = { "Guid '$_'" }
+   [DateTime]       = { "DateTime '{0}'" -f $InputObject.ToString('o') }
+   [DateTimeOffset] = { "DateTimeOffset '{0}'" -f $InputObject.ToString('o') }
+   [ConsoleColor]   = { "ConsoleColor {0}" -f $InputObject.ToString() }
 
    [System.Management.Automation.SwitchParameter] = { if($_) { '$True' } else { '$False' } }
 
-   [Version] = { "'$_'" }
-
-   [PSCredential] = { 'PSCredential "{0}" "{1}"' -f $_.UserName, (ConvertFrom-SecureString $_.Password) }
-
-   [SecureString] = { "ConvertTo-SecureString {0}" -f (ConvertFrom-SecureString $_) }
-
-   # This GUID is here instead of as a function
-   # just to make sure the tests can validate the converter hashtables
-   Guid = {
-      <#
-         .Synopsis
-            Creates a GUID with the specified value
-         .Description
-            This is basically just a type cast to GUID.
+    # This GUID is here instead of as a function
+    # just to make sure the tests can validate the converter hashtables
+    "Guid"           = { [Guid]$Args[0] }
+    "PSObject"       = { New-Object System.Management.Automation.PSObject -Property $Args[0] }
+    "DateTime"       = { [DateTime]$Args[0] }
+    "DateTimeOffset" = { [DateTimeOffset]$Args[0] }
+    "ConsoleColor"   = { [ConsoleColor]$Args[0] }
+    "ScriptBlock"    = { [scriptblock]::Create($Args[0]) }
+    "PSCredential"   = {
+        <#
+        .Synopsis
+            Creates a new PSCredential with the specified properties
+        .Description
+            This is just a wrapper for the PSObject constructor with -Property $Value
             It exists purely for the sake of psd1 serialization
-         .Parameter Value
-            The GUID value.
-      #>
-      param([string]$Value)
-      [Guid]$Value
-   }
-   [Guid] = { "Guid '$_'" }
+        .Parameter Value
+            The hashtable of properties to add to the created objects
+        #>
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingPlainTextForPassword","EncodedPassword")]
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingUserNameAndPasswordParams","")]
+        param(
+            # The UserName for this credential
+            [string]$UserName,
+            # The Password for this credential, encoded via ConvertFrom-SecureString
+            [string]$EncodedPassword
+        )
+        New-Object PSCredential $UserName, (ConvertTo-SecureString $EncodedPassword)
+    }
 
-   [DateTime] = { "DateTime '{0}'" -f $InputObject.ToString('o') }
-
-   [DateTimeOffset] = { "DateTimeOffset '{0}'" -f $InputObject.ToString('o') }
-
-   [ConsoleColor] = { "ConsoleColor {0}" -f $InputObject.ToString() }
 }
 
-$Script:OriginalMetadataConverters = $MetadataConverters.Clone()
+$Script:OriginalMetadataSerializers = $MetadataSerializers.Clone()
+$Script:OriginalMetadataDeserializers = $MetadataDeserializers.Clone()
 
 function Update-Object {
    <#

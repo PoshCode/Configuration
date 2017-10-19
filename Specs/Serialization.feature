@@ -27,7 +27,7 @@ Feature: Serialize Hashtables or Custom Objects
     Scenario: Serialize a ConsoleColor to string
         Given a settings hashtable
             """
-            @{ UserName = "Joel"; BackgroundColor = ConsoleColor Black }
+            @{ UserName = "Joel"; BackgroundColor = [ConsoleColor]::Black }
             """
         When we convert the settings to metadata
         Then the string version should be
@@ -163,8 +163,8 @@ Feature: Serialize Hashtables or Custom Objects
         Given a settings hashtable
             """
             @{
-              Credential = PSCredential "UserName" $(ConvertTo-SecureString Password -AsPlainText -Force | ConvertFrom-SecureString)
-              Password = ConvertTo-SecureString $(ConvertTo-SecureString Password -AsPlainText -Force | ConvertFrom-SecureString)
+              Credential = [PSCredential]::new("UserName",(ConvertTo-SecureString Password -AsPlainText -Force))
+              Password = ConvertTo-SecureString Password -AsPlainText -Force
             }
             """
         When we convert the settings to metadata
