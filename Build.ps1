@@ -55,7 +55,7 @@ function init {
         }
 
         # We expect the source for the module in a subdirectory called one of three things:
-        $Script:SourcePath = "src", "source", ${ModuleName} | ForEach { Join-Path $Path $_ -Resolve -ErrorAction Ignore } | Select -First 1
+        $Script:SourcePath = "src", "source", ${ModuleName} | ForEach-Object { Join-Path $Path $_ -Resolve -ErrorAction Ignore } | Select-Object -First 1
         if(!$SourcePath) {
             Write-Warning "This Build script expects a 'Source' or '$ModuleName' folder to be alongside it."
             throw "Can't find module source folder."
@@ -66,7 +66,7 @@ function init {
             Write-Warning "This Build script expects a '${ModuleName}.psd1' in the '$SourcePath' folder."
             throw "Can't find module source files"
         }
-        $Script:TestPath = "Tests", "Specs" | ForEach { Join-Path $Path $_ -Resolve -ErrorAction Ignore } | Select -First 1
+        $Script:TestPath = "Tests", "Specs" | ForEach-Object { Join-Path $Path $_ -Resolve -ErrorAction Ignore } | Select-Object -First 1
         if(!$TestPath) {
             Write-Warning "This Build script expects a 'Tests' or 'Specs' folder to contain tests."
         }
@@ -145,9 +145,9 @@ function update {
     Trace-Message "UPDATE $ModuleName in $Path"
 
     if(Test-Path (Join-Path $Path packages.config)) {
-        if(!($Name = Get-PackageSource | ? Location -eq 'https://www.nuget.org/api/v2' | % Name)) {
+        if(!($Name = Get-PackageSource | Where-Object Location -eq 'https://www.nuget.org/api/v2' | ForEach-Object Name)) {
             Write-Warning "Adding NuGet package source"
-            $Name = Register-PackageSource NuGet -Location 'https://www.nuget.org/api/v2' -ForceBootstrap -ProviderName NuGet | % Name
+            $Name = Register-PackageSource NuGet -Location 'https://www.nuget.org/api/v2' -ForceBootstrap -ProviderName NuGet | Where-Object Name
         }
 
         if($Force -and (Test-Path $Path\packages)) {
@@ -162,9 +162,9 @@ function update {
         }
 
         # Remember, as of now, only nuget actually supports the -Destination flag
-        foreach($Package in ([xml](gc .\packages.config)).packages.package) {
+        foreach($Package in ([xml](Get-Content .\packages.config)).packages.package) {
             Trace-Message "Installing $($Package.id) v$($Package.version) from $($Package.Source)"
-            $install = Install-Package -Name $Package.id -RequiredVersion $Package.version -Source $Package.Source -Destination $Path\packages -Force:$Force -ErrorVariable failure
+            $null = Install-Package -Name $Package.id -RequiredVersion $Package.version -Source $Package.Source -Destination $Path\packages -Force:$Force -ErrorVariable failure
             if($failure) {
                 throw "Failed to install $($package.id), see errors above."
             }
@@ -196,7 +196,7 @@ function build {
                 $targets = ($TargetFramework -replace '^','lib\') + 'lib' | ForEach-Object { Join-Path $folder $_ }
             }
 
-            $PackageSource = Get-Item $targets -ErrorAction SilentlyContinue | Select -First 1 -Expand FullName
+            $PackageSource = Get-Item $targets -ErrorAction SilentlyContinue | Select-Object -First 1 -Expand FullName
             if(!$PackageSource) {
                 throw "Could not find a lib folder for $($Package.id) from package. You may need to run Setup.ps1"
             }
@@ -231,7 +231,7 @@ function build {
         $ReleaseModule = Join-Path $ReleasePath ${RootModule}
         Trace-Message "       Setting content for $ReleaseModule"
 
-        $FunctionsToExport = Join-Path $SourcePath Public\*.ps1 -Resolve | % { [System.IO.Path]::GetFileNameWithoutExtension($_) }
+        $FunctionsToExport = Join-Path $SourcePath Public\*.ps1 -Resolve | ForEach-Object { [System.IO.Path]::GetFileNameWithoutExtension($_) }
         Set-Content $ReleaseModule ((
             (Get-Content (Join-Path $SourcePath Private\*.ps1) -Raw) +
             (Get-Content (Join-Path $SourcePath Public\*.ps1) -Raw)) -join "`r`n`r`n`r`n") -Encoding UTF8
@@ -243,7 +243,7 @@ function build {
 
         # Finally, we need to copy any files in the Source directory
         Get-ChildItem $SourcePath -File |
-            Where Name -ne $RootModule |
+            Where-Object Name -ne $RootModule |
             Copy-Item -Destination $ReleasePath
 
         Update-Manifest $ReleaseManifest -Property FunctionsToExport -Value $FunctionsToExport

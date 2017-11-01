@@ -42,6 +42,23 @@ AliasesToExport = '*'
 FileList = @('.\Configuration.psd1','.\Configuration.psm1','.\Metadata.psm1','.\en-US\about_Configuration.help.txt')
 
 PrivateData = @{
+    # Allows overriding the default paths where Configuration stores it's configuration
+    # Within those folders, the module assumes a "powershell" folder and creates per-module configuration folders
+    PathOverride = @{
+        # Where the user's personal configuration settings go.
+        # Highest presedence, overrides all other settings.
+        # Defaults to $Env:LocalAppData on Windows
+        # Defaults to $Env:XDG_CONFIG_HOME elsewhere ($HOME/.config/)
+        UserData       = ""
+        # On some systems there are "roaming" user configuration stored in the user's profile. Overrides machine configuration
+        # Defaults to $Env:AppData on Windows
+        # Defaults to $Env:XDG_CONFIG_DIRS elsewhere (or $HOME/.local/share/)
+        EnterpriseData = ""
+        # Machine specific configuration. Overrides defaults, but is overriden by both user roaming and user local settings
+        # Defaults to $Env:ProgramData on Windows
+        # Defaults to /etc/xdg elsewhere
+        MachineData    = ""
+    }
     # PSData is module packaging and gallery metadata embedded in PrivateData
     # It's for the PoshCode and PowerShellGet modules
     # We had to do this because it's the only place we're allowed to extend the manifest
