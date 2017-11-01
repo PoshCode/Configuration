@@ -46,7 +46,13 @@ function init {
     # Calculate Paths
         # The output path is just a temporary output and logging location
         $Script:OutputPath = Join-Path $Path output
-        $null = mkdir $OutputPath -Force
+
+        if(Test-Path $OutputPath -PathType Leaf) {
+            throw "Cannot create folder for Configuration because there's a file in the way at '$OutputPath'"
+        }
+        if(!(Test-Path $OutputPath -PathType Container)) {
+            $null = New-Item $OutputPath -Type Directory -Force
+        }
 
         # We expect the source for the module in a subdirectory called one of three things:
         $Script:SourcePath = "src", "source", ${ModuleName} | ForEach { Join-Path $Path $_ -Resolve -ErrorAction Ignore } | Select -First 1
@@ -148,7 +154,12 @@ function update {
             # force reinstall by cleaning the old ones
             remove-item $Path\packages\ -Recurse -Force
         }
-        $null = mkdir $Path\packages\ -Force
+        if(Test-Path $Path\packages\ -PathType Leaf) {
+            throw "Cannot create folder for Configuration because there's a file in the way at '$Path\packages\'"
+        }
+        if(!(Test-Path $Path\packages\ -PathType Container)) {
+            $null = New-Item $Path\packages\ -Type Directory -Force
+        }
 
         # Remember, as of now, only nuget actually supports the -Destination flag
         foreach($Package in ([xml](gc .\packages.config)).packages.package) {
@@ -210,7 +221,13 @@ function build {
                 $RootModule = "${ModuleName}.psm1"
             }
         }
-        $null = mkdir $ReleasePath -Force
+        if(Test-Path $ReleasePath -PathType Leaf) {
+            throw "Cannot create folder for Configuration because there's a file in the way at '$ReleasePath'"
+        }
+        if(!(Test-Path $ReleasePath -PathType Container)) {
+            $null = New-Item $ReleasePath -Type Directory -Force
+        }
+
         $ReleaseModule = Join-Path $ReleasePath ${RootModule}
         Trace-Message "       Setting content for $ReleaseModule"
 
@@ -244,7 +261,13 @@ function build {
     $ReadMe = Join-Path $Path Readme.md
     if(Test-Path $ReadMe -PathType Leaf) {
         $LanguagePath = Join-Path $ReleasePath $DefaultLanguage
-        $null = mkdir $LanguagePath -Force
+        if(Test-Path $LanguagePath -PathType Leaf) {
+            throw "Cannot create folder for Configuration because there's a file in the way at '$LanguagePath'"
+        }
+        if(!(Test-Path $LanguagePath -PathType Container)) {
+            $null = New-Item $LanguagePath -Type Directory -Force
+        }
+
         $about_module = Join-Path $LanguagePath "about_${ModuleName}.help.txt"
         if(!(Test-Path $about_module)) {
             Trace-Message "Turn readme into about_module"

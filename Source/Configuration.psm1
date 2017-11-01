@@ -141,10 +141,13 @@ function Get-StoragePath {
             $PathRoot = Join-Path $PathRoot $Version
         }
 
-        # Write-Debug "Storage Path: $PathRoot"
-
+        if(Test-Path $PathRoot -PathType Leaf) {
+            throw "Cannot create folder for Configuration because there's a file in the way at $PathRoot"
+        }
+        if(!(Test-Path $PathRoot -PathType Container)) {
+            $null = New-Item $PathRoot -Type Directory -Force
+        }
         # Note: avoid using Convert-Path because drives aliases like "TestData:" get converted to a C:\ file system location
-        $null = mkdir $PathRoot -Force
         (Resolve-Path $PathRoot).Path
     }
 }

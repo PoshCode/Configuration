@@ -43,7 +43,14 @@ Given "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company
     $ModulePath = "TestDrive:\Modules\$name"
     Remove-Module $name -ErrorAction Ignore
     Remove-Item $ModulePath -Recurse -ErrorAction Ignore
-    $null = mkdir $ModulePath -Force
+
+
+    if(Test-Path $ModulePath -PathType Leaf) {
+        throw "Cannot create folder for Configuration because there's a file in the way at '$ModulePath'"
+    }
+    if(!(Test-Path $ModulePath -PathType Container)) {
+        $null = New-Item $ModulePath -Type Directory -Force
+    }
     $Env:PSModulePath = $Env:PSModulePath + ";TestDrive:\Modules" -replace "(;TestDrive:\\Modules)+?$", ";TestDrive:\Modules"
 
     Set-Content $ModulePath\${Name}.psm1 "
@@ -154,8 +161,11 @@ When "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+)
     $SettingsFile = Join-Path $folder $fileName
 
     $Parent = Split-Path $SettingsFile
-    if(!(Test-Path $Parent)) {
-        $null = mkdir $Parent -Force -EA 0
+    if(Test-Path $Parent -PathType Leaf) {
+        throw "Cannot create folder for Configuration because there's a file in the way at '$Parent'"
+    }
+    if(!(Test-Path $Parent -PathType Container)) {
+        $null = New-Item $Parent -Type Directory -Force
     }
     Set-Content $SettingsFile -Value $hashtable
 }
