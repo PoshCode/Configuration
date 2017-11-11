@@ -192,9 +192,6 @@ function Get-StoragePath {
             throw "Could not determine the storage name, Get-StoragePath should only be called from inside a script or module."
         }
         $CompanyName = $CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
-
-        $PathRoot = Join-Path $PathRoot $Type
-
         if($CompanyName -and $CompanyName -ne "Unknown") {
             $PathRoot = Join-Path $PathRoot $CompanyName
         }
