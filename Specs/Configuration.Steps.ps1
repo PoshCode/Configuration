@@ -321,8 +321,11 @@ When "the settings file should (\w+)\s*(.*)?" {
     param($operator, $data)
     # Normalize line endings, because the module does:
     $data = [regex]::escape(($data -replace "\r?\n","`n")) -replace '\\n','\r?\n'
-    if($operator -eq "Contain"){ $operator = "ContainMultiline"}
-    ${SettingsFile} | Should $operator $data
+    if($operator -eq "Contain"){
+        (Get-Content ${SettingsFile} -raw) -match $data | Should Be $True
+    } else {
+        ${SettingsFile} | Should $operator $data
+    }
 }
 
 Given "the settings file does not exist" {
@@ -351,6 +354,9 @@ When "we expect an? (?<type>warning|error|verbose) in the (?<module>.*) module" 
     }
 }
 
+# Then the error is logged exactly 2 times
+# Then the warning is logged 3 times
+# Then the error is logged
 # this step lets us verify the number of calls to those three mocks
 When "the (?<type>warning|error|verbose) is logged(?: (?<exactly>exactly) (\d+) times?)?" {
     param($count, $exactly, $type)
@@ -380,8 +386,6 @@ When "we add a converter with a number as a key" {
         }
     }
 }
-
-# Then the error is logged exactly 2 times
 
 Then "the settings object should be of type (.*)" {
     param([Type]$Type)

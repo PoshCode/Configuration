@@ -220,10 +220,10 @@ function ConvertTo-Metadata {
          }) -f ($(
             ForEach($key in $InputObject | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name) {
                if("$key" -match '^(\w+|-?\d+\.?\d*)$') {
-                  "$key = " + (ConvertTo-Metadata $InputObject[$key] -AsHashtable:$AsHashtable)
+                  "$key = " + (ConvertTo-Metadata $InputObject.$key -AsHashtable:$AsHashtable)
                }
                else {
-                  "'$key' = " + (ConvertTo-Metadata $InputObject[$key] -AsHashtable:$AsHashtable)
+                  "'$key' = " + (ConvertTo-Metadata $InputObject.$key -AsHashtable:$AsHashtable)
                }
             }
          ) -split "`n" -join "`n$t")
