@@ -6,7 +6,7 @@ Feature: Serialize Hashtables or Custom Objects
     Background:
         Given the configuration module is imported with testing paths:
         | Enterprise                | User                | Machine                |
-        | TestDrive:\EnterprisePath | TestDrive:\UserPath | TestDrive:\MachinePath |
+        | TestDrive:/EnterprisePath | TestDrive:/UserPath | TestDrive:/MachinePath |
 
     @Serialization
     Scenario: Serialize a hashtable to string
@@ -69,20 +69,20 @@ Feature: Serialize Hashtables or Custom Objects
         Then the string version should match 'TestCase = @{'
 
 
-    @Serialization @SecureString @PSCredential
+    @Serialization @SecureString @PSCredential @CRYPT32
     Scenario Outline: Should be able to serialize PSCredential
         Given a settings hashtable with a PSCredential in it
         When we convert the settings to metadata
         Then the string version should match "TestCase = \(?PSCredential"
 
-    @Serialization @SecureString
+    @Serialization @SecureString @CRYPT32
     Scenario Outline: Should be able to serialize SecureStrings
         Given a settings hashtable with a SecureString in it
         When we convert the settings to metadata
         Then the string version should match "TestCase = \(?ConvertTo-SecureString [a-z0-9]+"
 
 
-    @Serialization
+    @Serialization @CRYPT32
     Scenario Outline: Should support a few additional types
         Given a settings hashtable with a <type> in it
         When we convert the settings to metadata
@@ -158,7 +158,7 @@ Feature: Serialize Hashtables or Custom Objects
         Then the settings object should have a LastUpdated of type DateTime
         Then the settings object should have a Homepage of type Uri
 
-    @DeSerialization @SecureString @PSCredential
+    @DeSerialization @SecureString @PSCredential @CRYPT32
     Scenario Outline: I should be able to import serialized credentials and secure strings
         Given a settings hashtable
             """
@@ -175,7 +175,7 @@ Feature: Serialize Hashtables or Custom Objects
         Then the settings object should have a Credential of type PSCredential
         Then the settings object should have a Password of type SecureString
 
-    @Serialization @SecureString
+    @Serialization @SecureString @CRYPT32
     Scenario Outline: Should be able to serialize SecureStrings
         Given a settings hashtable with a SecureString in it
         When we convert the settings to metadata
@@ -305,7 +305,7 @@ Feature: Serialize Hashtables or Custom Objects
     @Serialization @Deserialization @File
     Scenario: Handling the default module manifest
         Given a module with the name 'TestModule1'
-        Given a settings file named ModuleName\ModuleName.psd1
+        Given a settings file named ModuleName/ModuleName.psd1
             """
             @{
               UserName = 'Joel'

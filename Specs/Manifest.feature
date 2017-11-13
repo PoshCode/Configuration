@@ -5,7 +5,7 @@ Feature: Manifest Read and Write
     Background:
         Given the configuration module is imported with testing paths:
         | Enterprise                | User                | Machine                |
-        | TestDrive:\EnterprisePath | TestDrive:\UserPath | TestDrive:\MachinePath |
+        | TestDrive:/EnterprisePath | TestDrive:/UserPath | TestDrive:/MachinePath |
 
     @Modules @Import
     Scenario: Read ModuleVersion from a module manifest by default
@@ -14,7 +14,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '0.4'
@@ -32,7 +32,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '0.4'
@@ -49,7 +49,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '0.4'
@@ -68,7 +68,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '0.4'
@@ -91,7 +91,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '0.4'
@@ -108,7 +108,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '0.4'
@@ -124,7 +124,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '0.4'
@@ -140,7 +140,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '0.4'
@@ -156,7 +156,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '1.0'
@@ -172,7 +172,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '0.4.1'
@@ -188,7 +188,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '0.4'
@@ -204,7 +204,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '4.3.2.1'
@@ -220,7 +220,7 @@ Feature: Manifest Read and Write
             """
             @{
                 # Script module or binary module file associated with this manifest.
-                ModuleToProcess = '.\Configuration.psm1'
+                ModuleToProcess = './Configuration.psm1'
 
                 # Version number of this module.
                 ModuleVersion = '0.4'

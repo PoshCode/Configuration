@@ -1,27 +1,27 @@
 $PSModuleAutoLoadingPreference = "None"
 
 BeforeEachFeature {
-    Remove-Module Configuration -ErrorAction Ignore -Force
-    Import-Module Configuration -MinimumVersion 1.1
+    Remove-Module "Configuration" -ErrorAction Ignore -Force
+    Import-Module "Configuration" -MinimumVersion 1.1
 }
 AfterEachFeature {
-    Remove-Module Configuration -ErrorAction Ignore -Force
-    Import-Module Configuration -MinimumVersion 1.1
+    Remove-Module "Configuration" -ErrorAction Ignore -Force
+    Import-Module "Configuration" -MinimumVersion 1.1
 }
 
 Given 'the configuration module is imported with testing paths:' {
     param($Table)
-    $ModuleBase = (Get-Module Configuration -ListAvailable | Sort-Object Version -Descending)[0].ModuleBase
-    Remove-Module Configuration -ErrorAction Ignore -Force
-    Import-Module $ModuleBase\Configuration.psd1 -Args @($null, $Table.Enterprise, $Table.User, $Table.Machine) -Scope Global
+    $ModuleBase = (Get-Module "Configuration" -ListAvailable | Sort-Object Version -Descending)[0].ModuleBase
+    Remove-Module "Configuration" -ErrorAction Ignore -Force
+    Import-Module $ModuleBase/Configuration.psd1 -Args @($null, $Table.Enterprise, $Table.User, $Table.Machine) -Scope Global
 }
 
 Given 'the configuration module is imported with a URL converter' {
     param($Table)
     $ModuleBase = "."
-    $ModuleBase = (Get-Module Configuration).ModuleBase
-    Remove-Module Configuration -ErrorAction Ignore -Force
-    Import-Module $ModuleBase\Configuration.psd1 -Args @{
+    $ModuleBase = (Get-Module "Configuration").ModuleBase
+    Remove-Module "Configuration" -ErrorAction Ignore -Force
+    Import-Module $ModuleBase/Configuration.psd1 -Args @{
                 [Uri] = { "Uri '$_' " }
                 "Uri" = {
                     param([string]$Value)
@@ -32,15 +32,15 @@ Given 'the configuration module is imported with a URL converter' {
 
 Given 'the manifest module is imported' {
     param($Table)
-    $ModuleBase = (Get-Module Configuration).ModuleBase
-    Remove-Module Configuration, Manifest
-    Import-Module $ModuleBase\Manifest.psm1 -Scope Global
+    $ModuleBase = (Get-Module "Configuration").ModuleBase
+    Remove-Module "Configuration", Manifest
+    Import-Module $ModuleBase/Manifest.psm1 -Scope Global
 }
 
 Given "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company>.+?)'|\s+\w+ the author '(?<author>.+?)')+" {
     param($name, $Company = "", $Author = "")
 
-    $ModulePath = "TestDrive:\Modules\$name"
+    $ModulePath = "TestDrive:/Modules/$name"
     Remove-Module $name -ErrorAction Ignore
     Remove-Item $ModulePath -Recurse -ErrorAction Ignore
 
@@ -51,9 +51,9 @@ Given "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company
     if(!(Test-Path $ModulePath -PathType Container)) {
         $null = New-Item $ModulePath -Type Directory -Force
     }
-    $Env:PSModulePath = $Env:PSModulePath + ";TestDrive:\Modules" -replace "(;TestDrive:\\Modules)+?$", ";TestDrive:\Modules"
+    $Env:PSModulePath = $Env:PSModulePath + ";TestDrive:/Modules" -replace "(;TestDrive:/Modules)+?$", ";TestDrive:/Modules"
 
-    Set-Content $ModulePath\${Name}.psm1 "
+    Set-Content $ModulePath/${Name}.psm1 "
     function GetStoragePath { Get-StoragePath @Args }
     function ImportConfiguration { Import-Configuration }
     function ImportConfigVersion { Import-Configuration -Version 2.0 }
@@ -61,17 +61,17 @@ Given "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company
     filter ExportConfigVersion { `$_ | Export-Configuration -Version 2.0 }
     "
 
-    New-ModuleManifest $ModulePath\${Name}.psd1 -RootModule .\${Name}.psm1 -Description "A Super Test Module" -Company $Company -Author $Author
+    New-ModuleManifest $ModulePath/${Name}.psd1 -RootModule ./${Name}.psm1 -Description "A Super Test Module" -Company $Company -Author $Author
 
     # New-ModuleManifest sets things even when we don't want it to:
     if(!$Author) {
-        Set-Content $ModulePath\${Name}.psd1 ((Get-Content $ModulePath\${Name}.psd1) -Replace "^(Author.*)$", '#$1')
+        Set-Content $ModulePath/${Name}.psd1 ((Get-Content $ModulePath/${Name}.psd1) -Replace "^(Author.*)$", '#$1')
     }
     if(!$Company) {
-        Set-Content $ModulePath\${Name}.psd1 ((Get-Content $ModulePath\${Name}.psd1) -Replace "^(Company.*)$", '#$1')
+        Set-Content $ModulePath/${Name}.psd1 ((Get-Content $ModulePath/${Name}.psd1) -Replace "^(Company.*)$", '#$1')
     }
 
-    Import-Module $ModulePath\${Name}.psd1
+    Import-Module $ModulePath/${Name}.psd1
 }
 
 When "the module's (\w+) path should (\w+) (.+)$" {
@@ -81,7 +81,18 @@ When "the module's (\w+) path should (\w+) (.+)$" {
 
     $LocalStoragePath = GetStoragePath -Scope $Scope
     foreach($PathAssertion in $Path) {
-        $LocalStoragePath | Should $Comparator $PathAssertion
+        $LocalStoragePath -replace "\\", "/" | Should $Comparator $PathAssertion
+    }
+}
+
+Then "the script's (\w+) path should (\w+) (.+)$" {
+    param($Scope, $Comparator, $Path)
+
+    [string[]]$Path = $Path -split "\s*and\s*" | % { $_.Trim("['`"]") }
+
+    $LocalStoragePath = iex "TestDrive:/${ScriptName}.ps1"
+    foreach ($PathAssertion in $Path) {
+        $LocalStoragePath -replace "\\","/" | Should $Comparator $PathAssertion
     }
 }
 
@@ -91,42 +102,30 @@ When "the resulting path should (\w+) (.+)$" {
     [string[]]$Path = $Path -split "\s*and\s*" | %{ $_.Trim("['`"]") }
 
     foreach($PathAssertion in $Path) {
-        $folder | Should $Comparator $PathAssertion
+        $folder -replace "\\", "/" | Should $Comparator $PathAssertion
     }
 }
 
 Given "a script with the name '(.+)' that calls Get-StoragePath with no parameters" {
     param($name)
-    Set-Content "TestDrive:\${name}.ps1" "Get-StoragePath"
+    Set-Content "TestDrive:/${name}.ps1" "Get-StoragePath"
     $ScriptName = $Name
 }
+
 Given "a script with the name '(?<File>.+)' that calls Get-StoragePath (?:-Name (?<Name>\w*) ?|-Author (?<Author>\w*) ?){2}" {
     param($File, $Name, $Author)
-    Set-Content "TestDrive:\${File}.ps1" "Get-StoragePath -Name $Name -Author $Author"
+    Set-Content "TestDrive:/${File}.ps1" "Get-StoragePath -Name $Name -Author $Author"
     $ScriptName = $File
 }
 
 Then "the script should throw an exception$" {
-    { $LocalStoragePath = iex "TestDrive:\${ScriptName}.ps1" } | Should throw
-}
-
-
-Then "the script's (\w+) path should (\w+) (.+)$" {
-    param($Scope, $Comparator, $Path)
-
-    [string[]]$Path = $Path -split "\s*and\s*" | %{ $_.Trim("['`"]") }
-
-    $LocalStoragePath = iex "TestDrive:\${ScriptName}.ps1"
-    foreach($PathAssertion in $Path) {
-        $LocalStoragePath | Should $Comparator $PathAssertion
-    }
+    { $LocalStoragePath = iex "TestDrive:/${ScriptName}.ps1" } | Should throw
 }
 
 When "the module's storage path should end with a version number if one is passed in" {
-    GetStoragePath -Version "2.0" | Should Match "\\2.0$"
-    GetStoragePath -Version "4.0" | Should Match "\\4.0$"
+    (GetStoragePath -Version "2.0") -replace "\\", "/" | Should Match "/2.0$"
+    (GetStoragePath -Version "4.0") -replace "\\", "/" | Should Match "/4.0$"
 }
-
 
 When "a settings hashtable" {
     param($hashtable)
@@ -156,7 +155,7 @@ When "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+)
     } elseif(Test-Path "$ModulePath") {
         $folder = $ModulePath
     } else {
-        $folder = "TestDrive:\"
+        $folder = "TestDrive:/"
     }
     $SettingsFile = Join-Path $folder $fileName
 
@@ -269,7 +268,7 @@ When "we convert the settings to metadata" {
 When "we export to a settings file named (.*)" {
     param($fileName)
     if(!$ModulePath -or !(Test-Path $ModulePath)) {
-        $ModulePath = "TestDrive:\"
+        $ModulePath = "TestDrive:/"
     }
     $SettingsFile = Join-Path $ModulePath $fileName
     $File = $Settings | Export-Metadata ${SettingsFile} -Passthru
@@ -331,7 +330,7 @@ When "the settings file should (\w+)\s*(.*)?" {
 Given "the settings file does not exist" {
     #
     if(!$ModulePath -or !(Test-Path $ModulePath)) {
-        $ModulePath = "TestDrive:\"
+        $ModulePath = "TestDrive:/"
     }
     if(!${SettingsFile}) {
         $SettingsFile = Join-Path $ModulePath "NoSuchFile.psd1"
@@ -556,7 +555,7 @@ Then "a settings file named (\S+) should exist(?:(?: in the (?<Scope>\S+) folder
     } elseif(Test-Path "${ModulePath}") {
         $folder = $ModulePath
     } else {
-        $folder = "TestDrive:\"
+        $folder = "TestDrive:/"
     }
     $SettingsFile = Join-Path $folder $fileName
     $SettingsFile | Should Exist

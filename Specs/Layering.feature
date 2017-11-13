@@ -7,7 +7,7 @@ Feature: Multiple settings files should layer
     Background:
         Given the configuration module is imported with testing paths:
         | Enterprise                | User                | Machine                |
-        | TestDrive:\EnterprisePath | TestDrive:\UserPath | TestDrive:\MachinePath |
+        | TestDrive:/EnterprisePath | TestDrive:/UserPath | TestDrive:/MachinePath |
 
 
     @Modules @Import @Layering
