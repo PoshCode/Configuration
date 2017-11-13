@@ -59,7 +59,7 @@ function InitializeStoragePaths {
         if(!($MachineData = $MyInvocation.MyCommand.Module.PrivateData.PathOverride.MachineData)) {
             if($IsLinux -or $IsMacOs) {
                 # Defaults to /etc/xdg elsewhere
-                $XdgConfigDirs = $Env:XDG_CONFIG_DIRS -split ([IO.Path]::PathSeparator) | Where-Object { Test-Path $_ }
+                $XdgConfigDirs = $Env:XDG_CONFIG_DIRS -split ([IO.Path]::PathSeparator) | Where-Object { $_ -and (Test-Path $_) }
                 if(!($MachineData = if($XdgConfigDirs.Count -gt 1) { $XdgConfigDirs[1]})) {
                     $MachineData = "/etc/xdg/"
                 }
