@@ -92,7 +92,10 @@ function Add-MetadataConverter {
    if($Converters.Count) {
       switch ($Converters.Keys.GetEnumerator()) {
          {$Converters[$_] -isnot [ScriptBlock]} {
-            Write-Error "Ignoring $_ converter, the value must be ScriptBlock!"
+            WriteError -ExceptionType System.ArgumentExceptionn `
+                    -Message "Ignoring $_ converter, the value must be ScriptBlock!" `
+                    -ErrorId "NotAScriptBlock,Metadata\Add-MetadataConverter" `
+                    -Category "InvalidArgument"
             continue
          }
 
@@ -112,7 +115,10 @@ function Add-MetadataConverter {
             continue
          }
          default {
-            Write-Error "Unsupported key type in Converters: $_ is $($_.GetType())"
+            WriteError -ExceptionType System.ArgumentExceptionn `
+                    -Message "Unsupported key type in Converters: $_ is $($_.GetType())" `
+                    -ErrorId "InvalidKeyType,Metadata\Add-MetadataConverter" `
+                    -Category "InvalidArgument"
          }
       }
    }

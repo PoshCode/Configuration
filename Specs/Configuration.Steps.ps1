@@ -11,7 +11,7 @@ AfterEachFeature {
 
 Given 'the configuration module is imported with testing paths:' {
     param($Table)
-    $ModuleBase = (Get-Module Configuration -ListAvailable | Sort Version -Descending)[0].ModuleBase
+    $ModuleBase = (Get-Module Configuration -ListAvailable | Sort-Object Version -Descending)[0].ModuleBase
     Remove-Module Configuration -ErrorAction Ignore -Force
     Import-Module $ModuleBase\Configuration.psd1 -Args @($null, $Table.Enterprise, $Table.User, $Table.Machine) -Scope Global
 }
@@ -343,14 +343,15 @@ Given "the settings file does not exist" {
 
 
 # This step will create verifiable/counting loggable mocks for Write-Warning, Write-Error, Write-Verbose
-When "we expect an? (?<type>warning|error|verbose) in the (?<module>.*) module" {
+Given "we expect an? (?<type>warning|error|verbose) in the (?<module>.*) module" {
     param($type, $module)
     $ErrorModule = $module
 
-    Mock -Module $ErrorModule Write-$type { $true } -Verifiable
     # The Metadata module hides itself a little bit
     if($Type -eq "Error" -and ($ErrorModule -eq "Metadata")) {
-        Mock -Module $ErrorModule WriteError { Write-Error "Error" -TargetObject $Args }
+        Mock -Module $ErrorModule WriteError  { Write-Host "        WriteError: $Message" -Foreground Red } -Verifiable
+    } else {
+        Mock -Module $ErrorModule Write-$type { Write-Host "       Write-Error: $Message" -Foreground Red } -Verifiable
     }
 }
 
@@ -366,7 +367,11 @@ When "the (?<type>warning|error|verbose) is logged(?: (?<exactly>exactly) (\d+) 
         $param.Times = $count
     }
 
-    Assert-MockCalled -Module $ErrorModule -Command Write-$type @param
+    if($Type -eq "Error" -and ($ErrorModule -eq "Metadata")) {
+        Assert-MockCalled -Module $ErrorModule -Command WriteError @param
+    } else {
+        Assert-MockCalled -Module $ErrorModule -Command Write-$type @param
+    }
 }
 
 When "we add a converter that's not a scriptblock" {
@@ -401,8 +406,7 @@ Then "the settings object should have an? (.*) of type (.*)" {
 Then "the settings object's (.*) should (be of type|be) (.*)" {
     param([String]$Parameter, [String]$operator, $Expected)
     $Value = $Settings
-
-    # # Write-Debug ($Settings | Out-String)
+    Set-StrictMode -Off
 
     foreach($property in $Parameter.Split(".")) {
         $value = $value.$property
