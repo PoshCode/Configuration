@@ -1,4 +1,4 @@
-#requires -Version "4.0" -Module PackageManagement, Configuration, Pester
+#requires -Version "4.0" -Module PackageManagement, Pester
 [CmdletBinding()]
 param(
     # The step(s) to run. Defaults to "Clean", "Update", "Build", "Test", "Package"
@@ -70,7 +70,7 @@ function init {
         Write-Warning "This Build script expects a 'Tests' or 'Specs' folder to contain tests."
     }
     # Calculate Version here, because we need it for the release path
-    [Version]$Script:Version = Get-Metadata $ManifestPath -PropertyName ModuleVersion
+    [Version]$Script:Version = Get-Module $ManifestPath -ListAvailable | Select-Object -ExpandProperty Version
 
     # If the RevisionNumber is specified as ZERO, this is a release build ...
     # If the RevisionNumber is not specified, this is a dev box build
@@ -208,18 +208,20 @@ function build {
         }
     }
 
+    $RootModule = Get-Module $ManifestPath -ListAvailable | Select-Object -ExpandProperty RootModule
+    if (!$RootModule) {
+        $RootModule = Get-Module $ManifestPath -ListAvailable | Select-Object -ExpandProperty ModuleToProcess
+        if (!$RootModule) {
+            $RootModule = "${ModuleName}.psm1"
+        }
+    }
+
+    $ReleaseModule = Join-Path $ReleasePath ${RootModule}
 
     ## Copy PowerShell source Files (support for my new Public|Private folders, and the old simple copy way)
     # if the Source folder has "Public" and optionally "Private" in it, then the psm1 must be assembled:
     if(Test-Path (Join-Path $SourcePath Public) -Type Container){
         Trace-Message "       Collating Module Source"
-        $RootModule = Get-Metadata -Path $ManifestPath -PropertyName RootModule -ErrorAction SilentlyContinue
-        if(!$RootModule) {
-            $RootModule = Get-Metadata -Path $ManifestPath -PropertyName ModuleToProcess -ErrorAction SilentlyContinue
-            if(!$RootModule) {
-                $RootModule = "${ModuleName}.psm1"
-            }
-        }
         if(Test-Path $ReleasePath -PathType Leaf) {
             throw "Cannot create folder for Configuration because there's a file in the way at '$ReleasePath'"
         }
@@ -227,7 +229,6 @@ function build {
             $null = New-Item $ReleasePath -Type Directory -Force
         }
 
-        $ReleaseModule = Join-Path $ReleasePath ${RootModule}
         Trace-Message "       Setting content for $ReleaseModule"
 
         $FunctionsToExport = Join-Path $SourcePath Public\*.ps1 -Resolve | ForEach-Object { [System.IO.Path]::GetFileNameWithoutExtension($_) }
@@ -277,10 +278,15 @@ function build {
     ## Update the PSD1 Version:
     Trace-Message "       Update Module Version"
     Push-Location $ReleasePath
-    $FileList = Get-ChildItem -Recurse -File | Resolve-Path -Relative
-    Update-Metadata -Path $ReleaseManifest -PropertyName 'ModuleVersion' -Value $Version
-    Update-Metadata -Path $ReleaseManifest -PropertyName 'FileList' -Value $FileList
-    Pop-Location
+    try {
+        Import-Module $ReleaseModule -Force
+        $FileList = Get-ChildItem -Recurse -File | Resolve-Path -Relative
+        Update-Metadata -Path $ReleaseManifest -PropertyName 'ModuleVersion' -Value $Version
+        Update-Metadata -Path $ReleaseManifest -PropertyName 'FileList' -Value $FileList
+        Import-Module $ReleaseManifest -Force
+    } finally {
+        Pop-Location
+    }
     (Get-Module $ReleaseManifest -ListAvailable | Out-String -stream) -join "`n" | Trace-Message
 }
 
@@ -316,7 +322,22 @@ function test {
     if($Quiet) { $Options.Quiet = $Quiet }
     if(!$ShowWip){ $Options.ExcludeTag = @("wip") }
 
-    Set-Content "$TestPath\.Do.Not.COMMIT.This.Steps.ps1" "Import-Module $ReleasePath\${ModuleName}.psd1 -Force"
+    Set-Content "$TestPath\VersionSpecific.Steps.ps1" "
+        BeforeEachFeature {
+            Remove-Module 'Configuration' -ErrorAction Ignore -Force
+            Import-Module '$ReleasePath\${ModuleName}.psd1' -Force
+        }
+        AfterEachFeature {
+            Remove-Module 'Configuration' -ErrorAction Ignore -Force
+            Import-Module '$ReleasePath\${ModuleName}.psd1' -Force
+        }
+        AfterEachScenario {
+            if(Test-Path '$ReleasePath\${ModuleName}.psd1.backup') {
+                Remove-Item '$ReleasePath\${ModuleName}.psd1'
+                Rename-Item '$ReleasePath\${ModuleName}.psd1.backup' '$ReleasePath\${ModuleName}.psd1'
+            }
+        }
+    "
 
     # Show the commands they would have to run to get these results:
     Write-Host $(prompt) -NoNewLine
@@ -333,7 +354,6 @@ function test {
     # $TestResults = Invoke-Pester -Path $TestPath -CodeCoverage "$ReleasePath\*.psm1" -PassThru @Options
 
     Remove-Module $ModuleName -ErrorAction SilentlyContinue
-    Remove-Item "$TestPath\.Do.Not.COMMIT.This.Steps.ps1"
 
     $script:failedTestsCount = 0
     $script:passedTestsCount = 0
