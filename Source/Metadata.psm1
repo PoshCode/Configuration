@@ -333,9 +333,32 @@ function ConvertFrom-Metadata {
          return $Result
       }
 
+
       if(Test-Path $InputObject -ErrorAction SilentlyContinue) {
-         $AST = [System.Management.Automation.Language.Parser]::ParseFile( (Convert-Path $InputObject), [ref]$Tokens, [ref]$ParseErrors)
-         $ScriptRoot = Split-Path $InputObject
+         # ParseFile on PS5 (and older) doesn't handle utf8 encoding properly (treats it as ASCII)
+         # Sometimes, that causes an avoidable error. So I'm avoiding it, if I can:
+         $Ex = $_
+         $Path = Convert-Path $InputObject
+         $Content = (Get-Content -Path $InputObject -Encoding UTF8)
+         # Remove SIGnature blocks, PowerShell doesn't parse them in .psd1 and chokes on them here.
+         $Content = $Content -join "`n" -replace "# SIG # Begin signature block(?s:.*)"
+         try {
+            # But older versions of PowerShell, this will throw a MethodException because the overload is missing
+            $AST = [System.Management.Automation.Language.Parser]::ParseInput($Content, $Path, [ref]$Tokens, [ref]$ParseErrors)
+         } catch [System.Management.Automation.MethodException] {
+            $AST = [System.Management.Automation.Language.Parser]::ParseFile( $Path, [ref]$Tokens, [ref]$ParseErrors)
+
+            # If we got parse errors on older versions of PowerShell, test to see if the error is just encoding
+            if ($null -ne $ParseErrors -and $ParseErrors.Count -gt 0) {
+               $StillErrors = $null
+               $AST = [System.Management.Automation.Language.Parser]::ParseInput($Content, [ref]$Tokens, [ref]$StillErrors)
+               # If we didn't get errors, clear the errors
+               # Otherwise, we want to use the original errors with the path in them
+               if ($null -eq $StillErrors -or $StillErrors.Count -eq 0) {
+                  $ParseErrors = $StillErrors
+               }
+            }
+         }
       } else {
          $ScriptRoot = $PoshCodeModuleRoot
          $OFS = "`n"
