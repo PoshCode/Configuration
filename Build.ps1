@@ -100,6 +100,9 @@ function clean {
     #   Clean output and old log
     [CmdletBinding()]
     param(
+        [Parameter()]
+        [string]$ReleasePath = $Script:ReleasePath,
+
         # Also clean packages
         [Switch]$Packages
     )

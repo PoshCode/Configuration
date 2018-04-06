@@ -83,7 +83,7 @@ function InitializeStoragePaths {
 
 $EnterpriseData, $UserData, $MachineData = InitializeStoragePaths $EnterpriseData $UserData $MachineData
 
-Import-Module "${ConfigurationRoot}\Metadata.psm1" -Force -Args @($Converters)
+Import-Module "${ConfigurationRoot}\Metadata.psm1" -Force -Args @($Converters) -Verbose:$false
 
 function ParameterBinder {
     if(!$Module) {
