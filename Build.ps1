@@ -402,8 +402,15 @@ function test {
         if(Test-Path $Options.OutputFile) {
             Trace-Message "Sending Test Results to AppVeyor backend" -Verbose:(!$Quiet)
             $wc = New-Object 'System.Net.WebClient'
-            $response = $wc.UploadFile("https://ci.appveyor.com/api/testresults/nunit/${JobID}", $Options.OutputFile)
-            Trace-Message ([System.Text.Encoding]::ASCII.GetString($response)) -Verbose:(!$Quiet)
+            if($response = $wc.UploadFile("https://ci.appveyor.com/api/testresults/nunit/${JobID}", $Options.OutputFile)) {
+                if($text = [System.Text.Encoding]::ASCII.GetString($response)) {
+                    Trace-Message $text -Verbose:(!$Quiet)
+                } else {
+                    Trace-Message "No text in response from AppVeyor" -Verbose:(!$Quiet)
+                }
+            } else {
+                Trace-Message "No response when calling UploadFile to AppVeyor" -Verbose:(!$Quiet)
+            }
         } else {
             Write-Warning "Couldn't find Test Output: $($Options.OutputFile)"
         }
