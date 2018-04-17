@@ -8,9 +8,9 @@ Given 'the configuration module is imported on Linux:' {
         Import-Module $ModuleBase/Configuration.psd1 -Scope Global
         Remove-Variable IsLinux -Scope Global
     } elseif (!$IsLinux) {
-        $Global:IsLinux = $True
+        Set-Variable IsLinux $True -Force -Option ReadOnly, AllScope -Scope Global
         Import-Module $ModuleBase/Configuration.psd1 -Scope Global
-        $Global:IsLinux = $False
+        Set-Variable IsLinux $False -Force -Option ReadOnly, AllScope -Scope Global
     }
 }
 
@@ -30,10 +30,15 @@ Given 'the configuration module is imported with testing paths on Linux:' {
         Import-Module $ModuleBase/Configuration.psd1 -Scope Global
         Remove-Variable IsLinux
     } elseif (!$IsLinux) {
-        $Global:IsLinux = $True
+        Set-Variable IsLinux $True -Force -Option ReadOnly, AllScope -Scope Global
         Import-Module $ModuleBase/Configuration.psd1 -Scope Global
-        $Global:IsLinux = $False
+        Set-Variable IsLinux $False -Force -Option ReadOnly, AllScope -Scope Global
     }
+
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.MachineData' -Value ""
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.EnterpriseData' -Value ""
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.UserData' -Value ""
+
 }
 
 Given 'the configuration module is imported with testing paths:' {
@@ -48,6 +53,10 @@ Given 'the configuration module is imported with testing paths:' {
 
     Remove-Module "Configuration" -ErrorAction Ignore -Force
     Import-Module $ModuleBase/Configuration.psd1 -Scope Global
+
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.MachineData' -Value ""
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.EnterpriseData' -Value ""
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.UserData' -Value ""
 }
 
 Given 'the configuration module is imported with a URL converter' {
@@ -129,7 +138,9 @@ Then "the module's user path at load time should (\w+) (.+)$" {
     [string[]]$Path = $Path -split "\s*and\s*" | %{ $_.Trim("['`"]") }
 
     $LocalStoragePath = GetConfigurationPath
-    foreach($PathAssertion in $Path) {
+    $LocalStoragePath = $LocalStoragePath -replace "C:[\\\/]etc", "/etc"
+    $LocalStoragePath = $LocalStoragePath -replace "^$([regex]::escape($Home.TrimEnd("/\")))", "~"
+    foreach ($PathAssertion in $Path) {
         $LocalStoragePath -replace "\\", "/" | Should $Comparator $PathAssertion
     }
 }
@@ -139,12 +150,14 @@ When "the module's (\w+) path should (\w+) (.+)$" {
 
     [string[]]$Path = $Path -split "\s*and\s*" | %{ $_.Trim("['`"]") }
 
-    $LocalStoragePath = GetStoragePath -Scope $Scope
     foreach($PathAssertion in $Path) {
+        $LocalStoragePath = GetStoragePath -Scope $Scope
+        #Write-Host $LocalStoragePath -NoNewline
         if(!$IsLinux -and $PathAssertion -match "\^~?/") {
-            $LocalStoragePath = $LocalStoragePath -replace "C:/etc","/etc"
-            $LocalStoragePath = $LocalStoragePath -replace "^$([regex]::escape($Home))","~/"
+            $LocalStoragePath = $LocalStoragePath -replace "C:[\\\/]etc","/etc"
+            $LocalStoragePath = $LocalStoragePath -replace "^$([regex]::escape($Home.TrimEnd("/\")))","~"
         }
+        #Write-Host $LocalStoragePath -ForegroundColor Yellow
         $LocalStoragePath -replace "\\", "/" | Should $Comparator $PathAssertion
     }
 }
@@ -196,6 +209,11 @@ When "a settings hashtable" {
     $Settings = iex "[ordered]$hashtable"
 }
 
+Given "a settings object" {
+    param($hashtable)
+    $Settings = iex "[PSCustomObject]$hashtable"
+}
+
 When "we update the settings with" {
     param($hashtable)
     $Update = if($hashtable) {
@@ -205,6 +223,15 @@ When "we update the settings with" {
     }
 
     $Settings = $Settings | Update-Object $Update
+}
+
+When "we say (?<property>.*) is important and update with" {
+    param([string[]]$property, $hashtable)
+    $Update = if ($hashtable) {
+        iex $hashtable
+    }
+
+    $Settings = $Settings | Update-Object -UpdateObject $Update -Important $property
 }
 
 When "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
@@ -234,7 +261,7 @@ When "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+)
 }
 
 Then "the settings object MyPath should match the file's path" {
-    $Settings.MyPath | Should Be ${SettingsFile}
+    $Settings.MyPath | Convert-Path | Should Be (Convert-Path ${SettingsFile})
 }
 
 When "a settings hashtable with an? (.+) in it" {
@@ -460,6 +487,10 @@ Then "the settings object should be of type (.*)" {
     $Settings | Should BeOfType $Type
 }
 
+Then "the settings object should have (.*) in the PSTypeNames" {
+    param([string]$Type)
+    $Settings.PSTypeNames -eq $Type | Should Be $Type
+}
 
 Then "the settings object should have an? (.*) of type (.*)" {
     param([String]$Parameter, [Type]$Type)

@@ -22,7 +22,7 @@ Feature: Automatically Calculate Local Storage Paths on Linux
             | Machine    | SuperTestModule | /etc/xdg       |
             | User       | SuperTestModule | ~/.config      |
 
-    @Modules
+    @Modules @Linux
     Scenario Outline: Modules storage paths work at load time on Linux
         Given the configuration module is imported on Linux:
         Given a module with the name 'SimpleTest' by the author 'Joel Bennett'

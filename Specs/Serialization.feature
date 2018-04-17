@@ -326,8 +326,8 @@ Feature: Serialize Hashtables or Custom Objects
 
 
     @UpdateObject
-    Scenario: Update An Object
-        Given a settings hashtable
+    Scenario: Update A Hashtable
+       Given a settings hashtable
             """
             @{
               UserName = 'Joel'
@@ -341,8 +341,30 @@ Feature: Serialize Hashtables or Custom Objects
               Age = 42
             }
             """
-        And the settings object's UserName should be Joel
-        And the settings object's Age should be 42
+        Then the settings object's UserName should be Joel
+         And the settings object's Age should be 42
+
+    @UpdateObject
+    Scenario: Update an Object
+       Given a settings object
+            """
+            @{
+               PSTypeName = 'User'
+               FirstName = 'Joel'
+               LastName = 'Bennett'
+               UserName = 'Jaykul'
+               Homepage = [Uri]"http://HuddledMasses.org"
+            }
+            """
+        When we update the settings with
+            """
+            @{
+              Age = 42
+            }
+            """
+        Then the settings object should have User in the PSTypeNames
+         And the settings object's UserName should be Jaykul
+         And the settings object's Age should be 42
 
     @UpdateObject
     Scenario: Try to Update An Object With Nothing
@@ -357,8 +379,31 @@ Feature: Serialize Hashtables or Custom Objects
         When we update the settings with
             """
             """
-        And the settings object's UserName should be Joel
+        Then the settings object's UserName should be Joel
         And the settings object's Age should be 41
+
+    @UpdateObject
+    Scenario: Update a hashtable with important properties
+       Given a settings object
+            """
+            @{
+               PSTypeName = 'User'
+               FirstName = 'Joel'
+               LastName = 'Bennett'
+               UserName = 'Jaykul'
+               Age = 12
+               Homepage = [Uri]"http://HuddledMasses.org"
+            }
+            """
+        When we say UserName is important and update with
+            """
+            @{
+                UserName = 'JBennett'
+                Age = 42
+            }
+            """
+        And the settings object's UserName should be Jaykul
+        And the settings object's Age should be 42
 
 
     @Serialization @Deserialization @File

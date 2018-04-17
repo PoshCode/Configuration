@@ -28,7 +28,7 @@ function InitializeStoragePaths {
             if ($IsLinux -or $IsMacOs) {
                 # Defaults to $Env:XDG_CONFIG_HOME on Linux or MacOS ($HOME/.config/)
                 if (!($UserData = $Env:XDG_CONFIG_HOME)) {
-                    $UserData = "$HOME/.config/"
+                    $UserData = Join-Path $HOME .config/
                 }
             } else {
                 # Defaults to $Env:LocalAppData on Windows
@@ -45,7 +45,7 @@ function InitializeStoragePaths {
             if ($IsLinux -or $IsMacOs) {
                 # Defaults to the first value in $Env:XDG_CONFIG_DIRS on Linux or MacOS (or $HOME/.local/share/)
                 if (!($EnterpriseData = @($Env:XDG_CONFIG_DIRS -split ([IO.Path]::PathSeparator))[0] )) {
-                    $EnterpriseData = "$HOME/.local/share/"
+                    $EnterpriseData = Join-Path $HOME .local/share/
                 }
             } else {
                 # Defaults to $Env:AppData on Windows
