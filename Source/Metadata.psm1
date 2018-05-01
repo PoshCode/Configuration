@@ -620,7 +620,7 @@ function Update-Metadata {
                                            ).Insert($Extent.StartOffset, $Value)
 
     if(Test-Path $Path) {
-        Set-Content -Encoding UTF8 -Path $Path -Value $ManifestContent -NoNewline
+        Set-Content -Encoding UTF8 -Path $Path -Value $ManifestContent
     } else {
         $ManifestContent
     }
