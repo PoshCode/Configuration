@@ -1,19 +1,62 @@
 $PSModuleAutoLoadingPreference = "None"
 
-BeforeEachFeature {
+Given 'the configuration module is imported on Linux:' {
+    $ModuleBase = (Get-Module "Configuration").ModuleBase
     Remove-Module "Configuration" -ErrorAction Ignore -Force
-    Import-Module "Configuration" -MinimumVersion 1.1
+    if (!(Test-Path Variable:IsLinux)){
+        $Global:IsLinux = $True
+        Import-Module $ModuleBase/Configuration.psd1 -Scope Global
+        Remove-Variable IsLinux -Scope Global
+    } elseif (!$IsLinux) {
+        Set-Variable IsLinux $True -Force -Option ReadOnly, AllScope -Scope Global
+        Import-Module $ModuleBase/Configuration.psd1 -Scope Global
+        Set-Variable IsLinux $False -Force -Option ReadOnly, AllScope -Scope Global
+    }
 }
-AfterEachFeature {
+
+Given 'the configuration module is imported with testing paths on Linux:' {
+    param($Table)
+    $ModuleBase = (Get-Module "Configuration").ModuleBase
+
+    Copy-Item $ModuleBase/Configuration.psd1 -Destination $ModuleBase/Configuration.psd1.backup
+
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.MachineData' -Value $Table.Machine
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.EnterpriseData' -Value $Table.Enterprise
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.UserData' -Value $Table.User
+
     Remove-Module "Configuration" -ErrorAction Ignore -Force
-    Import-Module "Configuration" -MinimumVersion 1.1
+    if (!(Test-Path Variable:IsLinux)) {
+        $Global:IsLinux = $True
+        Import-Module $ModuleBase/Configuration.psd1 -Scope Global
+        Remove-Variable IsLinux
+    } elseif (!$IsLinux) {
+        Set-Variable IsLinux $True -Force -Option ReadOnly, AllScope -Scope Global
+        Import-Module $ModuleBase/Configuration.psd1 -Scope Global
+        Set-Variable IsLinux $False -Force -Option ReadOnly, AllScope -Scope Global
+    }
+
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.MachineData' -Value ""
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.EnterpriseData' -Value ""
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.UserData' -Value ""
+
 }
 
 Given 'the configuration module is imported with testing paths:' {
     param($Table)
-    $ModuleBase = (Get-Module "Configuration" -ListAvailable | Sort-Object Version -Descending)[0].ModuleBase
+    $ModuleBase = (Get-Module "Configuration").ModuleBase
+
+    Copy-Item $ModuleBase/Configuration.psd1 -Destination $ModuleBase/Configuration.psd1.backup
+
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.MachineData' -Value $Table.Machine
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.EnterpriseData' -Value $Table.Enterprise
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.UserData' -Value $Table.User
+
     Remove-Module "Configuration" -ErrorAction Ignore -Force
-    Import-Module $ModuleBase/Configuration.psd1 -Args @($null, $Table.Enterprise, $Table.User, $Table.Machine) -Scope Global
+    Import-Module $ModuleBase/Configuration.psd1 -Scope Global
+
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.MachineData' -Value ""
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.EnterpriseData' -Value ""
+    Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.UserData' -Value ""
 }
 
 Given 'the configuration module is imported with a URL converter' {
@@ -44,7 +87,6 @@ Given "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company
     Remove-Module $name -ErrorAction Ignore
     Remove-Item $ModulePath -Recurse -ErrorAction Ignore
 
-
     if(Test-Path $ModulePath -PathType Leaf) {
         throw "Cannot create folder for Configuration because there's a file in the way at '$ModulePath'"
     }
@@ -54,7 +96,12 @@ Given "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company
     $Env:PSModulePath = $Env:PSModulePath + ";TestDrive:/Modules" -replace "(;TestDrive:/Modules)+?$", ";TestDrive:/Modules"
 
     Set-Content $ModulePath/${Name}.psm1 "
-    function GetStoragePath { Get-StoragePath @Args }
+    `$Script:ConfigurationPath = Get-ConfigurationPath -Scope User -ErrorAction SilentlyContinue
+    `$Script:Configuration = Import-Configuration -ErrorAction SilentlyContinue
+    function GetConfiguration { `$Script:Configuration }
+    function GetConfigurationPath { `$Script:ConfigurationPath }
+
+    function GetStoragePath { Get-ConfigurationPath @Args }
     function ImportConfiguration { Import-Configuration }
     function ImportConfigVersion { Import-Configuration -Version 2.0 }
     filter ExportConfiguration { `$_ | Export-Configuration }
@@ -74,13 +121,43 @@ Given "a module with(?:\s+\w+ name '(?<name>.+?)'|\s+\w+ the company '(?<company
     Import-Module $ModulePath/${Name}.psd1
 }
 
+Then "the user configuration path at load time should (\w+) (.+)$" {
+    param($Comparator, $Path)
+
+    [string[]]$Path = $Path -split "\s*and\s*" | %{ $_.Trim("['`"]") }
+
+    $LocalStoragePath = GetConfigurationPath
+    foreach($PathAssertion in $Path) {
+        $LocalStoragePath -replace "\\", "/" | Should $Comparator $PathAssertion
+    }
+}
+
+Then "the module's user path at load time should (\w+) (.+)$" {
+    param($Comparator, $Path)
+
+    [string[]]$Path = $Path -split "\s*and\s*" | %{ $_.Trim("['`"]") }
+
+    $LocalStoragePath = GetConfigurationPath
+    $LocalStoragePath = $LocalStoragePath -replace "C:[\\\/]etc", "/etc"
+    $LocalStoragePath = $LocalStoragePath -replace "^$([regex]::escape($Home.TrimEnd("/\")))", "~"
+    foreach ($PathAssertion in $Path) {
+        $LocalStoragePath -replace "\\", "/" | Should $Comparator $PathAssertion
+    }
+}
+
 When "the module's (\w+) path should (\w+) (.+)$" {
     param($Scope, $Comparator, $Path)
 
     [string[]]$Path = $Path -split "\s*and\s*" | %{ $_.Trim("['`"]") }
 
-    $LocalStoragePath = GetStoragePath -Scope $Scope
     foreach($PathAssertion in $Path) {
+        $LocalStoragePath = GetStoragePath -Scope $Scope
+        #Write-Host $LocalStoragePath -NoNewline
+        if(!$IsLinux -and $PathAssertion -match "\^~?/") {
+            $LocalStoragePath = $LocalStoragePath -replace "C:[\\\/]etc","/etc"
+            $LocalStoragePath = $LocalStoragePath -replace "^$([regex]::escape($Home.TrimEnd("/\")))","~"
+        }
+        #Write-Host $LocalStoragePath -ForegroundColor Yellow
         $LocalStoragePath -replace "\\", "/" | Should $Comparator $PathAssertion
     }
 }
@@ -106,15 +183,15 @@ When "the resulting path should (\w+) (.+)$" {
     }
 }
 
-Given "a script with the name '(.+)' that calls Get-StoragePath with no parameters" {
+Given "a script with the name '(.+)' that calls Get-ConfigurationPath with no parameters" {
     param($name)
-    Set-Content "TestDrive:/${name}.ps1" "Get-StoragePath"
+    Set-Content "TestDrive:/${name}.ps1" "Get-ConfigurationPath"
     $ScriptName = $Name
 }
 
-Given "a script with the name '(?<File>.+)' that calls Get-StoragePath (?:-Name (?<Name>\w*) ?|-Author (?<Author>\w*) ?){2}" {
+Given "a script with the name '(?<File>.+)' that calls Get-ConfigurationPath (?:-Name (?<Name>\w*) ?|-Author (?<Author>\w*) ?){2}" {
     param($File, $Name, $Author)
-    Set-Content "TestDrive:/${File}.ps1" "Get-StoragePath -Name $Name -Author $Author"
+    Set-Content "TestDrive:/${File}.ps1" "Get-ConfigurationPath -Name $Name -Author $Author"
     $ScriptName = $File
 }
 
@@ -132,6 +209,11 @@ When "a settings hashtable" {
     $Settings = iex "[ordered]$hashtable"
 }
 
+Given "a settings object" {
+    param($hashtable)
+    $Settings = iex "[PSCustomObject]$hashtable"
+}
+
 When "we update the settings with" {
     param($hashtable)
     $Update = if($hashtable) {
@@ -141,6 +223,15 @@ When "we update the settings with" {
     }
 
     $Settings = $Settings | Update-Object $Update
+}
+
+When "we say (?<property>.*) is important and update with" {
+    param([string[]]$property, $hashtable)
+    $Update = if ($hashtable) {
+        iex $hashtable
+    }
+
+    $Settings = $Settings | Update-Object -UpdateObject $Update -Important $property
 }
 
 When "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
@@ -170,7 +261,7 @@ When "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+)
 }
 
 Then "the settings object MyPath should match the file's path" {
-    $Settings.MyPath | Should Be ${SettingsFile}
+    $Settings.MyPath | Convert-Path | Should Be (Convert-Path ${SettingsFile})
 }
 
 When "a settings hashtable with an? (.+) in it" {
@@ -396,6 +487,10 @@ Then "the settings object should be of type (.*)" {
     $Settings | Should BeOfType $Type
 }
 
+Then "the settings object should have (.*) in the PSTypeNames" {
+    param([string]$Type)
+    $Settings.PSTypeNames -eq $Type | Should Be $Type
+}
 
 Then "the settings object should have an? (.*) of type (.*)" {
     param([String]$Parameter, [Type]$Type)
@@ -478,8 +573,8 @@ When "the ModuleInfo is piped to Import-Configuration" {
     Write-Verbose (($Settings | Out-String -Stream | % TrimEnd) -join "`n")
 }
 
-When "the ModuleInfo is piped to Get-StoragePath" {
-    $folder = Get-Module SuperTestModule | Get-StoragePath -ErrorAction Stop
+When "the ModuleInfo is piped to Get-ConfigurationPath" {
+    $folder = Get-Module SuperTestModule | Get-ConfigurationPath -ErrorAction Stop
 }
 
 When "I call Import-Configuration with a Version" {
