@@ -184,7 +184,11 @@ function Get-ConfigurationPath {
 
         # The version for saved settings -- if set, will be used in the returned path
         # NOTE: this is *NOT* calculated from the CallStack
-        [Version]$Version
+        [Version]$Version,
+
+        # By default, Get-ConfigurationPath creates the folder if it doesn't already exist
+        # This switch allows overriding that behavior: if set, does not create missing paths
+        [Switch]$SkipCreatingFolder
     )
     begin {
         $PathRoot = $(switch ($Scope) {
@@ -195,6 +199,11 @@ function Get-ConfigurationPath {
             # "AppDomain"  { $MachineData }
             default { $EnterpriseData }
         })
+        if(Test-Path $PathRoot) {
+            $PathRoot = Resolve-Path $PathRoot
+        } elseif(!$SkipCreatingFolder) {
+            Write-Warning "The $Scope path $PathRoot cannot be found"
+        }
     }
 
     process {
@@ -218,11 +227,13 @@ function Get-ConfigurationPath {
         if(Test-Path $PathRoot -PathType Leaf) {
             throw "Cannot create folder for Configuration because there's a file in the way at $PathRoot"
         }
-        if(!(Test-Path $PathRoot -PathType Container)) {
+
+        if(!$SkipCreatingFolder -and !(Test-Path $PathRoot -PathType Container)) {
             $null = New-Item $PathRoot -Type Directory -Force
         }
-        # Note: avoid using Convert-Path because drives aliases like "TestData:" get converted to a C:\ file system location
-        (Resolve-Path $PathRoot).Path
+
+        # Note: this used to call Resolve-Path
+        $PathRoot
     }
 }
 
@@ -392,7 +403,7 @@ function Import-Configuration {
             $Parameters.Version = $Version
         }
 
-        $MachinePath = Get-ConfigurationPath @Parameters -Scope Machine
+        $MachinePath = Get-ConfigurationPath @Parameters -Scope Machine -SkipCreatingFolder
         $MachinePath = Join-Path $MachinePath Configuration.psd1
         $Machine = if(Test-Path $MachinePath) {
                     Import-Metadata $MachinePath -ErrorAction Ignore -Ordered:$Ordered
@@ -400,14 +411,14 @@ function Import-Configuration {
         # Write-Debug "Machine Configuration: ($MachinePath)`n$($Machine | Out-String)"
 
 
-        $EnterprisePath = Get-ConfigurationPath @Parameters -Scope Enterprise
+        $EnterprisePath = Get-ConfigurationPath @Parameters -Scope Enterprise -SkipCreatingFolder
         $EnterprisePath = Join-Path $EnterprisePath Configuration.psd1
         $Enterprise = if(Test-Path $EnterprisePath) {
                     Import-Metadata $EnterprisePath -ErrorAction Ignore -Ordered:$Ordered
                 } else { @{} }
         # Write-Debug "Enterprise Configuration: ($EnterprisePath)`n$($Enterprise | Out-String)"
 
-        $LocalUserPath = Get-ConfigurationPath @Parameters -Scope User
+        $LocalUserPath = Get-ConfigurationPath @Parameters -Scope User -SkipCreatingFolder
         $LocalUserPath = Join-Path $LocalUserPath Configuration.psd1
         $LocalUser = if(Test-Path $LocalUserPath) {
                     Import-Metadata $LocalUserPath -ErrorAction Ignore -Ordered:$Ordered
