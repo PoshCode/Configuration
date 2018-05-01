@@ -423,6 +423,23 @@ function test {
     }
 }
 
+function package {
+    [CmdletBinding()]
+    param()
+
+    Trace-Message "robocopy '$ReleasePath' '${OutputPath}\${ModuleName}' /MIR /NP "
+    $null = robocopy $ReleasePath "${OutputPath}\${ModuleName}" /MIR /NP /LOG+:"$OutputPath\build.log"
+
+    $zipFile = Join-Path $OutputPath "${ModuleName}-${Version}.zip"
+    Add-Type -assemblyname System.IO.Compression.FileSystem
+    Remove-Item $zipFile -ErrorAction SilentlyContinue
+    Trace-Message "ZIP    $zipFile"
+    [System.IO.Compression.ZipFile]::CreateFromDirectory((Join-Path $OutputPath $ModuleName), $zipFile)
+
+    # You can add other artifacts here
+    ls $OutputPath -File
+}
+
 function Trace-Message {
     [CmdletBinding()]
     param(
