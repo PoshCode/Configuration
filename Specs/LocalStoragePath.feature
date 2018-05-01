@@ -16,13 +16,34 @@ Feature: Automatically Calculate Local Storage Paths
 
     @Scripts
     Scenario: Scripts will fail unless they specify the names
-         Given a script with the name 'SuperTestScript' that calls Get-StoragePath with no parameters
+         Given a script with the name 'SuperTestScript' that calls Get-ConfigurationPath with no parameters
          Then the script should throw an exception
-         Given a script with the name 'SuperTestScript' that calls Get-StoragePath -Name TestScript -Author Author
+         Given a script with the name 'SuperTestScript' that calls Get-ConfigurationPath -Name TestScript -Author Author
          Then the script's Enterprise path should match '^TestDrive:/EnterprisePath/' and 'Author/TestScript'
 
     @Modules
+    Scenario Outline: Modules storage paths work at load time
+        Given a module with the name 'SimpleTest' by the author 'Joel Bennett'
+        Then the module's user path at load time should match '^TestDrive:/UserPath/' and '/Joel Bennett/SimpleTest$'
+        And the module's user path should exist already
+
+    @Modules
     Scenario Outline: Modules get automatic storage paths
+        Given a module with the name '<modulename>' by the author 'Joel Bennett'
+        Then the module's Enterprise path should match '^TestDrive:/EnterprisePath/' and '/Joel Bennett/<modulename>$'
+        And the module's Enterprise path should exist already
+        """
+        There is a <modulename>
+        """
+
+        Examples: A few different module names
+            | modulename        |
+            | SuperTestModule   |
+            | AnotherTestModule |
+            | ThirdModuleName   |
+
+    @Modules
+    Scenario Outline: Modules get automatic storage paths on Linux
         Given a module with the name '<modulename>' by the author 'Joel Bennett'
         Then the module's Enterprise path should match '^TestDrive:/EnterprisePath/' and '/Joel Bennett/<modulename>$'
         And the module's Enterprise path should exist already
@@ -63,5 +84,5 @@ Feature: Automatically Calculate Local Storage Paths
     @Modules @EndUsers
     Scenario: End users should be able to find the storage path for a module
         Given a module with the name 'SuperTestModule' by the company 'PoshCode' and the author 'Jaykul'
-        When the ModuleInfo is piped to Get-StoragePath
+        When the ModuleInfo is piped to Get-ConfigurationPath
         Then the resulting path should match '^TestDrive:/EnterprisePath/' and '/PoshCode/SuperTestModule$'

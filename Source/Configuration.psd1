@@ -4,7 +4,7 @@
 ModuleToProcess = '.\Configuration.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.2.0'
+ModuleVersion = '1.3.0'
 
 # ID used to uniquely identify this module
 GUID = 'e56e5bec-4d97-4dfd-b138-abbaa14464a6'
@@ -75,9 +75,19 @@ PrivateData = @{
 
         # Release notes for this particular version of the module
         ReleaseNotes = '
-        v1.1.0:
-            Added support for ScriptBlocks and SwitchParameters
-            Added support for serializing objects as hashtables
+        v2.0.0: Bump version to hide 1.2 and justify the change to the save paths.
+                Rename Get-StoragePath to Get-ConfigurationPath (old name is aliased)
+        v1.2.0: Add Support for Linux and MacOS
+                Stop using `mkdir -Force` because it does not work on Linux
+                Add default paths for posix systems based on XDG standards
+                Add logic for overriding the default paths in the Manifest
+                Fix a bug in PSObject serialization (from v1.1.1)
+                Fix bug with special property names (like PSObject) caused by dot notation
+                Fix tests so they run cross-platform
+                ACCIDENTALLY changed default save paths:
+                   Using "powershell" instead of WindowsPowerShell (even in WindowsPowerShell)
+        v1.1.0: Added support for ScriptBlocks and SwitchParameters
+                Added support for serializing objects as hashtables
         '
 
         # Indicates this is a pre-release/testing version of the module.

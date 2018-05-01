@@ -19,18 +19,20 @@ function InitializeStoragePaths {
         $MachineData
     )
 
+    $PathOverrides = $MyInvocation.MyCommand.Module.PrivateData.PathOverride
+
     # Where the user's personal configuration settings go.
     # Highest presedence, overrides all other settings.
-    if([string]::IsNullOrWhiteSpace($UserData)) {
-        if(!($UserData = $MyInvocation.MyCommand.Module.PrivateData.PathOverride.UserData)) {
-            if($IsLinux -or $IsMacOs) {
+    if ([string]::IsNullOrWhiteSpace($UserData)) {
+        if (!($UserData = $PathOverrides.UserData)) {
+            if ($IsLinux -or $IsMacOs) {
                 # Defaults to $Env:XDG_CONFIG_HOME on Linux or MacOS ($HOME/.config/)
-                if(!($UserData = $Env:XDG_CONFIG_HOME)) {
-                    $UserData = "$HOME/.config/"
+                if (!($UserData = $Env:XDG_CONFIG_HOME)) {
+                    $UserData = Join-Path $HOME .config/
                 }
             } else {
                 # Defaults to $Env:LocalAppData on Windows
-                if(!($UserData = $Env:LocalAppData)) {
+                if (!($UserData = $Env:LocalAppData)) {
                     $UserData = [Environment]::GetFolderPath("LocalApplicationData")
                 }
             }
@@ -38,16 +40,16 @@ function InitializeStoragePaths {
     }
 
     # On some systems there are "roaming" user configuration stored in the user's profile. Overrides machine configuration
-    if([string]::IsNullOrWhiteSpace($EnterpriseData)) {
-        if(!($EnterpriseData = $MyInvocation.MyCommand.Module.PrivateData.PathOverride.EnterpriseData)) {
-            if($IsLinux -or $IsMacOs) {
+    if ([string]::IsNullOrWhiteSpace($EnterpriseData)) {
+        if (!($EnterpriseData = $PathOverrides.EnterpriseData)) {
+            if ($IsLinux -or $IsMacOs) {
                 # Defaults to the first value in $Env:XDG_CONFIG_DIRS on Linux or MacOS (or $HOME/.local/share/)
-                if(!($EnterpriseData = @($Env:XDG_CONFIG_DIRS -split ([IO.Path]::PathSeparator))[0] )) {
-                    $EnterpriseData = "$HOME/.local/share/"
+                if (!($EnterpriseData = @($Env:XDG_CONFIG_DIRS -split ([IO.Path]::PathSeparator))[0] )) {
+                    $EnterpriseData = Join-Path $HOME .local/share/
                 }
             } else {
                 # Defaults to $Env:AppData on Windows
-                if(!($EnterpriseData = $Env:AppData)) {
+                if (!($EnterpriseData = $Env:AppData)) {
                     $EnterpriseData = [Environment]::GetFolderPath("ApplicationData")
                 }
             }
@@ -55,17 +57,19 @@ function InitializeStoragePaths {
     }
 
     # Machine specific configuration. Overrides defaults, but is overriden by both user roaming and user local settings
-    if([string]::IsNullOrWhiteSpace($MachineData)) {
-        if(!($MachineData = $MyInvocation.MyCommand.Module.PrivateData.PathOverride.MachineData)) {
-            if($IsLinux -or $IsMacOs) {
+    if ([string]::IsNullOrWhiteSpace($MachineData)) {
+        if (!($MachineData = $PathOverrides.MachineData)) {
+            if ($IsLinux -or $IsMacOs) {
                 # Defaults to /etc/xdg elsewhere
                 $XdgConfigDirs = $Env:XDG_CONFIG_DIRS -split ([IO.Path]::PathSeparator) | Where-Object { $_ -and (Test-Path $_) }
-                if(!($MachineData = if($XdgConfigDirs.Count -gt 1) { $XdgConfigDirs[1]})) {
+                if (!($MachineData = if ($XdgConfigDirs.Count -gt 1) {
+                            $XdgConfigDirs[1]
+                        })) {
                     $MachineData = "/etc/xdg/"
                 }
             } else {
                 # Defaults to $Env:ProgramData on Windows
-                if(!($MachineData = $Env:ProgramAppData)) {
+                if (!($MachineData = $Env:ProgramAppData)) {
                     $MachineData = [Environment]::GetFolderPath("CommonApplicationData")
                 }
             }
@@ -79,12 +83,18 @@ function InitializeStoragePaths {
 
 $EnterpriseData, $UserData, $MachineData = InitializeStoragePaths $EnterpriseData $UserData $MachineData
 
-Import-Module "${ConfigurationRoot}\Metadata.psm1" -Force -Args @($Converters)
+Import-Module "${ConfigurationRoot}\Metadata.psm1" -Force -Args @($Converters) -Verbose:$false
 
 function ParameterBinder {
     if(!$Module) {
         [System.Management.Automation.PSModuleInfo]$Module = . {
-            $mi = ($CallStack)[0].InvocationInfo.MyCommand.Module
+            $Command = ($CallStack)[0].InvocationInfo.MyCommand
+            $mi = if($Command.ScriptBlock -and $Command.ScriptBlock.Module) {
+                $Command.ScriptBlock.Module
+            } else {
+                $Command.Module
+            }
+
             if($mi -and $mi.ExportedCommands.Count -eq 0) {
                 if($mi2 = Get-Module $mi.ModuleBase -ListAvailable | Where-Object { ($_.Name -eq $mi.Name) -and $_.ExportedCommands } | Select-Object -First 1) {
                    $mi = $mi2
@@ -120,30 +130,33 @@ function ParameterBinder {
     }
 }
 
-
-function Get-StoragePath {
+function Get-ConfigurationPath {
     #.Synopsis
-    #   Gets an application storage path outside the module storage folder
+    #   Gets an storage path for configuration files and data
     #.Description
-    #   Gets an AppData (or roaming profile) or ProgramData path for settings storage
+    #   Gets an AppData (or roaming profile) or ProgramData path for configuration and data storage. The folder returned is guaranteed to exist (which means calling this function actually creates folders).
+    #
+    #   Get-ConfigurationPath is designed to be called from inside a module function WITHOUT any parameters.
+    #
+    #   If you need to call Get-ConfigurationPath from outside a module, you should pipe the ModuleInfo to it, like:
+    #   Get-Module Powerline | Get-ConfigurationPath
     #
     #   As a general rule, there are three scopes which result in three different root folders
     #       User:       $Env:LocalAppData
     #       Machine:    $Env:ProgramData
     #       Enterprise: $Env:AppData (which is the "roaming" folder of AppData)
     #
-    #   WARNINGs:
-    #       1.  This command is only meant to be used in modules, to find a place where they can serialize data for storage. It can be used in scripts, but doing so is more risky.
-    #       2.  Since there are multiple module paths, it's possible for more than one module to exist with the same name, so you should exercise care
+    #.NOTES
+    #   1.  This command is primarily meant to be used in modules, to find a place where they can serialize data for storage.
+    #   2.  It's techincally possible for more than one module to exist with the same name.
+    #       The command uses the Author or Company as a distinguishing name.
     #
-    #   If it doesn't already exist, the folder is created before the path is returned, so you can always trust this folder to exist.
-    #   The folder that is returned survives module uninstall/reinstall/upgrade, and this is the lowest level API for the Configuration module, expecting the module author to export data there using other Import/Export cmdlets.
     #.Example
-    #   $CacheFile = Join-Path (Get-StoragePath) Data.clixml
+    #   $CacheFile = Join-Path (Get-ConfigurationPath) Data.clixml
     #   $Data | Export-CliXML -Path $CacheFile
     #
-    #   This example shows how to use Get-StoragePath with Export-CliXML to cache some data from inside a module.
-    #
+    #   This example shows how to use Get-ConfigurationPath with Export-CliXML to cache data as clixml from inside a module.
+    [Alias("Get-StoragePath")]
     [CmdletBinding(DefaultParameterSetName = '__ModuleInfo')]
     param(
         # The scope to save at, defaults to Enterprise (which returns a path in "RoamingData")
@@ -171,7 +184,11 @@ function Get-StoragePath {
 
         # The version for saved settings -- if set, will be used in the returned path
         # NOTE: this is *NOT* calculated from the CallStack
-        [Version]$Version
+        [Version]$Version,
+
+        # By default, Get-ConfigurationPath creates the folder if it doesn't already exist
+        # This switch allows overriding that behavior: if set, does not create missing paths
+        [Switch]$SkipCreatingFolder
     )
     begin {
         $PathRoot = $(switch ($Scope) {
@@ -182,6 +199,11 @@ function Get-StoragePath {
             # "AppDomain"  { $MachineData }
             default { $EnterpriseData }
         })
+        if(Test-Path $PathRoot) {
+            $PathRoot = Resolve-Path $PathRoot
+        } elseif(!$SkipCreatingFolder) {
+            Write-Warning "The $Scope path $PathRoot cannot be found"
+        }
     }
 
     process {
@@ -189,7 +211,7 @@ function Get-StoragePath {
 
         if(!$Name) {
             Write-Error "Empty Name ($Name) in $($PSCmdlet.ParameterSetName): $($PSBoundParameters | Format-List | Out-String)"
-            throw "Could not determine the storage name, Get-StoragePath should only be called from inside a script or module."
+            throw "Could not determine the storage name, Get-ConfigurationPath should only be called from inside a script or module."
         }
         $CompanyName = $CompanyName -replace "[$([Regex]::Escape(-join[IO.Path]::GetInvalidFileNameChars()))]","_"
         if($CompanyName -and $CompanyName -ne "Unknown") {
@@ -205,11 +227,13 @@ function Get-StoragePath {
         if(Test-Path $PathRoot -PathType Leaf) {
             throw "Cannot create folder for Configuration because there's a file in the way at $PathRoot"
         }
-        if(!(Test-Path $PathRoot -PathType Container)) {
+
+        if(!$SkipCreatingFolder -and !(Test-Path $PathRoot -PathType Container)) {
             $null = New-Item $PathRoot -Type Directory -Force
         }
-        # Note: avoid using Convert-Path because drives aliases like "TestData:" get converted to a C:\ file system location
-        (Resolve-Path $PathRoot).Path
+
+        # Note: this used to call Resolve-Path
+        $PathRoot
     }
 }
 
@@ -281,7 +305,7 @@ function Export-Configuration {
     process {
         . ParameterBinder
         if(!$Name) {
-            throw "Could not determine the storage name, Get-StoragePath should only be called from inside a script or module."
+            throw "Could not determine the storage name, Export-Configuration should only be called from inside a script or module, or by piping ModuleInfo to it."
         }
 
         $Parameters = @{
@@ -292,7 +316,7 @@ function Export-Configuration {
             $Parameters.Version = $Version
         }
 
-        $MachinePath = Get-StoragePath @Parameters -Scope $Scope
+        $MachinePath = Get-ConfigurationPath @Parameters -Scope $Scope
 
         $ConfigurationPath = Join-Path $MachinePath "Configuration.psd1"
 
@@ -379,7 +403,7 @@ function Import-Configuration {
             $Parameters.Version = $Version
         }
 
-        $MachinePath = Get-StoragePath @Parameters -Scope Machine
+        $MachinePath = Get-ConfigurationPath @Parameters -Scope Machine -SkipCreatingFolder
         $MachinePath = Join-Path $MachinePath Configuration.psd1
         $Machine = if(Test-Path $MachinePath) {
                     Import-Metadata $MachinePath -ErrorAction Ignore -Ordered:$Ordered
@@ -387,14 +411,14 @@ function Import-Configuration {
         # Write-Debug "Machine Configuration: ($MachinePath)`n$($Machine | Out-String)"
 
 
-        $EnterprisePath = Get-StoragePath @Parameters -Scope Enterprise
+        $EnterprisePath = Get-ConfigurationPath @Parameters -Scope Enterprise -SkipCreatingFolder
         $EnterprisePath = Join-Path $EnterprisePath Configuration.psd1
         $Enterprise = if(Test-Path $EnterprisePath) {
                     Import-Metadata $EnterprisePath -ErrorAction Ignore -Ordered:$Ordered
                 } else { @{} }
         # Write-Debug "Enterprise Configuration: ($EnterprisePath)`n$($Enterprise | Out-String)"
 
-        $LocalUserPath = Get-StoragePath @Parameters -Scope User
+        $LocalUserPath = Get-ConfigurationPath @Parameters -Scope User -SkipCreatingFolder
         $LocalUserPath = Join-Path $LocalUserPath Configuration.psd1
         $LocalUser = if(Test-Path $LocalUserPath) {
                     Import-Metadata $LocalUserPath -ErrorAction Ignore -Ordered:$Ordered
