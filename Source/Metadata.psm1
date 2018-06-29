@@ -583,7 +583,7 @@ function Update-Metadata {
     $KeyValue = Get-Metadata $Path -PropertyName $PropertyName -Passthru
 
     if($PSCmdlet.ParameterSetName -eq "IncrementVersion") {
-        $Version = [Version]$KeyValue.SafeGetValue()
+        $Version = [Version]$KeyValue.GetPureExpression().Value # SafeGetValue()
 
         $Version = switch($Increment) {
             "Major" {
@@ -721,7 +721,7 @@ function Get-Metadata {
     if($Passthru) { $KeyValue } else {
         # # Write-Debug "Start $($KeyValue.Extent.StartLineNumber) : $($KeyValue.Extent.StartColumnNumber) (char $($KeyValue.Extent.StartOffset))"
         # # Write-Debug "End   $($KeyValue.Extent.EndLineNumber) : $($KeyValue.Extent.EndColumnNumber) (char $($KeyValue.Extent.EndOffset))"
-        $KeyValue.SafeGetValue()
+        $KeyValue.GetPureExpression().Value # SafeGetValue()
     }
 }
 
