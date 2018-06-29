@@ -430,6 +430,7 @@ function package {
     Trace-Message "robocopy '$ReleasePath' '${OutputPath}\${ModuleName}' /MIR /NP "
     $null = robocopy $ReleasePath "${OutputPath}\${ModuleName}" /MIR /NP /LOG+:"$OutputPath\build.log"
 
+    # Obviously this should be Publish-Module, but this works on appveyor
     $zipFile = Join-Path $OutputPath "${ModuleName}-${Version}.zip"
     Add-Type -assemblyname System.IO.Compression.FileSystem
     Remove-Item $zipFile -ErrorAction SilentlyContinue

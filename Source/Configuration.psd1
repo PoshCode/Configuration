@@ -4,7 +4,7 @@
 ModuleToProcess = '.\Configuration.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.3.0'
+ModuleVersion = '1.3.1'
 
 # ID used to uniquely identify this module
 GUID = 'e56e5bec-4d97-4dfd-b138-abbaa14464a6'
@@ -75,7 +75,9 @@ PrivateData = @{
 
         # Release notes for this particular version of the module
         ReleaseNotes = '
-        v2.0.0: Bump version to hide 1.2 and justify the change to the save paths.
+        v1.3.1: Use GetPureExpression().Value to support older versions of PowerShell
+
+        v1.3.0: Bump version to hide 1.2 and justify the change to the save paths.
                 Rename Get-StoragePath to Get-ConfigurationPath (old name is aliased)
         v1.2.0: Add Support for Linux and MacOS
                 Stop using `mkdir -Force` because it does not work on Linux
