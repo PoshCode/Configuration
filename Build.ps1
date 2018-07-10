@@ -35,6 +35,10 @@ $Script:TraceVerboseTimer.Start()
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
+if ($env:APPVEYOR_PROJECT_NAME) {
+    $ModuleName = $env:APPVEYOR_PROJECT_NAME
+}
+
 function init {
     #.Synopsis
     #   The init step always has to run.
