@@ -11,7 +11,9 @@ param(
     [Alias("PSPath")]
     [string]$Path = $PSScriptRoot,
 
-    [string]$ModuleName = $(Split-Path $Path -Leaf),
+    # The name of the module to build.
+    # Default is hardcoded to "Configuration" because AppVeyor forces checkout to lowercase path name
+    [string]$ModuleName = "Configuration",
 
     # The target framework for .net (for packages), with fallback versions
     # The default supports PS3:  "net40","net35","net20","net45"
