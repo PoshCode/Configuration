@@ -63,11 +63,11 @@ function ConvertTo-Metadata {
         if ($Null -eq $InputObject) {
             '""'
         } elseif ( $InputObject -is [Int16] -or
-            $InputObject -is [Int32] -or
-            $InputObject -is [Int64] -or
-            $InputObject -is [Double] -or
-            $InputObject -is [Decimal] -or
-            $InputObject -is [Byte] ) {
+                   $InputObject -is [Int32] -or
+                   $InputObject -is [Int64] -or
+                   $InputObject -is [Double] -or
+                   $InputObject -is [Decimal] -or
+                   $InputObject -is [Byte] ) {
             "$InputObject"
         } elseif ($InputObject -is [String]) {
             "'{0}'" -f $InputObject.ToString().Replace("'", "''")
@@ -109,11 +109,7 @@ function ConvertTo-Metadata {
                 $Null -ne $Ast.Find( {$args[0] -is [System.Management.Automation.Language.CommandAst]}, $false)
             }
 
-            if ($IsCommand) {
-                "($Str)"
-            } else {
-                $Str
-            }
+            if ($IsCommand) { "($Str)" } else { $Str }
         } else {
             Write-Warning "$($InputObject.GetType().FullName) is not serializable. Serializing as string"
             "'{0}'" -f $InputObject.ToString().Replace("'", "`'`'")

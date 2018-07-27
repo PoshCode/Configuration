@@ -81,7 +81,6 @@ function ConvertFrom-Metadata {
         if (Test-Path $InputObject -ErrorAction SilentlyContinue) {
             # ParseFile on PS5 (and older) doesn't handle utf8 encoding properly (treats it as ASCII)
             # Sometimes, that causes an avoidable error. So I'm avoiding it, if I can:
-            $Ex = $_
             $Path = Convert-Path $InputObject
             if (!$PSBoundParameters.ContainsKey('ScriptRoot')) {
                 $ScriptRoot = Split-Path $Path

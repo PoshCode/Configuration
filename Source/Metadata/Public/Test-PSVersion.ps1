@@ -27,24 +27,12 @@ function Test-PSVersion {
     )
 
     $all = @(
-        if ($lt) {
-            $Version -lt $lt
-        }
-        if ($gt) {
-            $Version -gt $gt
-        }
-        if ($le) {
-            $Version -le $le
-        }
-        if ($ge) {
-            $Version -ge $ge
-        }
-        if ($eq) {
-            $Version -eq $eq
-        }
-        if ($ne) {
-            $Version -ne $ne
-        }
+        if ($lt) { $Version -lt $lt }
+        if ($gt) { $Version -gt $gt }
+        if ($le) { $Version -le $le }
+        if ($ge) { $Version -ge $ge }
+        if ($eq) { $Version -eq $eq }
+        if ($ne) { $Version -ne $ne }
     )
 
     $all -notcontains $false
