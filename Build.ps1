@@ -232,23 +232,32 @@ function test {
     }
 }
 
+function build {
+    # Build Metadata and remove it's psd1 file
+    $MetadataInfo = Build-Module -Target CleanBuild $Path\Source\Metadata -ModuleVersion $Version `
+        -OutputDirectory "$Path\$($Version.ToString(3))" `
+        -Verbose:($VerbosePreference -eq "Continue") `
+        -Passthru
+
+    # Build Configuration
+    $ConfigurationInfo = Build-Module -Target Build $Path\Source\Configuration `
+        -OutputDirectory "$Path\$($Version.ToString(3))" `
+        -ModuleVersion $Version `
+        -Verbose:($VerbosePreference -eq "Continue") `
+        -Passthru
+
+    # combine the exports of both modules
+    Update-Metadata -Path $ConfigurationInfo.Path -PropertyName FunctionsToExport -Value @($MetadataInfo.ExportedFunctions.Keys + $ConfigurationInfo.ExportedFunctions.Keys + @('*'))
+
+    # update the SemVer so you can tell where this came from
+    $branch = git rev-parse --verify --abbrev-ref HEAD
+    $sha = git rev-parse --verify --short HEAD
+    Update-Metadata -Path $ConfigurationInfo.Path -PropertyName "SemVer" -Value ($Version.ToString() + "+$branch$(Get-Date -f '.yyyyMMddThhmmss').sha.$sha")
+
+    # Remove the extra metadata file
+    Remove-Item $MetadataInfo.Path
+}
 
 init
-
-# Build Metadata and remove it's psd1 file
-$MetadataInfo = Build-Module -Target CleanBuild $Path\Source\Metadata -ModuleVersion $Version `
-                             -OutputDirectory "$Path\$($Version.ToString(3))" `
-                             -Verbose:($VerbosePreference -eq "Continue") `
-                             -Passthru
-
-# Build Configuration
-$ConfigurationInfo = Build-Module -Target Build $Path\Source\Configuration `
-                                  -OutputDirectory "$Path\$($Version.ToString(3))" `
-                                  -ModuleVersion $Version `
-                                  -Verbose:($VerbosePreference -eq "Continue") `
-                                  -Passthru
-
-# combine the exports of both modules
-Update-Metadata -Path $ConfigurationInfo.Path -PropertyName FunctionsToExport -Value @($MetadataInfo.ExportedFunctions.Keys + $ConfigurationInfo.ExportedFunctions.Keys + @('*'))
-
+build
 test

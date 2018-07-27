@@ -42,6 +42,7 @@ AliasesToExport = '*'
 FileList = @('.\Configuration.psd1','.\Configuration.psm1','.\Metadata.psm1','.\en-US\about_Configuration.help.txt')
 
 PrivateData = @{
+    SemVer = "1.3.1"
     # Allows overriding the default paths where Configuration stores it's configuration
     # Within those folders, the module assumes a "powershell" folder and creates per-module configuration folders
     PathOverride = @{
