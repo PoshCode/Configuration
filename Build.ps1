@@ -4,8 +4,8 @@ param(
     # The step(s) to run. Defaults to "Clean", "Update", "Build", "Test", "Package"
     # You may also "Publish"
     # It's also acceptable to skip the "Clean" and particularly "Update" steps
-    [ValidateSet("Clean", "Update", "Build", "Test", "Package", "Publish")]
-    [string[]]$Step = @("Clean", "Update", "Build", "Test"),
+    [ValidateSet("Build", "Test", "Package", "Publish")]
+    [string[]]$Step = @("Build", "Test"),
 
     # The path to the module to build. Defaults to the folder this script is in.
     [Alias("PSPath")]
@@ -90,17 +90,29 @@ function init {
         $Script:Build = if($Version.Build -le 0) { 1 } else { $Version.Build + 1}
     }
 
-    if([string]::IsNullOrEmpty($RevisionNumber) -or $RevisionNumber -eq 0) {
-        $Script:Version = New-Object Version $Version.Major, $Version.Minor, $Build
+    $Script:Version = New-Object Version $Version.Major, $Version.Minor, $Build
+
+    # NOT GitVersion YET but we want some information anyway
+    $branch = if ($ENV:APPVEYOR_REPO_BRANCH) {
+        $ENV:APPVEYOR_REPO_BRANCH
     } else {
-        $Script:Version = New-Object Version $Version.Major, $Version.Minor, $Build, $RevisionNumber
+        git rev-parse --verify --abbrev-ref HEAD
+    }
+    $sha    = if($ENV:APPVEYOR_REPO_COMMIT) {
+        ${ENV:APPVEYOR_REPO_COMMIT}.Substring(7)
+    } else {
+        git rev-parse --verify --short HEAD
+    }
+
+    $Script:SemVer = $Version.ToString() + "+$branch$(Get-Date -f '.yyyyMMddThhmmss').sha.$sha"
+    if($RevisionNumber -and $RevisionNumber -gt 0) {
+        $Script:SemVer = $SemVer -replace "\+", "-$RevisionNumber+"
     }
 
     # The release path is where the final module goes
-    $Script:ReleasePath = Join-Path $Path $Version
+    $Script:ReleasePath = Join-Path $Path $Version.ToString(3)
     $Script:ReleaseManifest = Join-Path $ReleasePath "${ModuleName}.psd1"
 }
-
 
 function test {
     [CmdletBinding()]
@@ -234,30 +246,56 @@ function test {
 
 function build {
     # Build Metadata and remove it's psd1 file
-    $MetadataInfo = Build-Module -Target CleanBuild $Path\Source\Metadata -ModuleVersion $Version `
-        -OutputDirectory "$Path\$($Version.ToString(3))" `
+    $MetadataInfo = Build-Module -Target CleanBuild $Path\Source\Metadata `
+        -OutputDirectory $ReleasePath -ModuleVersion $Version `
         -Verbose:($VerbosePreference -eq "Continue") `
         -Passthru
 
     # Build Configuration
     $ConfigurationInfo = Build-Module -Target Build $Path\Source\Configuration `
-        -OutputDirectory "$Path\$($Version.ToString(3))" `
-        -ModuleVersion $Version `
+        -OutputDirectory $ReleasePath -ModuleVersion $Version `
         -Verbose:($VerbosePreference -eq "Continue") `
         -Passthru
 
-    # combine the exports of both modules
+    # Because this is a double-module, combine the exports of both modules
     Update-Metadata -Path $ConfigurationInfo.Path -PropertyName FunctionsToExport -Value @($MetadataInfo.ExportedFunctions.Keys + $ConfigurationInfo.ExportedFunctions.Keys + @('*'))
-
     # update the SemVer so you can tell where this came from
-    $branch = git rev-parse --verify --abbrev-ref HEAD
-    $sha = git rev-parse --verify --short HEAD
-    Update-Metadata -Path $ConfigurationInfo.Path -PropertyName "SemVer" -Value ($Version.ToString() + "+$branch$(Get-Date -f '.yyyyMMddThhmmss').sha.$sha")
+    Update-Metadata -Path $ConfigurationInfo.Path -PropertyName "SemVer" -Value $SemVer
 
     # Remove the extra metadata file
     Remove-Item $MetadataInfo.Path
 }
 
+function package {
+    [CmdletBinding()]
+    param()
+
+    Trace-Message "robocopy '$ReleasePath' '${OutputPath}\${ModuleName}' /MIR /NP "
+    $null = robocopy $ReleasePath "${OutputPath}\${ModuleName}" /MIR /NP /LOG+:"$OutputPath\build.log"
+
+    # Obviously this should be Publish-Module, but this works on appveyor
+    $zipFile = Join-Path $OutputPath "${ModuleName}-${Version}.zip"
+    Add-Type -assemblyname System.IO.Compression.FileSystem
+    Remove-Item $zipFile -ErrorAction SilentlyContinue
+    Trace-Message "ZIP    $zipFile"
+    [System.IO.Compression.ZipFile]::CreateFromDirectory((Join-Path $OutputPath $ModuleName), $zipFile)
+
+    # You can add other artifacts here
+    ls $OutputPath -File
+}
+
+
+# First call to Trace-Message, pass in our TraceTimer to make sure we time EVERYTHING.
+Trace-Message "BUILDING: $ModuleName in $Path" -Stopwatch $TraceVerboseTimer
+
+Push-Location $Path
+
 init
-build
-test
+
+foreach($s in $step){
+    Trace-Message "Invoking Step: $s"
+    &$s
+}
+
+Pop-Location
+Trace-Message "FINISHED: $ModuleName in $Path" -KillTimer
