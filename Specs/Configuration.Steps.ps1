@@ -1,9 +1,13 @@
 $PSModuleAutoLoadingPreference = "None"
+# Fix IsLinux on Windows PowerShell 5.x
+if (!(Test-Path Variable:Global:IsLinux -ErrorAction SilentlyContinue)){
+    $Global:IsLinux = $False
+}
 
 Given 'the configuration module is imported on Linux:' {
     $ModuleBase = (Get-Module "Configuration").ModuleBase
     Remove-Module "Configuration" -ErrorAction Ignore -Force
-    if (!(Test-Path Variable:IsLinux)){
+    if (!(Test-Path Variable:IsLinux -ErrorAction SilentlyContinue)){
         $Global:IsLinux = $True
         Import-Module $ModuleBase/Configuration.psd1 -Scope Global
         Remove-Variable IsLinux -Scope Global
@@ -25,7 +29,7 @@ Given 'the configuration module is imported with testing paths on Linux:' {
     Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.UserData' -Value $Table.User
 
     Remove-Module "Configuration" -ErrorAction Ignore -Force
-    if (!(Test-Path Variable:IsLinux)) {
+    if (!(Test-Path Variable:IsLinux -ErrorAction SilentlyContinue)) {
         $Global:IsLinux = $True
         Import-Module $ModuleBase/Configuration.psd1 -Scope Global
         Remove-Variable IsLinux
