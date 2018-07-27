@@ -134,7 +134,7 @@ function test {
     if($Quiet) { $Options.Quiet = $Quiet }
     if(!$ShowWip){ $Options.ExcludeTag = @("wip") }
 
-    Set-Content "$TestPath\VersionSpecific.Steps.ps1" "
+    Set-Content "$TestPath\.Do.Not.COMMIT.This.Steps.ps1"
         BeforeEachFeature {
             Remove-Module 'Configuration' -ErrorAction Ignore -Force
             Import-Module '$ReleasePath\${ModuleName}.psd1' -Force
