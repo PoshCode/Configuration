@@ -1,0 +1,46 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+name: $(Build.DefinitionName)_$(GitVersion_InformationalVersion)
+pr:
+- master
+
+pool:
+  vmImage: 'VS2017-Win2016'
+
+steps:
+- task: gittools.gitversion.gitversion-task.GitVersion@4
+  displayName: GitVersion
+
+- powershell: .\bootstrap.ps1
+  displayName: 'Restore pre-requisites'
+
+- powershell: .\build.ps1 -OutputDirectory $(Build.ArtifactStagingDirectory)\$(Build.DefinitionName) -SemVer $(GitVersion.InformationalVersion) -Verbose
+  displayName: 'Run build script'
+
+- task: richardfennellBM.BM-VSTS-PesterRunner-Task.Pester-Task.Pester@8
+  displayName: 'Pester Tests'
+  inputs:
+    additionalModulePath: '$(Build.ArtifactStagingDirectory)'
+    CodeCoverageFolder: '$(Build.ArtifactStagingDirectory)'
+    resultsFile: '$(Common.TestResultsDirectory)\Test-$(Build.DefinitionName)_$(Build.BuildNumber).xml'
+    CodeCoverageOutputFile: '$(Common.TestResultsDirectory)\Coverage-$(Build.DefinitionName)_$(Build.BuildNumber).xml'
+
+- task: PublishTestResults@2
+  displayName: 'Publish Test Results'
+  condition: always()
+  inputs:
+    testRunner: NUnit
+    searchFolder: '$(Common.TestResultsDirectory)'
+
+- task: PublishCodeCoverageResults@1
+  displayName: 'Publish code coverage'
+  inputs:
+    summaryFileLocation: '$(Common.TestResultsDirectory)\Coverage-$(Build.DefinitionName)_$(Build.BuildNumber).xml'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: Module'
+  inputs:
+    ArtifactName: Module
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
