@@ -1,7 +1,7 @@
 @{
-    SourceDirectories = @("Header", "Private", "Public", "Footer")
+    SourceDirectories = @("Private", "Public")
     Prefix = "Header\param.ps1"
-    Postfix = "Footer\initialize.ps1"
+    Suffix = "Footer\initialize.ps1"
     OutputDirectory = "..\..\"
     VersionedOutputDirectory = $true
 }
