@@ -553,6 +553,7 @@ function Update-Metadata {
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSShouldProcess", "")] # Because PSSCriptAnalyzer team refuses to listen to reason. See bugs:  #194 #283 #521 #608
     [CmdletBinding(SupportsShouldProcess)]
+    [Alias("Update-Manifest")]
     param(
         # The path to the module manifest file -- must be a .psd1 file
         # As an easter egg, you can pass the CONTENT of a psd1 file instead, and the modified data will pass through
@@ -666,6 +667,7 @@ function Get-Metadata {
     #
     #   Returns the release notes!
     [CmdletBinding()]
+    [Alias("Get-ManifestValue")]
     param(
         # The path to the module manifest file
         [Parameter(ValueFromPipelineByPropertyName="True", Position=0)]
@@ -724,9 +726,6 @@ function Get-Metadata {
         $KeyValue.GetPureExpression().Value # SafeGetValue()
     }
 }
-
-Set-Alias Update-Manifest Update-Metadata
-Set-Alias Get-ManifestValue Get-Metadata
 
 $MetadataSerializers = @{}
 $MetadataDeserializers = @{}

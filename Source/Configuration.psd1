@@ -25,9 +25,20 @@ Copyright = 'Copyright (c) 2014-2017 by Joel Bennett, all rights reserved.'
 Description = 'A module for storing and reading configuration values, with full PS Data serialization, automatic configuration for modules and scripts, etc.'
 
 # We explicitly name the functions we want to be visible, but we export everything with '*'
-FunctionsToExport = 'Import-Configuration','Export-Configuration','Get-StoragePath','Add-MetadataConverter',
-                    'ConvertFrom-Metadata','ConvertTo-Metadata','Export-Metadata','Import-Metadata',
-                    'Update-Manifest','Get-ManifestValue','*'
+FunctionsToExport = @(
+    'Add-MetadataConverter'
+    'ConvertFrom-Metadata'
+    'ConvertTo-Metadata'
+    'Export-Configuration'
+    'Export-Metadata'
+    'Get-ConfigurationPath'
+    'Get-Metadata'
+    'Get-StoragePath'
+    'Import-Configuration'
+    'Import-Metadata'
+    'Update-Metadata'
+    'Update-Object'
+)
 
 # Cmdlets to export from this module
 CmdletsToExport = ''
@@ -36,7 +47,7 @@ CmdletsToExport = ''
 VariablesToExport = ''
 
 # Aliases to export from this module
-AliasesToExport = ''
+AliasesToExport = 'Get-StoragePath', 'Get-ManifestValue', 'Update-Manifest'
 
 # List of all files packaged with this module
 FileList = @('.\Configuration.psd1','.\Configuration.psm1','.\Metadata.psm1','.\en-US\about_Configuration.help.txt')
