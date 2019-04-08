@@ -20,7 +20,8 @@ Add-MetadataConverter @{
     [ConsoleColor]   = { "ConsoleColor {0}" -f $InputObject.ToString() }
 
     [System.Management.Automation.SwitchParameter] = { if ($_) { '$True' } else { '$False' } }
-
+    # Escape single-quotes by doubling them:
+    [System.Management.Automation.ScriptBlock] = { "(ScriptBlock '{0}')" -f ("$_" -replace "'", "''") }
     # This GUID is here instead of as a function
     # just to make sure the tests can validate the converter hashtables
     "Guid"           = { [Guid]$Args[0] }
