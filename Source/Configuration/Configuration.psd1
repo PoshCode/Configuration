@@ -42,7 +42,6 @@ AliasesToExport = '*'
 FileList = @('.\Configuration.psd1','.\Configuration.psm1','.\Metadata.psm1','.\en-US\about_Configuration.help.txt')
 
 PrivateData = @{
-    SemVer = "1.3.1"
     # Allows overriding the default paths where Configuration stores it's configuration
     # Within those folders, the module assumes a "powershell" folder and creates per-module configuration folders
     PathOverride = @{
@@ -65,6 +64,9 @@ PrivateData = @{
     # We had to do this because it's the only place we're allowed to extend the manifest
     # https://connect.microsoft.com/PowerShell/feedback/details/421837
     PSData = @{
+        # The semver pre-release version information
+        PreRelease = ''
+
         # Keyword tags to help users find this module via navigations and search.
         Tags = @('Development','Configuration','Settings','Storage')
 
@@ -76,25 +78,14 @@ PrivateData = @{
 
         # Release notes for this particular version of the module
         ReleaseNotes = '
-        v1.3.1: Use GetPureExpression().Value to support older versions of PowerShell
+        - Convert the modules to ModuleBuilder format
+        - Switch build to azure pipelines
+        - Fix postfix/suffix
+        - Fix serialization of scriptblocks with single quotes
 
-        v1.3.0: Bump version to hide 1.2 and justify the change to the save paths.
-                Rename Get-StoragePath to Get-ConfigurationPath (old name is aliased)
-        v1.2.0: Add Support for Linux and MacOS
-                Stop using `mkdir -Force` because it does not work on Linux
-                Add default paths for posix systems based on XDG standards
-                Add logic for overriding the default paths in the Manifest
-                Fix a bug in PSObject serialization (from v1.1.1)
-                Fix bug with special property names (like PSObject) caused by dot notation
-                Fix tests so they run cross-platform
-                ACCIDENTALLY changed default save paths:
-                   Using "powershell" instead of WindowsPowerShell (even in WindowsPowerShell)
-        v1.1.0: Added support for ScriptBlocks and SwitchParameters
-                Added support for serializing objects as hashtables
+        Configuration v1.3.1+Sha.bdba856179c941971755890068c69e59a8261daa.Date.2018-07-11
+        - Use GetPureExpression().Value to support older versions of PowerShell
         '
-
-        # Indicates this is a pre-release/testing version of the module.
-        IsPrerelease = 'False'
     }
 }
 

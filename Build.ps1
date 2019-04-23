@@ -8,6 +8,11 @@ param(
     [string]$SemVer
 )
 Push-Location $PSScriptRoot -StackName BuildWindowsConsoleFont
+
+if (!$SemVer -and (Get-Command gitversion -ErrorAction Ignore)) {
+    $PSBoundParameters['SemVer'] = gitversion -showvariable nugetversion
+}
+
 try {
     ## Build the actual module
     $MetadataInfo = Build-Module -SourcePath .\Source\Metadata `
@@ -25,9 +30,6 @@ try {
                         $ConfigurationInfo.ExportedFunctions.Keys
                         @('*')
                     )
-
-    # update the SemVer so you can tell where this came from
-    Update-Metadata -Path $ConfigurationInfo.Path -PropertyName "SemVer" -Value $SemVer
 
     # Remove the extra metadata file
     Remove-Item $MetadataInfo.Path

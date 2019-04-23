@@ -25,4 +25,7 @@ Description = 'A module for PowerShell data serialization'
 FunctionsToExport = 'Add-MetadataConverter','ConvertFrom-Metadata','ConvertTo-Metadata',
                     'Export-Metadata','Import-Metadata','Update-Metadata','Udpate-Object'
 
+# Prerelease metadata to make ModuleBuilder happy
+PrivateData   = @{ PSData = @{ Prerelease = "" } }
+
 }
