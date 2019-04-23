@@ -13,9 +13,6 @@ resources:
       name: PoshCode/Azure-Pipelines
       ref: refs/tags/1.0.0
 
-pool:
-  vmImage: 'windows-2019' # other options include: 'Ubuntu 16.04', 'macOS 10.13', 'VS2017-Win2016'
-
 jobs:
   - template: GitVersion-job.yml@templates
 
