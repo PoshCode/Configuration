@@ -10,6 +10,7 @@ resources:
   repositories:
     - repository: templates
       type: github
+      endpoint: PoshCode # You'll need to define a service connection in your project on Azure
       name: PoshCode/Azure-Pipelines
       ref: refs/tags/1.0.0
 
