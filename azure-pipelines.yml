@@ -22,10 +22,10 @@ jobs:
     variables:
       InformationalVersion: $[dependencies.GitVersion.outputs['GitVersion.InformationalVersion']]
     steps:
-    - powershell: .\bootstrap.ps1
+    - powershell: ./bootstrap.ps1
       displayName: 'Restore pre-requisites'
 
-    - powershell: .\build.ps1 -OutputDirectory $(Build.BinariesDirectory)\$(Build.DefinitionName) -SemVer $(InformationalVersion) -Verbose
+    - powershell: ./build.ps1 -OutputDirectory $(Build.BinariesDirectory)\$(Build.DefinitionName) -SemVer $(InformationalVersion) -Verbose
       displayName: 'Run build script'
 
     - task: PublishPipelineArtifact@0
