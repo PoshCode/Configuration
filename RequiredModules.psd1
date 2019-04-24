@@ -1,5 +1,5 @@
-@(
-    @{ ModuleName = "Configuration"; RequiredVersion = "1.3.1"}
-    @{ ModuleName = "ModuleBuilder"; RequiredVersion = "1.0.0"}
-    @{ ModuleName = "Pester";        RequiredVersion = "4.4.2"}
-)
+@{
+    Configuration = "1.3.1"
+    ModuleBuilder = "1.0.0"
+    Pester        = "4.4.2"
+}
