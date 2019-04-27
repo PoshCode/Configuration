@@ -39,9 +39,10 @@ jobs:
     parameters:
       dependsOn: ['Build']
       artifactName: $(ArtifactName)
+      excludeRules: '"PSShouldProcess","PSUseShouldProcessForStateChangingFunctions","PSAvoidUsingDeprecatedManifestFields","PSPossibleIncorrectUsageOfAssignmentOperator"'
 
-  - template: Pester-job.yml@poshcode
+  - template: Gherkin-job.yml@poshcode
     parameters:
       dependsOn: ['Build']
       artifactName: $(ArtifactName)
-      TestsDirectory: '$(Build.SourcesDirectory)\Tests'
+      specDirectory: '$(Build.SourcesDirectory)\Specs'

@@ -68,4 +68,4 @@ function InitializeStoragePaths {
     Join-Path $MachineData powershell
 }
 
-$EnterpriseData, $UserData, $MachineData = InitializeStoragePaths $EnterpriseData $UserData $MachineData
+$EnterpriseData, $UserData, $MachineData = InitializeStoragePaths -EnterpriseData $EnterpriseData -UserData $UserData -MachineData $MachineData

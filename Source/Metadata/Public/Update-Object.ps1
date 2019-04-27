@@ -70,6 +70,7 @@ function Update-Object {
         }
 
         function TestKey {
+            [OutputType([bool])]
             [CmdletBinding()]
             param($InputObject, $Key)
             [bool]$(

@@ -7,6 +7,26 @@ $MetadataDeserializers = @{}
 if ($Converters -is [Collections.IDictionary]) {
     Add-MetadataConverter $Converters
 }
+function PSCredentialMetadataConverter {
+    <#
+    .Synopsis
+        Creates a new PSCredential with the specified properties
+    .Description
+        This is just a wrapper for the PSObject constructor with -Property $Value
+        It exists purely for the sake of psd1 serialization
+    .Parameter Value
+        The hashtable of properties to add to the created objects
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingPlainTextForPassword", "EncodedPassword")]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingUserNameAndPasswordParams", "")]
+    param(
+        # The UserName for this credential
+        [string]$UserName,
+        # The Password for this credential, encoded via ConvertFrom-SecureString
+        [string]$EncodedPassword
+    )
+    New-Object PSCredential $UserName, (ConvertTo-SecureString $EncodedPassword)
+}
 
 # The OriginalMetadataSerializers
 Add-MetadataConverter @{
@@ -30,27 +50,7 @@ Add-MetadataConverter @{
     "DateTimeOffset" = { [DateTimeOffset]$Args[0] }
     "ConsoleColor"   = { [ConsoleColor]$Args[0] }
     "ScriptBlock"    = { [scriptblock]::Create($Args[0]) }
-    "PSCredential"   = {
-        <#
-        .Synopsis
-            Creates a new PSCredential with the specified properties
-        .Description
-            This is just a wrapper for the PSObject constructor with -Property $Value
-            It exists purely for the sake of psd1 serialization
-        .Parameter Value
-            The hashtable of properties to add to the created objects
-        #>
-        [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingPlainTextForPassword", "EncodedPassword")]
-        [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingUserNameAndPasswordParams", "")]
-        param(
-            # The UserName for this credential
-            [string]$UserName,
-            # The Password for this credential, encoded via ConvertFrom-SecureString
-            [string]$EncodedPassword
-        )
-        New-Object PSCredential $UserName, (ConvertTo-SecureString $EncodedPassword)
-    }
-
+    "PSCredential"   = (Get-Command PSCredentialMetadataConverter).ScriptBlock
 }
 
 $Script:OriginalMetadataSerializers = $MetadataSerializers.Clone()
