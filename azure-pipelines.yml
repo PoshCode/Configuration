@@ -1,0 +1,48 @@
+# Yaml Docs: https://aka.ms/yaml
+name: $(Build.DefinitionName)_$(GitVersion_InformationalVersion)
+
+pr: ["master"]
+
+variables:
+  ArtifactName: Modules
+
+resources:
+  repositories:
+    - repository: poshcode
+      type: github
+      endpoint: github # You'll need to define a service connection in your project on Azure
+      name: PoshCode/Azure-Pipelines
+      ref: refs/tags/1.1.1
+
+jobs:
+  - template: GitVersion-job.yml@poshcode
+
+  - job: Build
+    pool:
+      vmImage: windows-2019
+    dependsOn: GitVersion
+    variables:
+      InformationalVersion: $[dependencies.GitVersion.outputs['GitVersion.InformationalVersion']]
+    steps:
+    - template: InstallRequiredModules-step.yml@poshcode
+
+    - powershell: ./build.ps1 -OutputDirectory $(Build.BinariesDirectory)\$(Build.DefinitionName) -SemVer $(InformationalVersion) -Verbose
+      displayName: 'Run build script'
+
+    - task: PublishPipelineArtifact@0
+      displayName: 'Publish Build Output'
+      inputs:
+        ArtifactName: $(ArtifactName)
+        targetPath: '$(Build.BinariesDirectory)'
+
+  - template: ScriptAnalyzer-job.yml@poshcode
+    parameters:
+      dependsOn: ['Build']
+      artifactName: $(ArtifactName)
+      excludeRules: '"PSShouldProcess","PSUseShouldProcessForStateChangingFunctions","PSAvoidUsingDeprecatedManifestFields","PSPossibleIncorrectUsageOfAssignmentOperator"'
+
+  - template: Gherkin-job.yml@poshcode
+    parameters:
+      dependsOn: ['Build']
+      artifactName: $(ArtifactName)
+      specDirectory: '$(Build.SourcesDirectory)\Specs'

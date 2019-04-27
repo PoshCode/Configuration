@@ -1,10 +1,10 @@
 ﻿@{
 
 # Script module or binary module file associated with this manifest.
-ModuleToProcess = '.\Configuration.psm1'
+ModuleToProcess = 'Configuration.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.3.1'
+ModuleVersion = '1.7.0'
 
 # ID used to uniquely identify this module
 GUID = 'e56e5bec-4d97-4dfd-b138-abbaa14464a6'
@@ -19,7 +19,7 @@ CompanyName = 'HuddledMasses.org'
 # HelpInfoURI = ''
 
 # Copyright statement for this module
-Copyright = 'Copyright (c) 2014-2017 by Joel Bennett, all rights reserved.'
+Copyright = 'Copyright (c) 2014-2018 by Joel Bennett, all rights reserved.'
 
 # Description of the functionality provided by this module
 Description = 'A module for storing and reading configuration values, with full PS Data serialization, automatic configuration for modules and scripts, etc.'
@@ -64,6 +64,9 @@ PrivateData = @{
     # We had to do this because it's the only place we're allowed to extend the manifest
     # https://connect.microsoft.com/PowerShell/feedback/details/421837
     PSData = @{
+        # The semver pre-release version information
+        PreRelease = ''
+
         # Keyword tags to help users find this module via navigations and search.
         Tags = @('Development','Configuration','Settings','Storage')
 
@@ -75,25 +78,14 @@ PrivateData = @{
 
         # Release notes for this particular version of the module
         ReleaseNotes = '
-        v1.3.1: Use GetPureExpression().Value to support older versions of PowerShell
+        - Convert the modules to ModuleBuilder format
+        - Switch build to azure pipelines
+        - Fix postfix/suffix
+        - Fix serialization of scriptblocks with single quotes
 
-        v1.3.0: Bump version to hide 1.2 and justify the change to the save paths.
-                Rename Get-StoragePath to Get-ConfigurationPath (old name is aliased)
-        v1.2.0: Add Support for Linux and MacOS
-                Stop using `mkdir -Force` because it does not work on Linux
-                Add default paths for posix systems based on XDG standards
-                Add logic for overriding the default paths in the Manifest
-                Fix a bug in PSObject serialization (from v1.1.1)
-                Fix bug with special property names (like PSObject) caused by dot notation
-                Fix tests so they run cross-platform
-                ACCIDENTALLY changed default save paths:
-                   Using "powershell" instead of WindowsPowerShell (even in WindowsPowerShell)
-        v1.1.0: Added support for ScriptBlocks and SwitchParameters
-                Added support for serializing objects as hashtables
+        Configuration v1.3.1+Sha.bdba856179c941971755890068c69e59a8261daa.Date.2018-07-11
+        - Use GetPureExpression().Value to support older versions of PowerShell
         '
-
-        # Indicates this is a pre-release/testing version of the module.
-        IsPrerelease = 'False'
     }
 }
 

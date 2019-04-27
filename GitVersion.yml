@@ -1,0 +1,28 @@
+mode: Mainline
+next-version: 1.4.0
+commit-message-incrementing: MergeMessageOnly
+
+assembly-versioning-format: '{Major}.{Minor}.{Patch}.{env:BUILDCOUNT ?? 0}'
+assembly-informational-format: '{NuGetVersionV2}+Build.{env:BUILDCOUNT ?? 0}.Date.{CommitDate}.Branch.{env:SAFEBRANCHNAME ?? unknown}.Sha.{Sha}'
+commit-date-format: yyyyMMddTHHmmss
+
+branches:
+  master:
+    increment: Minor
+    is-release-branch: true
+  pull-requests:
+    regex: .*/merge
+    tag: rc
+    increment: Minor
+    source-branches: ['master', 'feature']
+  feature:
+    regex: .*/
+    tag: useBranchName
+    increment: Minor
+    source-branches: ['master', 'feature']
+    track-merge-target: true
+  release:
+    tag: rc
+    regex: releases?[/-]\d+\.\d+\.\d+
+    increment: Patch
+    is-release-branch: true
