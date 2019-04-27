@@ -113,7 +113,7 @@ function Update-Metadata {
     $ManifestContent = $KeyValue.Extent.Text.Remove(
         $Extent.StartOffset,
         ($Extent.EndOffset - $Extent.StartOffset)
-    ).Insert($Extent.StartOffset, $Value)
+    ).Insert($Extent.StartOffset, $Value).Trim()
 
     if (Test-Path $Path) {
         Set-Content -Encoding UTF8 -Path $Path -Value $ManifestContent
