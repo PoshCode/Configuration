@@ -9,6 +9,15 @@ param(
 )
 Push-Location $PSScriptRoot -StackName BuildWindowsConsoleFont
 
+# Do we need to re-add the PSModulePath in each PowerShell step?
+if (Test-Path .\RequiredModules) {
+    $LocalModules = Convert-Path .\RequiredModules
+    if (-not (@($Env:PSModulePath.Split([IO.Path]::PathSeparator)) -contains $LocalModules)) {
+        Write-Verbose "Adding $($LocalModules) to PSModulePath"
+        $Env:PSModulePath = $LocalModules + [IO.Path]::PathSeparator + $Env:PSModulePath
+    }
+}
+
 if (!$SemVer -and (Get-Command gitversion -ErrorAction Ignore)) {
     $PSBoundParameters['SemVer'] = gitversion -showvariable nugetversion
 }

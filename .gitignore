@@ -1,3 +1,4 @@
 .Do.Not.COMMIT.This.Steps.ps1
 output/
 .vs/
+RequiredModules/
