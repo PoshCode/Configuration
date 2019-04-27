@@ -3,9 +3,17 @@ $PSModuleAutoLoadingPreference = "None"
 if (!(Test-Path Variable:Global:IsLinux -ErrorAction SilentlyContinue)){
     $Global:IsLinux = $False
 }
+function global:GetModuleBase {
+    $ModuleBase = (Get-Module "Configuration").ModuleBase
+    if (!$ModuleBase) {
+        $ModuleBase = @(Get-Module "Configuration" -ListAvailable)[0].ModuleBase
+    }
+    $ModuleBase
+}
+
 
 Given 'the configuration module is imported on Linux:' {
-    $ModuleBase = (Get-Module "Configuration").ModuleBase
+    $ModuleBase = GetModuleBase
     Remove-Module "Configuration" -ErrorAction Ignore -Force
     if (!(Test-Path Variable:IsLinux -ErrorAction SilentlyContinue)){
         $Global:IsLinux = $True
@@ -20,7 +28,7 @@ Given 'the configuration module is imported on Linux:' {
 
 Given 'the configuration module is imported with testing paths on Linux:' {
     param($Table)
-    $ModuleBase = (Get-Module "Configuration").ModuleBase
+    $ModuleBase = GetModuleBase
 
     Copy-Item $ModuleBase/Configuration.psd1 -Destination $ModuleBase/Configuration.psd1.backup
 
@@ -47,7 +55,7 @@ Given 'the configuration module is imported with testing paths on Linux:' {
 
 Given 'the configuration module is imported with testing paths:' {
     param($Table)
-    $ModuleBase = (Get-Module "Configuration").ModuleBase
+    $ModuleBase = GetModuleBase
 
     Copy-Item $ModuleBase/Configuration.psd1 -Destination $ModuleBase/Configuration.psd1.backup
 
@@ -65,8 +73,7 @@ Given 'the configuration module is imported with testing paths:' {
 
 Given 'the configuration module is imported with a URL converter' {
     param($Table)
-    $ModuleBase = "."
-    $ModuleBase = (Get-Module "Configuration").ModuleBase
+    $ModuleBase = GetModuleBase
     Remove-Module "Configuration" -ErrorAction Ignore -Force
     Import-Module $ModuleBase/Configuration.psd1 -Args @{
                 [Uri] = { "Uri '$_' " }
@@ -79,7 +86,7 @@ Given 'the configuration module is imported with a URL converter' {
 
 Given 'the manifest module is imported' {
     param($Table)
-    $ModuleBase = (Get-Module "Configuration").ModuleBase
+    $ModuleBase = GetModuleBase
     Remove-Module "Configuration", Manifest
     Import-Module $ModuleBase/Manifest.psm1 -Scope Global
 }

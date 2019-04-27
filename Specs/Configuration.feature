@@ -156,11 +156,11 @@ Feature: Module Configuration
         And the settings object's BirthDay.Month should be May
         And the settings object's BirthDay.Day should be 22
 
-    @WIP
-    Scenario: Migrate settings only once
-        Given MyModule has a new version
-        And I have some settings from an old version
-        When I load the settings in the new module
-        Then the settings from the old version should be copied
-        And MyModule should be able to migrate them
-        But they should save only to the new version
+    # @WIP
+    # Scenario: Migrate settings only once
+    #     Given MyModule has a new version
+    #     And I have some settings from an old version
+    #     When I load the settings in the new module
+    #     Then the settings from the old version should be copied
+    #     And MyModule should be able to migrate them
+    #     But they should save only to the new version
