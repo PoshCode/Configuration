@@ -229,3 +229,22 @@ Feature: Manifest Read and Write
         When I call Update-Metadata ModuleName.psd1 -Increment Revision
         And I call Get-Metadata ModuleName.psd1
         Then the result should be 0.4.0.1
+
+
+    @Regression
+    Scenario: Get Arrays from a metadata file
+        Given a module with the name 'ModuleName'
+        And a module manifest named ModuleName.psd1
+            """
+            @{
+                # Script module or binary module file associated with this manifest.
+                ModuleToProcess = './Configuration.psm1'
+
+                # Version number of this module.
+                ModuleVersion = '0.4'
+
+                AliasesToExport = @('Get-StoragePath', 'Get-ManifestValue', 'Update-Manifest')
+            }
+            """
+        When I call Get-Metadata ModuleName.psd1 AliasesToExport
+        Then the result should be @('Get-StoragePath', 'Get-ManifestValue', 'Update-Manifest')
