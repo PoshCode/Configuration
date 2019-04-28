@@ -11,6 +11,7 @@ function Get-Metadata {
     #   Get-Metadata .\Configuration.psd1 ReleaseNotes
     #
     #   Returns the release notes!
+    [Alias("Get-ManifestValue")]
     [CmdletBinding()]
     param(
         # The path to the module manifest file
@@ -71,6 +72,19 @@ function Get-Metadata {
     } else {
         # # Write-Debug "Start $($KeyValue.Extent.StartLineNumber) : $($KeyValue.Extent.StartColumnNumber) (char $($KeyValue.Extent.StartOffset))"
         # # Write-Debug "End   $($KeyValue.Extent.EndLineNumber) : $($KeyValue.Extent.EndColumnNumber) (char $($KeyValue.Extent.EndOffset))"
-        $KeyValue.GetPureExpression().Value # SafeGetValue()
+
+        # In PowerShell 5+ we can just use:
+        if ($KeyValue.SafeGetValue) {
+            $KeyValue.SafeGetValue()
+        } else {
+            # Otherwise, this workd for simple values:
+            $Expression = $KeyValue.GetPureExpression()
+            if ($Expression.Value) {
+                $Expression.Value
+            } else {
+                # For complex (arrays, hashtables) we parse it ourselves
+                ConvertFrom-Metadata $KeyValue
+            }
+        }
     }
 }

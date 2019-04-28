@@ -21,11 +21,8 @@ Copyright = 'Copyright (c) 2014-2018 by Joel Bennett, all rights reserved.'
 # Description of the functionality provided by this module
 Description = 'A module for PowerShell data serialization'
 
-# We explicitly name the functions we want to be visible, but we export everything with '*'
-FunctionsToExport = 'Add-MetadataConverter','ConvertFrom-Metadata','ConvertTo-Metadata',
-                    'Export-Metadata','Import-Metadata','Update-Metadata','Udpate-Object'
-
-# Prerelease metadata to make ModuleBuilder happy
+# This doesn't make it into the build output, so it's irrelevant
+FunctionsToExport = '*-*'
 PrivateData   = @{ PSData = @{ Prerelease = "" } }
 
 }

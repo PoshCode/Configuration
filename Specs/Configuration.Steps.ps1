@@ -642,12 +642,20 @@ When "I call Update-Metadata (\S+) -Increment (\S+)" {
     }
 }
 
+Then "the result should be @\((.*)\)" {
+    param($value)
+    @($Result).ForEach{ "'$_'" } -join ", " | Should Be $value
+}
 
-Then "the result should be (.*)" {
+Then "the result should be (?!@|`")(.*)" {
     param($value)
     $Result | Should Be $value
 }
 
+Then "the string result should be \`"(.*)\`"" {
+    param($value)
+    "$Result" | Should Be $value
+}
 
 Then "a settings file named (\S+) should exist(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
     param($fileName, $hashtable, $Scope = $null, $Version = $null)
