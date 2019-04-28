@@ -1,5 +1,5 @@
 mode: Mainline
-next-version: 1.4.0
+next-version: 1.0.0
 commit-message-incrementing: MergeMessageOnly
 
 assembly-versioning-format: '{Major}.{Minor}.{Patch}.{env:BUILDCOUNT ?? 0}'
@@ -8,21 +8,19 @@ commit-date-format: yyyyMMddTHHmmss
 
 branches:
   master:
-    increment: Minor
+    increment: Patch
     is-release-branch: true
-  pull-requests:
-    regex: .*/merge
+  pull-request:
     tag: rc
-    increment: Minor
-    source-branches: ['master', 'feature']
+    increment: Patch
   feature:
     regex: .*/
     tag: useBranchName
-    increment: Minor
+    increment: Patch
     source-branches: ['master', 'feature']
     track-merge-target: true
   release:
-    tag: rc
+    tag: ''
     regex: releases?[/-]\d+\.\d+\.\d+
     increment: Patch
     is-release-branch: true
