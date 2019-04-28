@@ -4,7 +4,7 @@
 ModuleToProcess = 'Configuration.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.7.0'
+ModuleVersion = '1.7.2'
 
 # ID used to uniquely identify this module
 GUID = 'e56e5bec-4d97-4dfd-b138-abbaa14464a6'
@@ -15,28 +15,17 @@ Author = @('Joel Bennett')
 # Company or vendor of this module
 CompanyName = 'HuddledMasses.org'
 
-# HelpInfo URI of this module
-# HelpInfoURI = ''
-
 # Copyright statement for this module
-Copyright = 'Copyright (c) 2014-2018 by Joel Bennett, all rights reserved.'
+Copyright = 'Copyright (c) 2014-2019 by Joel Bennett, all rights reserved.'
 
 # Description of the functionality provided by this module
 Description = 'A module for storing and reading configuration values, with full PS Data serialization, automatic configuration for modules and scripts, etc.'
 
-# We explicitly name the functions we want to be visible, but we export everything with '*'
-FunctionsToExport = 'Import-Configuration','Export-Configuration','Get-StoragePath','Add-MetadataConverter',
-                    'ConvertFrom-Metadata','ConvertTo-Metadata','Export-Metadata','Import-Metadata',
-                    'Update-Manifest','Get-ManifestValue','*'
-
-# Cmdlets to export from this module
-CmdletsToExport = '*'
-
-# Variables to export from this module
-VariablesToExport = '*'
-
-# Aliases to export from this module
-AliasesToExport = '*'
+# Exports - populated by the build
+FunctionsToExport = @('*')
+CmdletsToExport = @()
+VariablesToExport = @()
+AliasesToExport = @('Get-StoragePath', 'Get-ManifestValue', 'Update-Manifest')
 
 # List of all files packaged with this module
 FileList = @('.\Configuration.psd1','.\Configuration.psm1','.\Metadata.psm1','.\en-US\about_Configuration.help.txt')
@@ -78,13 +67,13 @@ PrivateData = @{
 
         # Release notes for this particular version of the module
         ReleaseNotes = '
-        - Convert the modules to ModuleBuilder format
-        - Switch build to azure pipelines
+        - Fix bug in Get-Metadata with complex values (#19)
         - Fix postfix/suffix
         - Fix serialization of scriptblocks with single quotes
-
-        Configuration v1.3.1+Sha.bdba856179c941971755890068c69e59a8261daa.Date.2018-07-11
-        - Use GetPureExpression().Value to support older versions of PowerShell
+        - Convert the modules to ModuleBuilder format
+        - Switch build to azure pipelines
+        - Clean up extra output lines in psd1 files
+        - Clean up exports
         '
     }
 }

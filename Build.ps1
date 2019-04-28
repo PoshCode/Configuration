@@ -21,6 +21,9 @@ if (Test-Path .\RequiredModules) {
 if (!$SemVer -and (Get-Command gitversion -ErrorAction Ignore)) {
     $PSBoundParameters['SemVer'] = gitversion -showvariable nugetversion
 }
+if (!$OutputDirectory) {
+    $PSBoundParameters['OutputDirectory'] = Join-Path $PSScriptRoot .\Output\Configuration
+}
 
 try {
     ## Build the actual module
@@ -37,8 +40,10 @@ try {
                     -Value @(
                         $MetadataInfo.ExportedFunctions.Keys
                         $ConfigurationInfo.ExportedFunctions.Keys
-                        @('*')
+                        # @('*')
                     )
+
+    $ConfigurationInfo
 
     # Remove the extra metadata file
     Remove-Item $MetadataInfo.Path

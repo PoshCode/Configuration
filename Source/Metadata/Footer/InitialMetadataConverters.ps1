@@ -1,6 +1,3 @@
-Set-Alias Update-Manifest Update-Metadata
-Set-Alias Get-ManifestValue Get-Metadata
-
 $MetadataSerializers = @{}
 $MetadataDeserializers = @{}
 

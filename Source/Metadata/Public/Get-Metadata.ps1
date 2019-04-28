@@ -11,6 +11,7 @@ function Get-Metadata {
     #   Get-Metadata .\Configuration.psd1 ReleaseNotes
     #
     #   Returns the release notes!
+    [Alias("Get-ManifestValue")]
     [CmdletBinding()]
     param(
         # The path to the module manifest file

@@ -25,6 +25,7 @@ function Update-Metadata {
 
            Sets the PrivateData.PSData.ReleaseNotes value in the Configuration.psd1 file!
     #>
+    [Alias("Update-Manifest")]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSShouldProcess", "")] # Because PSSCriptAnalyzer team refuses to listen to reason. See bugs:  #194 #283 #521 #608
     [CmdletBinding(SupportsShouldProcess)]
     param(
