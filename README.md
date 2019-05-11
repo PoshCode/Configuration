@@ -94,7 +94,7 @@ When you `Export-Configuration` you can set the `-Scope`, which determines where
 * **Enterprise** exports to `$Env:AppData` (the roaming path) or `~/.local/share/`
 * **Machine** exports to `$Env:ProgramData` or `/etc/xdg/`
 
-Note that the linux paths are controlled by XDG environment variables, and the default paths can be overriden by mandually editing the Configuration module manifest.
+Note that the linux paths are controlled by XDG environment variables, and the default paths can be overriden by manually editing the Configuration module manifest.
 
 Within that folder, the Configuration module root is "PowerShell," followed by either a company or author and the module name -- within which your configuration file(s) are stored.
 
