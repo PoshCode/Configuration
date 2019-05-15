@@ -22,7 +22,7 @@ function Import-Configuration {
         [System.Management.Automation.CallStackFrame[]]$CallStack = $(Get-PSCallStack),
 
         # The Module you're importing configuration for
-        [Parameter(ParameterSetName = "__ModuleInfo", ValueFromPipeline = $true)]
+        [Parameter(ParameterSetName = "__ModuleInfo", ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [System.Management.Automation.PSModuleInfo]$Module,
 
         # An optional module qualifier (by default, this is blank)
