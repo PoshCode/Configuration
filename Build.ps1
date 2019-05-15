@@ -5,25 +5,19 @@ param(
 
     # The version of the output module
     [Alias("ModuleVersion")]
-    [string]$SemVer
+    [string]$SemVer,
+
+    # Optionally, a local folder that modules and CLI tools can be installed in
+    $LocalTools = "./RequiredModules"
 )
 Push-Location $PSScriptRoot -StackName BuildWindowsConsoleFont
 
-# Do we need to re-add the PSModulePath in each PowerShell step?
-if (Test-Path .\RequiredModules) {
-    $LocalModules = Convert-Path .\RequiredModules
-    if (-not (@($Env:PSModulePath.Split([IO.Path]::PathSeparator)) -contains $LocalModules)) {
-        Write-Verbose "Adding $($LocalModules) to PSModulePath"
-        $Env:PSModulePath = $LocalModules + [IO.Path]::PathSeparator + $Env:PSModulePath
-    }
-}
+# The init script sets default values for the parameters and fixes paths
+. $PSScriptRoot/Init.ps1
 
-if (!$SemVer -and (Get-Command gitversion -ErrorAction Ignore)) {
-    $PSBoundParameters['SemVer'] = gitversion -showvariable nugetversion
-}
-if (!$OutputDirectory) {
-    $PSBoundParameters['OutputDirectory'] = Join-Path $PSScriptRoot .\Output\Configuration
-}
+$PSBoundParameters['SemVer'] = $SemVer
+$PSBoundParameters['OutputDirectory'] = $OutputDirectory
+$null = $PSBoundParameters.Remove('LocalTools')
 
 try {
     ## Build the actual module
