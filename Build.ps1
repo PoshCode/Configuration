@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     # A specific folder to build into
-    $OutputDirectory,
+    $OutputDirectory = $PSScriptRoot,
 
     # The version of the output module
     [Alias("ModuleVersion")]
