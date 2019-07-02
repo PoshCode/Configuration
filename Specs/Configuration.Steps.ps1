@@ -494,22 +494,17 @@ When "we add a converter with a number as a key" {
     }
 }
 
-Then "the settings object should be of type (.*)" {
+Then "the (?:settings|output) object should be of type (.*)" {
     param([Type]$Type)
     $Settings | Should BeOfType $Type
 }
 
-Then "the settings object should have (.*) in the PSTypeNames" {
+Then "the (?:settings|output) object should have (.*) in the PSTypeNames" {
     param([string]$Type)
     $Settings.PSTypeNames -eq $Type | Should Be $Type
 }
 
-Then "the settings object should have an? (.*) of type (.*)" {
-    param([String]$Parameter, [Type]$Type)
-    $Settings.$Parameter | Should BeOfType $Type
-}
-
-Then "the settings object's (.*) should (be of type|be) (.*)" {
+Then "the (?:settings|output) object's (.*) should (be of type|be) (.*)" {
     param([String]$Parameter, [String]$operator, $Expected)
     $Value = $Settings
     Set-StrictMode -Off
@@ -674,4 +669,74 @@ Then "a settings file named (\S+) should exist(?:(?: in the (?<Scope>\S+) folder
     }
     $SettingsFile = Join-Path $folder $fileName
     $SettingsFile | Should Exist
+}
+
+Given "a passthru command '(?<Command>[A-Z][a-z]+-[A-Z][a-z]+)' with (?<Parameters>.*) parameters" {
+     param($Command, $Parameters)
+
+    [string[]]$Parameters = $Parameters -split "\s*and\s*" | % { $_.Trim("['`"]") }
+
+    $Function = "
+    function $Command {
+        param(`$$($Parameters -join ", `$"))
+        `$global:DebugPreference = 'Continue'
+        Import-ParameterConfiguration
+        @{  $(foreach ($name in $Parameters) {
+                "`n            $Name = `$$Name"
+            })
+        }
+        `$global:DebugPreference = 'SilentlyContinue'
+    }
+    "
+    Invoke-Expression $Function
+}
+
+Given "an example New-User command" {
+    function New-User {
+        [CmdletBinding()]
+        param(
+            $FirstName,
+            $LastName,
+            $UserName,
+            $Domain,
+            $EMail,
+            $Department,
+            [hashtable]$Permissions
+        )
+        Import-ParameterConfiguration -FileName "${Department}User.psd1"
+        # Possibly calculated based on (default) parameter values
+        if (-not $UserName) { $UserName = "$FirstName.$LastName" }
+        if (-not $EMail)    { $EMail = "$UserName@$Domain" }
+
+        # Lots of work to create the user's AD account and email etc.
+        [PSCustomObject]@{
+            PSTypeName = "MagicUser"
+            FirstName = $FirstName
+            LastName = $LastName
+            EMail      = $EMail
+            # Passthru for testing
+            Permissions = $Permissions
+        }
+    }
+}
+
+Given 'a local file named (?<Name>.*)' {
+    param($Name, $Content)
+    Set-Content TestDrive:\$Name $Content
+}
+
+When "I call (?<Command>[A-Z][a-z]+-[A-Z][a-z]+)(?<Parameters> .*)?" {
+    param($Command, $Parameters)
+    Set-Location TestDrive:\
+    try {
+        # Write-Verbose "$Command $Parameters" -Verbose
+        $global:DebugPreference = 'Continue'
+
+        $Settings = Invoke-Command ([ScriptBlock]::Create("$Command $Parameters"))
+
+        $global:DebugPreference = 'SilentlyContinue'
+        # Write-Verbose (($Settings | Out-String -Stream | % TrimEnd) -join "`n") -Verbose
+    } finally {
+        Pop-Location
+    }
 }
