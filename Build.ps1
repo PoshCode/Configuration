@@ -1,3 +1,4 @@
+#requires -Module ModuleBuilder, Configuration
 [CmdletBinding()]
 param(
     # A specific folder to build into
@@ -12,12 +13,9 @@ param(
 )
 Push-Location $PSScriptRoot -StackName BuildWindowsConsoleFont
 
-# The init script sets default values for the parameters and fixes paths
-. $PSScriptRoot/Init.ps1
-
-$PSBoundParameters['SemVer'] = $SemVer
-$PSBoundParameters['OutputDirectory'] = $OutputDirectory
-$null = $PSBoundParameters.Remove('LocalTools')
+if (!$SemVer -and (Get-Command gitversion -ErrorAction Ignore)) {
+    $PSBoundParameters['SemVer'] = gitversion -showvariable nugetversion
+}
 
 try {
     ## Build the actual module
