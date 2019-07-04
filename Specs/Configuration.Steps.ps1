@@ -8,7 +8,6 @@ function global:GetModuleBase {
         Sort-Object Version -Descending |
         Select-Object -First 1
 
-    Write-Warning "Import-Module $($Module.Name) -RequiredVersion $($Module.Version) from $($Module.ModuleBase)"
     $Module.ModuleBase
 }
 
@@ -246,10 +245,12 @@ When "we say (?<property>.*) is important and update with" {
     $Settings = $Settings | Update-Object -UpdateObject $Update -Important $property
 }
 
-When "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
+Given "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
     param($fileName, $hashtable, $Scope = $null, $Version = $null)
 
-    if($Scope -and $Version) {
+    if($Scope -eq "current") {
+        $folder = "TestDrive:/Level1/Level2/"
+    } elseif($Scope -and $Version) {
         $folder = GetStoragePath -Scope $Scope -Version $Version
     } elseif($Scope) {
         $folder = GetStoragePath -Scope $Scope
@@ -268,7 +269,11 @@ When "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+)
     }
     if(!(Test-Path $Parent -PathType Container)) {
         $null = New-Item $Parent -Type Directory -Force
+        if ($Scope -eq "current") {
+            Push-Location $Parent
+        }
     }
+    # Write-Verbose "Creating $SettingsFile" -Verbose
     Set-Content $SettingsFile -Value $hashtable
 }
 
@@ -720,21 +725,16 @@ Given "an example New-User command" {
     }
 }
 
-Given 'a local file named (?<Name>.*)' {
-    param($Name, $Content)
-    Set-Content TestDrive:\$Name $Content
-}
 
-When "I call (?<Command>[A-Z][a-z]+-[A-Z][a-z]+)(?<Parameters> .*)?" {
+When "I call (Test-Verb|New-User)(?<Parameters> .*)?" {
     param($Command, $Parameters)
-    Set-Location TestDrive:\
     try {
         # Write-Verbose "$Command $Parameters" -Verbose
-        $global:DebugPreference = 'Continue'
+        # $global:DebugPreference = 'Continue'
 
         $Settings = Invoke-Command ([ScriptBlock]::Create("$Command $Parameters"))
 
-        $global:DebugPreference = 'SilentlyContinue'
+        # $global:DebugPreference = 'SilentlyContinue'
         # Write-Verbose (($Settings | Out-String -Stream | % TrimEnd) -join "`n") -Verbose
     } finally {
         Pop-Location
