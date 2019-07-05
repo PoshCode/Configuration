@@ -34,7 +34,7 @@ function Export-Configuration {
         [System.Management.Automation.CallStackFrame[]]$CallStack = $(Get-PSCallStack),
 
         # The Module you're importing configuration for
-        [Parameter(ParameterSetName = "__ModuleInfo", ValueFromPipeline = $true)]
+        [Parameter(ParameterSetName = "__ModuleInfo", ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [System.Management.Automation.PSModuleInfo]$Module,
 
 

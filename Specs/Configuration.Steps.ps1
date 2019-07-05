@@ -4,11 +4,12 @@ if (!(Test-Path Variable:Global:IsLinux -ErrorAction SilentlyContinue)){
     $Global:IsLinux = $False
 }
 function global:GetModuleBase {
-    $ModuleBase = (Get-Module "Configuration").ModuleBase
-    if (!$ModuleBase) {
-        $ModuleBase = @(Get-Module "Configuration" -ListAvailable)[0].ModuleBase
-    }
-    $ModuleBase
+    $Module = Get-Module "Configuration" -ListAvailable |
+        Sort-Object Version -Descending |
+        Select-Object -First 1
+
+    Write-Warning "Import-Module $($Module.Name) -RequiredVersion $($Module.Version) from $($Module.ModuleBase)"
+    $Module.ModuleBase
 }
 
 
@@ -364,7 +365,7 @@ When "we convert the settings to metadata" {
 
     # # Write-Debug $SettingsMetadata
     $Wide = $Host.UI.RawUI.WindowSize.Width
-    Write-Verbose $SettingsMetadata
+    # Write-Verbose $SettingsMetadata
 }
 
 When "we export to a settings file named (.*)" {

@@ -1,4 +1,5 @@
-.Do.Not.COMMIT.This.Steps.ps1
-output/
-.vs/
-RequiredModules/
+/output/
+/[0-9]*/
+
+/.vs/
+/RequiredModules/

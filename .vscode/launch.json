@@ -5,9 +5,9 @@
         {
             "type": "PowerShell",
             "request": "launch",
-            "name": "PowerShell Debug All Tests w/Code Coverage",
+            "name": "Gherkin All Tests w/Code Coverage",
             "preLaunchTask": "build",
-            "script": "Invoke-Pester",
+            "script": "Invoke-Gherkin",
             "args": [
                 "-PesterOption @{ IncludeVSCodeMarker = $True }",
                 "-CodeCoverage Output\\*.psm1"
@@ -18,8 +18,9 @@
         {
             "type": "PowerShell",
             "request": "launch",
-            "name": "PowerShell Debug Current Test File w/Args Prompt",
-            "script": "$env:PSModulePath = '${workspaceFolder}\\Output;${env:PSModulePath};Import-Module Pester; Invoke-Pester -Path '${file}'",
+            "name": "Gherkin Current Test File w/Args Prompt",
+            "preLaunchTask": "build",
+            "script": "$env:PSModulePath = '${workspaceFolder}\\Output;${env:PSModulePath};Import-Module Pester; Invoke-Gherkin -Path '${file}'",
             "args": [
                 "-PesterOption @{ IncludeVSCodeMarker = $True }",
                 "${command:SpecifyScriptArgs}"
