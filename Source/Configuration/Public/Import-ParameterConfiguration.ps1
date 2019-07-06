@@ -13,7 +13,7 @@ function Import-ParameterConfiguration {
             If you call this command at the top of a function, it overrides (only) the default parameter values with
 
             - Values from a manifest file in the present working directory ($pwd)
-        .Example
+        .EXAMPLE
             Given that you've written a script like:
 
             function New-User {
@@ -23,19 +23,25 @@ function Import-ParameterConfiguration {
                     $LastName,
                     $UserName,
                     $Domain,
-                    $EMail
+                    $EMail,
+                    $Department,
+                    [hashtable]$Permissions
                 )
-                Import-ParameterConfiguration
+                Import-ParameterConfiguration -Recurse
                 # Possibly calculated based on (default) parameter values
                 if (-not $UserName) { $UserName = "$FirstName.$LastName" }
                 if (-not $EMail)    { $EMail = "$UserName@$Domain" }
 
-                # Lots of work to create the user's AD account and email etc.
+                # Lots of work to create the user's AD account, email, set permissions etc.
+
+                # Output an object:
                 [PSCustomObject]@{
-                    PSTypeName = "MagicUser"
-                    FirstName = $FirstName
-                    LastName = $LastName
-                    EMail      = $EMail
+                    PSTypeName  = "MagicUser"
+                    FirstName   = $FirstName
+                    LastName    = $LastName
+                    EMail       = $EMail
+                    Department  = $Department
+                    Permissions = $Permissions
                 }
             }
 
@@ -48,19 +54,57 @@ function Import-ParameterConfiguration {
 
             PS> New-User Joel Bennett
 
-        .Example
-            Following up on our earlier example, imagine that you wanted different configuration files for each department ...
+            FirstName   : Joel
+            LastName    : Bennett
+            EMail       : Joel.Bennett@HuddledMasses.org
 
-            You could create department specific files in your folder, like Security-User.psd1 with something like
+        .EXAMPLE
+            Import-ParameterConfiguration works recursively (up through parent folders)
 
+            That means it reads config files in the same way git reads .gitignore,
+            with settings in the higher level files (up to the root?) being
+            overridden by those in lower level files down to the WorkingDirectory
+
+            Following the previous example to a ridiculous conclusion,
+            we could automate creating users by creating a tree like:
+
+            C:\HuddledMasses\Security\Admins\ with a User.psd1 in each folder:
+
+            # C:\HuddledMasses\User.psd1:
             @{
                 Domain = "HuddledMasses.org"
+            }
+
+            # C:\HuddledMasses\Security\User.psd1:
+            @{
+                Department = "Security"
                 Permissions = @{
-                    # whatever you need
+                    Access = "User"
                 }
             }
 
-            And then modify your function like ...
+            # C:\HuddledMasses\Security\Admins\User.psd1
+            @{
+                Permissions = @{
+                    Access = "Administrator"
+                }
+            }
+
+            And then switch to the Admins directory and run:
+
+            PS> New-User Joel Bennett
+
+            FirstName   : Joel
+            LastName    : Bennett
+            EMail       : Joel.Bennett@HuddledMasses.org
+            Department  : Security
+            Permissions : { Access = Administrator }
+
+        .EXAMPLE
+            Following up on our earlier example, let's look at a way to use imagine that -FileName parameter.
+            If you wanted to use a different configuration files than your Noun, you can pass the file name in.
+
+            You could even use one of your parameters to generate the file name. If we modify the function like ...
 
             function New-User {
                 [CmdletBinding()]
@@ -89,8 +133,16 @@ function Import-ParameterConfiguration {
                 }
             }
 
-            Now the following command would resolve the `SecurityUser.psd1`
-            And the user would get appropriate permissions automatically:
+            Now you could create a `SecurityUser.psd1`
+
+            @{
+                Domain = "HuddledMasses.org"
+                Permissions = @{
+                    Access = "Administrator"
+                }
+            }
+
+            And run:
 
             PS> New-User Joel Bennett -Department Security
     #>
@@ -101,27 +153,36 @@ function Import-ParameterConfiguration {
         # The name of the configuration file.
         # The default value is your command's Noun, with the ".psd1" extention.
         # So if you call this from a command named Build-Module, the noun is "Module" and the config $FileName is "Module.psd1"
-        [string]$FileName
+        [string]$FileName,
+
+        # If set, considers configuration files in the parent, and it's parent recursively
+        [switch]$Recurse
     )
 
     $CallersInvocation = @(Get-PSCallStack)[1].InvocationInfo
+    $BoundParameters = @{} + $CallersInvocation.BoundParameters
+    $AllParameters = $CallersInvocation.MyCommand.Parameters.Keys
     if (-not $PSBoundParameters.ContainsKey("FileName")) {
         $FileName = "$($CallersInvocation.MyCommand.Noun).psd1"
     }
 
-    $FileName = Join-Path $WorkingDirectory $FileName
+    do {
+        $FilePath = Join-Path $WorkingDirectory $FileName
 
-    if (Test-Path $FileName) {
-        Write-Debug "Initializing parameters for $($CallersInvocation.InvocationName) from $(Join-Path $WorkingDirectory $CallersInvocation.MyCommand.Noun).psd1"
-        $ConfiguredDefaults = Import-Metadata $FileName -ErrorAction SilentlyContinue
+        Write-Debug "Initializing parameters for $($CallersInvocation.InvocationName) from $(Join-Path $WorkingDirectory $FileName)"
+        if (Test-Path $FilePath) {
+            $ConfiguredDefaults = Import-Metadata $FilePath -ErrorAction SilentlyContinue
 
-        foreach ($Parameter in $CallersInvocation.MyCommand.Parameters.Keys) {
-            # If it's in the defaults AND it was not passed in as a parameter ...
-            if ($ConfiguredDefaults.ContainsKey($Parameter) -and -not ($CallersInvocation.BoundParameters -and $CallersInvocation.BoundParameters.ContainsKey($Parameter))) {
-                Write-Debug "Export $Parameter = $($ConfiguredDefaults[$Parameter])"
-                # This "SessionState" is the _callers_ SessionState, not ours
-                $PSCmdlet.SessionState.PSVariable.Set($Parameter, $ConfiguredDefaults[$Parameter])
+            foreach ($Parameter in $AllParameters) {
+                # If it's in the defaults AND it was not already set at a higher precedence
+                if ($ConfiguredDefaults.ContainsKey($Parameter) -and -not ($BoundParameters.ContainsKey($Parameter))) {
+                    Write-Debug "Export $Parameter = $($ConfiguredDefaults[$Parameter])"
+                    $BoundParameters.Add($Parameter, $ConfiguredDefaults[$Parameter])
+                    # This "SessionState" is the _callers_ SessionState, not ours
+                    $PSCmdlet.SessionState.PSVariable.Set($Parameter, $ConfiguredDefaults[$Parameter])
+                }
             }
         }
-    }
+        Write-Debug "Recurse:$Recurse -and $($BoundParameters.Count) of $($AllParameters.Count) Parameters and $WorkingDirectory"
+    } while ($Recurse -and ($AllParameters.Count -gt $BoundParameters.Count) -and ($WorkingDirectory = Split-Path $WorkingDirectory))
 }
