@@ -159,7 +159,7 @@ function Import-ParameterConfiguration {
         [switch]$Recurse
     )
 
-    $CallersInvocation = @(Get-PSCallStack)[1].InvocationInfo
+    $CallersInvocation = $PSCmdlet.SessionState.PSVariable.GetValue("MyInvocation")
     $BoundParameters = @{} + $CallersInvocation.BoundParameters
     $AllParameters = $CallersInvocation.MyCommand.Parameters.Keys
     if (-not $PSBoundParameters.ContainsKey("FileName")) {
