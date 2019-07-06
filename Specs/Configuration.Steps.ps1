@@ -248,7 +248,7 @@ When "we say (?<property>.*) is important and update with" {
 Given "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+) folder)|(?: for version (?<Version>[0-9.]+)))*" {
     param($fileName, $hashtable, $Scope = $null, $Version = $null)
 
-    if($Scope -eq "current") {
+    if ($Scope -in "current","parent") {
         $folder = "TestDrive:/Level1/Level2/"
     } elseif($Scope -and $Version) {
         $folder = GetStoragePath -Scope $Scope -Version $Version
@@ -269,9 +269,13 @@ Given "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+
     }
     if(!(Test-Path $Parent -PathType Container)) {
         $null = New-Item $Parent -Type Directory -Force
-        if ($Scope -eq "current") {
-            Push-Location $Parent
-        }
+    }
+    if ($Scope -in "current","parent") {
+        Push-Location "TestDrive:/Level1/Level2/"
+    }
+    if ($Scope -eq "parent") {
+        $Parent = Split-Path $Parent
+        $SettingsFile = Join-Path $Parent $fileName
     }
     # Write-Verbose "Creating $SettingsFile" -Verbose
     Set-Content $SettingsFile -Value $hashtable
@@ -708,18 +712,20 @@ Given "an example New-User command" {
             $Department,
             [hashtable]$Permissions
         )
-        Import-ParameterConfiguration -FileName "${Department}User.psd1"
+        Import-ParameterConfiguration -Recurse -FileName "${Department}User.psd1"
         # Possibly calculated based on (default) parameter values
         if (-not $UserName) { $UserName = "$FirstName.$LastName" }
         if (-not $EMail)    { $EMail = "$UserName@$Domain" }
 
-        # Lots of work to create the user's AD account and email etc.
+        # Lots of work to create the user's AD account, email, set permissions etc.
+
+        # Output an object:
         [PSCustomObject]@{
-            PSTypeName = "MagicUser"
-            FirstName = $FirstName
-            LastName = $LastName
-            EMail      = $EMail
-            # Passthru for testing
+            PSTypeName  = "MagicUser"
+            FirstName   = $FirstName
+            LastName    = $LastName
+            EMail       = $EMail
+            Department  = $Department
             Permissions = $Permissions
         }
     }
