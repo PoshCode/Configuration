@@ -91,7 +91,7 @@ Feature: Configure Command From Working Directory
         Then the output object's EMail should be Joel.Bennett@HuddledMasses.org
         And the output object's Department should be Security
         And the output object's Permissions should be of type [hashtable]
-        And the output object's Permissions.Access should be Admininstrator
+        And the output object's Permissions.Access should be Administrator
 
 
     @Functions @Import
@@ -110,4 +110,4 @@ Feature: Configure Command From Working Directory
         Then the output object's EMail should be Joel.Bennett@HuddledMasses.org
         And the output object's Permissions should be of type [hashtable]
         And the output object's Permissions.Access should be of type [string]
-        And the output object's Permissions.Access should be Admininstrator
+        And the output object's Permissions.Access should be Administrator

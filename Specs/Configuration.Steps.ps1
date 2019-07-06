@@ -250,13 +250,13 @@ Given "a (?:settings file|module manifest) named (\S+)(?:(?: in the (?<Scope>\S+
 
     if ($Scope -in "current","parent") {
         $folder = "TestDrive:/Level1/Level2/"
-    } elseif($Scope -and $Version) {
+    } elseif ($Scope -and $Version) {
         $folder = GetStoragePath -Scope $Scope -Version $Version
-    } elseif($Scope) {
+    } elseif ($Scope) {
         $folder = GetStoragePath -Scope $Scope
-    } elseif($Version) {
+    } elseif ($Version) {
         $folder = GetStoragePath -Version $Version
-    } elseif(Test-Path "$ModulePath") {
+    } elseif ($ModulePath -and (Test-Path "$ModulePath")) {
         $folder = $ModulePath
     } else {
         $folder = "TestDrive:/"
