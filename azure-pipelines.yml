@@ -12,13 +12,13 @@ resources:
       type: github
       endpoint: github # You'll need to define a service connection in your project on Azure
       name: PoshCode/Azure-Pipelines
-      ref: refs/tags/3.0.1
+      ref: refs/tags/3.2.0
 
-jobs:
+stages:
+- stage: Build
+  jobs:
   - template: GitVersion-job.yml@poshcode
-
-  # using a custom build job because we have two modules
-  - job: Build
+  - job: Build # using a custom build job because we have two modules
     pool:
       vmImage: windows-2019
     dependsOn: GitVersion
@@ -35,16 +35,30 @@ jobs:
       displayName: Publish Build Output
       inputs:
         artifactName: $(ArtifactName)
-        targetPath: $(Build.BinariesDirectory)/$(Build.DefinitionName)
+        targetPath: $(Build.BinariesDirectory)
 
+- stage: Test
+  dependsOn: Build
+  jobs:
   - template: ScriptAnalyzer-job.yml@poshcode
     parameters:
-      dependsOn: ['Build']
+      dependsOn: []
       artifactName: $(ArtifactName)
       excludeRules: ["PSShouldProcess","PSUseShouldProcessForStateChangingFunctions","PSAvoidUsingDeprecatedManifestFields","PSPossibleIncorrectUsageOfAssignmentOperator"]
 
   - template: Gherkin-job.yml@poshcode
     parameters:
-      dependsOn: ['Build']
+      dependsOn: []
       artifactName: $(ArtifactName)
       specDirectory: '$(Build.SourcesDirectory)/Specs'
+      strategy:
+        matrix:
+          Linux:
+            vmImage: 'ubuntu-16.04'
+          MacOS:
+            vmImage: 'macOS-10.14'
+          Windows:
+            vmImage: 'windows-2019'
+      pool:
+        vmImage: $(vmImage)
+
