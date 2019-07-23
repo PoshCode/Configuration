@@ -162,10 +162,20 @@ When "the module's (\w+) path should (\w+) (.+)$" {
     [string[]]$Path = $Path -split "\s*and\s*" | %{ $_.Trim("['`"]") }
 
     foreach($PathAssertion in $Path) {
-        $LocalStoragePath = GetStoragePath -Scope $Scope
-        #Write-Host $LocalStoragePath -NoNewline
+        try {
+            # if you're not an administrator, you're going to get Access ... denied
+            $LocalStoragePath = GetStoragePath -Scope $Scope
+        } catch {
+            # this would make most tests fail, because the folder won't exist
+            $LocalStoragePath = GetStoragePath -Scope $Scope -SkipCreatingFolder
+        }
+
+        # This is because of the mock I wrote to test the linux logic on Windows
         if(!$IsLinux -and $PathAssertion -match "\^~?/") {
             $LocalStoragePath = $LocalStoragePath -replace "C:[\\\/]etc","/etc"
+        }
+        # This is just because I want to be able to write ~/ in the paths in tests instead of $Home/
+        if ($PathAssertion -match "\^~?/") {
             $LocalStoragePath = $LocalStoragePath -replace "^$([regex]::escape($Home.TrimEnd("/\")))","~"
         }
         #Write-Host $LocalStoragePath -ForegroundColor Yellow
