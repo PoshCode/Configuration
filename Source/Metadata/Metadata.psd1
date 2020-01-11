@@ -23,6 +23,7 @@ Description = 'A module for PowerShell data serialization'
 
 # This doesn't make it into the build output, so it's irrelevant
 FunctionsToExport = '*-*'
+AliasesToExport = '*'
 PrivateData   = @{ PSData = @{ Prerelease = "" } }
 
 }
