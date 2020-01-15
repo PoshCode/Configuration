@@ -4,23 +4,20 @@
 #>
 [CmdletBinding()]
 param(
-    # A specific folder to build into
-    $OutputDirectory,
+    # A specific folder the build is in
+    $OutputDirectory = $PSScriptRoot,
 
     # The version of the output module
     [Alias("ModuleVersion")]
-    [string]$SemVer,
-
-    # Optionally, a local folder that modules and CLI tools can be installed in
-    $LocalTools = "./RequiredModules"
+    [string]$SemVer
 )
-Push-Location $PSScriptRoot -StackName BuildWindowsConsoleFont
+Push-Location $PSScriptRoot -StackName BuildTestStack
 
-# The init script sets default values for the parameters and fixes paths
-. $PSScriptRoot/Init.ps1
+if (!$SemVer -and (Get-Command gitversion -ErrorAction Ignore)) {
+    $SemVer = gitversion -showvariable nugetversion
+}
 
 Write-Host "OutputDirectory: $OutputDirectory"
-Write-Host "LocalTools: $LocalTools"
 Write-Host "SemVer: $SemVer"
 
 try {
@@ -42,7 +39,6 @@ try {
     Invoke-Command {
         # We need to make sure that the PSModulePath has our output at the front
         $Env:PSModulePath = $OutputDirectory + [IO.Path]::PathSeparator +
-                            $LocalTools + [IO.Path]::PathSeparator +
                             $Env:PSModulePath
 
         Write-Host "Testing Configuration $SemVer"
@@ -55,5 +51,5 @@ try {
     }
 
 } finally {
-    Pop-Location -StackName BuildWindowsConsoleFont
+    Pop-Location -StackName BuildTestStack
 }

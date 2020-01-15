@@ -6,12 +6,9 @@ param(
 
     # The version of the output module
     [Alias("ModuleVersion")]
-    [string]$SemVer,
-
-    # Optionally, a local folder that modules and CLI tools can be installed in
-    $LocalTools = "./RequiredModules"
+    [string]$SemVer
 )
-Push-Location $PSScriptRoot -StackName BuildWindowsConsoleFont
+Push-Location $PSScriptRoot -StackName BuildTestStack
 
 if (!$SemVer -and (Get-Command gitversion -ErrorAction Ignore)) {
     $PSBoundParameters['SemVer'] = gitversion -showvariable nugetversion
@@ -40,5 +37,5 @@ try {
     # Remove the extra metadata file
     Remove-Item $MetadataInfo.Path
 } finally {
-    Pop-Location -StackName BuildWindowsConsoleFont
+    Pop-Location -StackName BuildTestStack
 }
