@@ -87,7 +87,7 @@ function ConvertTo-Metadata {
             $(if ($AsHashtable) {
                     "@{{`n$t{0}`n}}"
                 } else {
-                    "(PSObject @{{`n$t{0}`n}})"
+                    "(PSObject @{{`n$t{0}`n}} -TypeName '$($InputObject.PSTypeNames -join "','")')"
                 }) -f ($(
                     ForEach ($key in $InputObject | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name) {
                         if ("$key" -match '^(\w+|-?\d+\.?\d*)$') {

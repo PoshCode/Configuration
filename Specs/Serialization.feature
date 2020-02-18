@@ -97,6 +97,22 @@ Feature: Serialize Hashtables or Custom Objects
             | PSCredential   |
             | ConsoleColor   |
 
+    @Serialization
+    Scenario: PSCustomObject preserves PSTypeNames
+        Given a settings object
+            """
+            @{
+                PSTypeName = 'Whatever.User'
+                FirstName = 'Joel'
+                LastName = 'Bennett'
+                UserName = 'Jaykul'
+                Homepage = [Uri]"http://HuddledMasses.org"
+            }
+            """
+        When we export to a settings file named Configuration.psd1
+        And we import the file to an object
+        Then the settings object should have Whatever.User in the PSTypeNames
+
     @Serialization @Enum
     Scenario: Unsupported types should be serialized as strings
         Given a settings hashtable with an Enum in it
@@ -402,8 +418,9 @@ Feature: Serialize Hashtables or Custom Objects
                 Age = 42
             }
             """
-        And the settings object's UserName should be Jaykul
+        Then the settings object's UserName should be Jaykul
         And the settings object's Age should be 42
+        And the settings object should have User in the PSTypeNames
 
 
     @Serialization @Deserialization @File

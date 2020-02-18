@@ -42,12 +42,19 @@ Add-MetadataConverter @{
     # This GUID is here instead of as a function
     # just to make sure the tests can validate the converter hashtables
     "Guid"           = { [Guid]$Args[0] }
-    "PSObject"       = { New-Object System.Management.Automation.PSObject -Property $Args[0] }
     "DateTime"       = { [DateTime]$Args[0] }
     "DateTimeOffset" = { [DateTimeOffset]$Args[0] }
     "ConsoleColor"   = { [ConsoleColor]$Args[0] }
     "ScriptBlock"    = { [scriptblock]::Create($Args[0]) }
     "PSCredential"   = (Get-Command PSCredentialMetadataConverter).ScriptBlock
+    "PSObject"       = { param([hashtable]$Properties, [string[]]$TypeName)
+        $Result = New-Object System.Management.Automation.PSObject -Property $Properties
+        $TypeName += @($Result.PSTypeNames)
+        foreach ($Name in $TypeName) {
+            $Result.PSTypeNames.Add($Name)
+        }
+        $Result }
+
 }
 
 $Script:OriginalMetadataSerializers = $MetadataSerializers.Clone()
