@@ -8,6 +8,8 @@ function global:GetModuleBase {
         Sort-Object Version -Descending |
         Select-Object -First 1
 
+    Import-Module "$($Module.ModuleBase)/Configuration.psd1" -Scope Global
+
     $Module.ModuleBase
 }
 
