@@ -62,6 +62,8 @@ function ConvertTo-Metadata {
     process {
         if ($Null -eq $InputObject) {
             '""'
+        } elseif ($InputObject -is [IPsMetadataSerializable] -or ($InputObject.ToPsMetadata -as [Func[String]] -and $InputObject.FromPsMetasta -as [Action[String]])) {
+            "(FromPsMetadata {0} @'`n{1}`n'@)" -f $InputObject.GetType().FullName, $InputObject.ToMetadata()
         } elseif ( $InputObject -is [Int16] -or
                    $InputObject -is [Int32] -or
                    $InputObject -is [Int64] -or

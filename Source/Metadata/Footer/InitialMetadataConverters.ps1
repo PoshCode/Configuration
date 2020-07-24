@@ -47,9 +47,16 @@ Add-MetadataConverter @{
     "ConsoleColor"   = { [ConsoleColor]$Args[0] }
     "ScriptBlock"    = { [scriptblock]::Create($Args[0]) }
     "PSCredential"   = (Get-Command PSCredentialMetadataConverter).ScriptBlock
+    "FromPsMetadata" = {
+        $TypeName, $Args = $Args
+        $Output = ([Type]$TypeName)::new()
+        $Output.FromPsMetadata($Args)
+        $Output
+    }
     "PSObject"       = { param([hashtable]$Properties, [string[]]$TypeName)
         $Result = New-Object System.Management.Automation.PSObject -Property $Properties
         $TypeName += @($Result.PSTypeNames)
+        $Result.PSTypeNames.Clear()
         foreach ($Name in $TypeName) {
             $Result.PSTypeNames.Add($Name)
         }

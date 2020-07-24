@@ -486,3 +486,24 @@ Feature: Serialize Hashtables or Custom Objects
         Given a settings hashtable with a SwitchParameter in it
         When we convert the settings to metadata
         Then the string version should match "TestCase = \`$True"
+
+    @Serialization
+    Scenario: Has an IPsMetadataSerializable Interface
+        Given the configuration module exports IPsMetadataSerializable
+        And a TestClass that implements IPsMetadataSerializable
+        And a settings file named Configuration.psd1
+            """
+            FromPsMetadata TestClass "
+                @{
+                    Values = @{
+                        User = 'Jaykul'
+                    }
+                    Name = 'Joel'
+                }
+            "
+            """
+        When we import the file to an object
+        Then the settings object should be of type TestClass
+        And the settings object's User should be Jaykul
+        And the settings object's Name should be Joel
+        And the settings object's Keys should be User

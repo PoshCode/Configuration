@@ -1,8 +1,56 @@
+#using module Configuration
+
 $PSModuleAutoLoadingPreference = "None"
 # Fix IsLinux on Windows PowerShell 5.x
 if (!(Test-Path Variable:Global:IsLinux -ErrorAction SilentlyContinue)){
     $Global:IsLinux = $False
 }
+
+# NOTE THIS FAKE IMPLEMENTS THE INTERFACE DuckType style, WITHOUT SAYING SO
+# Unfortunately, this C# class is what's actually used by the tests
+# When it SHOULD be the PowerShell class below
+Add-Type -TypeDefinition @'
+using System;
+using System.Collections;
+public class TestClass : Hashtable {
+    public string Name { get; set; }
+    public string TestMetadata { get; set; } = "@{ Values = @{ User = 'Jaykul' } Name = 'Joel' }";
+
+    public string ToPsMetadata() {
+        return TestMetadata;
+    }
+
+    public void FromPsMetadata(string Metadata) {
+        Metadata = System.Text.RegularExpressions.Regex.Replace(Metadata.Trim(), @"\s+", " ");
+        if (Metadata != TestMetadata) {
+            throw new ArgumentException("Metadata doesn't match expected value: [" + Metadata + "] [" + TestMetadata + "]");
+        }
+        Name = "Joel";
+        Add("User", "Jaykul");
+    }
+}
+'@
+InModuleScope Pester {
+class TestClass : Hashtable, IPsMetadataSerializable {
+    [string]$Name
+
+    [string] ToPsMetadata() {
+        return ConvertTo-Metadata -InputObject @{
+            Name   = $this.Name
+            Values = @{ } + $this
+        }
+    }
+
+    [void] FromPsMetadata([string]$Metadata) {
+        $self = ConvertFrom-Metadata -InputObject $Metadata
+        $this.PSBase.Name = $self.Name
+        foreach ($key in $self.Values.Keys) {
+            $null = $this.Add($key, $self.Values[$key])
+        }
+    }
+}
+}
+
 function global:GetModuleBase {
     $Module = Get-Module "Configuration" -ListAvailable |
         Sort-Object Version -Descending |
@@ -464,6 +512,17 @@ Given "the settings file does not exist" {
     }
 }
 
+Given "the configuration module exports IPsMetadataSerializable" {
+    "IPsMetadataSerializable" -as [Type] | Should -Not -BeNullOrEmpty
+    [IPsMetadataSerializable].IsInterface | Should -Be $true
+}
+
+Given "a TestClass that implements IPsMetadataSerializable" {
+    # We're duck typing it, so no interface ...
+    # [TestClass].ImplementedInterfaces |
+    #     Where Name -eq IPsMetadataSerializable |
+    #     Should -Not -BeNullOrEmpty
+}
 
 # This step will create verifiable/counting loggable mocks for Write-Warning, Write-Error, Write-Verbose
 Given "we expect an? (?<type>warning|error|verbose) in the (?<module>.*) module" {
