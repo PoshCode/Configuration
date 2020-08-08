@@ -14,7 +14,11 @@ using System;
 using System.Collections;
 public class TestClass : Hashtable {
     public string Name { get; set; }
-    public string TestMetadata { get; set; } = "@{ Values = @{ User = 'Jaykul' } Name = 'Joel' }";
+    public string TestMetadata { get; set; }
+
+    public TestClass() {
+        TestMetadata = "@{ Values = @{ User = 'Jaykul' } Name = 'Joel' }";
+    }
 
     public string ToPsMetadata() {
         return TestMetadata;
@@ -30,6 +34,7 @@ public class TestClass : Hashtable {
     }
 }
 '@
+
 InModuleScope Pester {
 class TestClass : Hashtable, IPsMetadataSerializable {
     [string]$Name
