@@ -12,7 +12,7 @@ resources:
       type: github
       endpoint: github # You'll need to define a service connection in your project on Azure
       name: PoshCode/Azure-Pipelines
-      ref: refs/tags/3.2.0
+      ref: refs/tags/4
 
 stages:
 - stage: Build
