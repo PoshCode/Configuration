@@ -83,7 +83,7 @@ function ConvertTo-Metadata {
                         }
                     }) -split "`n" -join "`n$t")
         } elseif ($InputObject -is [System.Collections.IEnumerable]) {
-            "@($($(ForEach($item in @($InputObject)) { ConvertTo-Metadata $item -AsHashtable:$AsHashtable}) -join ","))"
+            "@($($(ForEach($item in @($InputObject)) { $item | ConvertTo-Metadata -AsHashtable:$AsHashtable}) -join ","))"
         } elseif ($InputObject.GetType().FullName -eq 'System.Management.Automation.PSCustomObject') {
             # NOTE: we can't put [ordered] here because we need support for PS v2, but it's ok, because we put it in at parse-time
             $(if ($AsHashtable) {
