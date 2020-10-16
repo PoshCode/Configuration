@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     # A specific folder to build into
-    $OutputDirectory = $PSScriptRoot,
+    $OutputDirectory,
 
     # The version of the output module
     [Alias("ModuleVersion")]
@@ -12,6 +12,9 @@ Push-Location $PSScriptRoot -StackName BuildTestStack
 
 if (!$SemVer -and (Get-Command gitversion -ErrorAction Ignore)) {
     $PSBoundParameters['SemVer'] = gitversion -showvariable nugetversion
+}
+if (!$PSBoundParameters.ContainsKey("OutputDirectory")) {
+    $PSBoundParameters["OutputDirectory"] = $PSScriptRoot
 }
 
 try {
@@ -23,6 +26,8 @@ try {
     $ConfigurationInfo = Build-Module -SourcePath .\Source\Configuration `
                         -Target Build -Passthru `
                         @PSBoundParameters
+
+    Copy-Item -Path (Join-Path $MetadataInfo.ModuleBase Metadata.psm1) -Destination $ConfigurationInfo.ModuleBase
 
     # Because this is a double-module, combine the exports of both modules
     Update-Metadata -Path $ConfigurationInfo.Path -PropertyName FunctionsToExport `
