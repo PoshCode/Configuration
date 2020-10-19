@@ -86,15 +86,15 @@ function Update-Object {
         foreach ($key in $Keys) {
             if ($key -notin $ImportantInputProperties -or -not (TestKey -InputObject $InputObject -Key $Key) ) {
                 # recurse Dictionaries (hashtables) and PSObjects
-                if (($OutputObject.$Key -is [System.Collections.IDictionary] -or $OutputObject.$Key -is [PSObject]) -and
-                    ($InputObject.$Key -is [System.Collections.IDictionary] -or $InputObject.$Key -is [PSObject])) {
-                    $Value = Update-Object -InputObject $InputObject.$Key -UpdateObject $UpdateObject.$Key
+                if (($OutputObject[$Key] -is [System.Collections.IDictionary] -or $OutputObject[$Key] -is [PSObject]) -and
+                    ($InputObject[$Key] -is [System.Collections.IDictionary] -or $InputObject[$Key] -is [PSObject])) {
+                    $Value = Update-Object -InputObject $InputObject[$Key] -UpdateObject $UpdateObject[$Key]
                 } else {
-                    $Value = $UpdateObject.$Key
+                    $Value = $UpdateObject[$Key]
                 }
 
                 if ($OutputObject -is [System.Collections.IDictionary]) {
-                    $OutputObject.$key = $Value
+                    $OutputObject[$key] = $Value
                 } else {
                     $OutputObject = Add-Member -InputObject $OutputObject -MemberType NoteProperty -Name $key -Value $Value -PassThru -Force
                 }
