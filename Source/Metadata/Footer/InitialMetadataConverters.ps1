@@ -64,7 +64,7 @@ Add-MetadataConverter @{
 
 }
 
-$Script:OriginalMetadataSerializers = $MetadataSerializers.Clone()
-$Script:OriginalMetadataDeserializers = $MetadataDeserializers.Clone()
+$Script:OriginalMetadataSerializers = $script:MetadataSerializers.Clone()
+$Script:OriginalMetadataDeserializers = $script:MetadataDeserializers.Clone()
 
 Export-ModuleMember -Function *-* -Alias *
