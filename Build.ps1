@@ -32,8 +32,18 @@ try {
     # Because this is a double-module, combine the exports of both modules
     Update-Metadata -Path $ConfigurationInfo.Path -PropertyName FunctionsToExport `
                     -Value @(
-                        $MetadataInfo.ExportedFunctions.Keys
-                        $ConfigurationInfo.ExportedFunctions.Keys
+                        @(
+                            $MetadataInfo.ExportedFunctions.Keys
+                            $ConfigurationInfo.ExportedFunctions.Keys
+                        ) | Select-Object -Unique
+                        # @('*')
+                    )
+    Update-Metadata -Path $ConfigurationInfo.Path -PropertyName AliasesToExport `
+                    -Value @(
+                        @(
+                            $MetadataInfo.ExportedAliases.Keys
+                            $ConfigurationInfo.ExportedAliases.Keys
+                        ) | Select-Object -Unique
                         # @('*')
                     )
 
