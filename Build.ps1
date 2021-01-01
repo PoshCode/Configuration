@@ -27,9 +27,12 @@ try {
                         -Target Build -Passthru `
                         @PSBoundParameters
 
+    # Copy and then remove the extra output
     Copy-Item -Path (Join-Path $MetadataInfo.ModuleBase Metadata.psm1) -Destination $ConfigurationInfo.ModuleBase
+    Remove-Item $MetadataInfo.ModuleBase -Recurse
 
     # Because this is a double-module, combine the exports of both modules
+    # Put the ExportedFunctions of both in the manifest
     Update-Metadata -Path $ConfigurationInfo.Path -PropertyName FunctionsToExport `
                     -Value @(
                         @(
@@ -38,6 +41,8 @@ try {
                         ) | Select-Object -Unique
                         # @('*')
                     )
+
+    # Put the ExportedAliases of both in the manifest
     Update-Metadata -Path $ConfigurationInfo.Path -PropertyName AliasesToExport `
                     -Value @(
                         @(
@@ -49,8 +54,6 @@ try {
 
     $ConfigurationInfo
 
-    # Remove the extra metadata file
-    Remove-Item $MetadataInfo.Path
 } finally {
     Pop-Location -StackName BuildTestStack
 }

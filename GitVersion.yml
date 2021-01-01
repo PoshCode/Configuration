@@ -1,5 +1,4 @@
 mode: Mainline
-next-version: 1.0.0
 commit-message-incrementing: MergeMessageOnly
 
 assembly-versioning-format: '{Major}.{Minor}.{Patch}.{env:BUILDCOUNT ?? 0}'
