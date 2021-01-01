@@ -1,3 +1,4 @@
+#requires -Module Configuration
 #using module Configuration
 
 $PSModuleAutoLoadingPreference = "None"
@@ -36,24 +37,25 @@ public class TestClass : Hashtable {
 '@
 
 InModuleScope Pester {
-class TestClass : Hashtable, IPsMetadataSerializable {
-    [string]$Name
+    Import-Module Configuration
+    class TestClass : Hashtable, IPsMetadataSerializable {
+        [string]$Name
 
-    [string] ToPsMetadata() {
-        return ConvertTo-Metadata -InputObject @{
-            Name   = $this.Name
-            Values = @{ } + $this
+        [string] ToPsMetadata() {
+            return ConvertTo-Metadata -InputObject @{
+                Name   = $this.Name
+                Values = @{ } + $this
+            }
+        }
+
+        [void] FromPsMetadata([string]$Metadata) {
+            $self = ConvertFrom-Metadata -InputObject $Metadata
+            $this.PSBase.Name = $self.Name
+            foreach ($key in $self.Values.Keys) {
+                $null = $this.Add($key, $self.Values[$key])
+            }
         }
     }
-
-    [void] FromPsMetadata([string]$Metadata) {
-        $self = ConvertFrom-Metadata -InputObject $Metadata
-        $this.PSBase.Name = $self.Name
-        foreach ($key in $self.Values.Keys) {
-            $null = $this.Add($key, $self.Values[$key])
-        }
-    }
-}
 }
 
 function global:GetModuleBase {
