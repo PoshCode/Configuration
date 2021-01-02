@@ -1,0 +1,24 @@
+name: "Module Builder"
+description: "Runs module builder on a build.psd1 in the repo"
+inputs:
+  path:
+    description: "The path to the build.psd1"
+    required: false
+  version:
+    description: "The semantic version string"
+    required: false
+    default: "1.0.0"
+  destination:
+    description: "The folder to build into"
+    required: false
+    default: "output"
+outputs:
+  moduleinfo:
+    description: "The path to the module build output directory"
+    value: ${{ steps.build.outputs.moduleinfo }}
+runs:
+  using: composite
+  steps:
+    - id: build
+      run: ${{ github.action_path }}/build.ps1 -Path '${{ inputs.path }}' -Version '${{ inputs.version }}' -Destination '${{ inputs.destination }}'
+      shell: pwsh
