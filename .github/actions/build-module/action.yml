@@ -20,5 +20,5 @@ runs:
   using: composite
   steps:
     - id: build
-      run: ${{ github.action_path }}/build.ps1 -Path '${{ inputs.path }}' -Version '${{ inputs.version }}' -Destination '${{ inputs.destination }}'
+      run: ${{ github.action_path }}/action.ps1 -Path '${{ inputs.path }}' -Version '${{ inputs.version }}' -Destination '${{ inputs.destination }}'
       shell: pwsh

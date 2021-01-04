@@ -83,5 +83,5 @@ runs:
   using: composite
   steps:
     - id: gitversion
-      run: ${{ github.action_path }}/gitversion.ps1 -repository ${{ github.repository }} -ref ${{ github.ref }} -sha ${{ github.sha }}
+      run: ${{ github.action_path }}/action.ps1 -repository ${{ github.repository }} -ref ${{ github.ref }} -sha ${{ github.sha }}
       shell: pwsh
