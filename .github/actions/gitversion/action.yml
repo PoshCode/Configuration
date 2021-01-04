@@ -5,83 +5,62 @@ branding:
   color: 'green'
 outputs:
   Major:
-    value: ${{ steps.gitversion.outputs.Major }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   Minor:
-    value: ${{ steps.gitversion.outputs.Minor }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   Patch:
-    value: ${{ steps.gitversion.outputs.Patch }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   PreReleaseTag:
-    value: ${{ steps.gitversion.outputs.PreReleaseTag }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   PreReleaseTagWithDash:
-    value: ${{ steps.gitversion.outputs.PreReleaseTagWithDash }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   PreReleaseLabel:
-    value: ${{ steps.gitversion.outputs.PreReleaseLabel }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   PreReleaseNumber:
-    value: ${{ steps.gitversion.outputs.PreReleaseNumber }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   WeightedPreReleaseNumber:
-    value: ${{ steps.gitversion.outputs.WeightedPreReleaseNumber }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   BuildMetaData:
-    value: ${{ steps.gitversion.outputs.BuildMetaData }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   BuildMetaDataPadded:
-    value: ${{ steps.gitversion.outputs.BuildMetaDataPadded }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   FullBuildMetaData:
-    value: ${{ steps.gitversion.outputs.FullBuildMetaData }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   MajorMinorPatch:
-    value: ${{ steps.gitversion.outputs.MajorMinorPatch }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   SemVer:
-    value: ${{ steps.gitversion.outputs.SemVer }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   LegacySemVer:
-    value: ${{ steps.gitversion.outputs.LegacySemVer }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   LegacySemVerPadded:
-    value: ${{ steps.gitversion.outputs.LegacySemVerPadded }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   AssemblySemVer:
-    value: ${{ steps.gitversion.outputs.AssemblySemVer }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   AssemblySemFileVer:
-    value: ${{ steps.gitversion.outputs.AssemblySemFileVer }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   FullSemVer:
-    value: ${{ steps.gitversion.outputs.FullSemVer }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   InformationalVersion:
-    value: ${{ steps.gitversion.outputs.InformationalVersion }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   BranchName:
-    value: ${{ steps.gitversion.outputs.BranchName }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   Sha:
-    value: ${{ steps.gitversion.outputs.Sha }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   ShortSha:
-    value: ${{ steps.gitversion.outputs.ShortSha }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   NuGetVersionV2:
-    value: ${{ steps.gitversion.outputs.NuGetVersionV2 }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   NuGetVersion:
-    value: ${{ steps.gitversion.outputs.NuGetVersion }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
   NuGetPreReleaseTagV2:
-    value: ${{ steps.gitversion.outputs.NuGetPreReleaseTagV2 }}
     description: 'See GitVersion docs about output: https://gitversion.net/docs/more-info/variables'
 runs:
-  using: composite
-  steps:
-    - id: gitversion
-      run: ${{ github.action_path }}/action.ps1 -repository ${{ github.repository }} -ref ${{ github.ref }} -sha ${{ github.sha }}
-      shell: pwsh
+  using: 'node12'
+  main: 'index.js'
+
+# runs:
+#   using: composite
+#   steps:
+#     - id: gitversion
+#       run: ${{ github.action_path }}/action.ps1 -repository ${{ github.repository }} -ref ${{ github.ref }} -sha ${{ github.sha }}
+#       shell: pwsh
