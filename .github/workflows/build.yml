@@ -14,10 +14,15 @@ jobs:
       - name: Install-RequiredModules
         uses: ./.github/actions/install-requiredmodules
       - name: Build Module
+        id: build
         uses: ./.github/actions/build-module
         with:
           version: ${{ steps.gitversion.outputs.LegacySemVerPadded }}
           destination: ${{github.workspace}}/output
+      - name: Combine Configuration
+        run: |
+          $OutputModule, $NestedModule = (ConvertFrom-Json -Input '${{ steps.build.outputs.moduleinfo }}').Where({$_.Name -eq "Configuration"}, "Split")
+          & "${{github.workspace}}/.github/workflows/Merge-Module.ps1" -OutputModulePath $OutputModule.Path -NestedModulePath $NestedModule.Path
       - name: Upload Build Output
         uses: actions/upload-artifact@v2
         with:
