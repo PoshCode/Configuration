@@ -1,0 +1,41 @@
+name: Pester
+description: Test your module with Pester
+branding:
+  icon: 'check-square'
+  color: 'green'
+inputs:
+  pesterVersion:
+    description: If you need a specific version of Pester. By default looks for RequiredModules.psd1 (or RequiredModules/RequiredModules.psd1)
+    required: false
+  testsDirectory:
+    description: The path to the folder where your tests are. By default looks for *Tests* (e.g. PesterTests).
+    required: false
+    default: "*[Tt]est*"
+  moduleUnderTest:
+    description: The name of the module under test. Will be pre-imported.
+    required: false
+  moduleVersion:
+    description: The version of the module under test. Will be pre-imported.
+    required: false
+  includeTag:
+    description: If you want to only run some of your tests, a comma-separated list of tags
+    required: false
+  excludeTag:
+    description: If you want to skip some of your tests, a comma-separated list of tags
+    required: false
+  additionalModulePaths:
+    description: A string which will be appended to the PSModulePath. If there is a "Modules" folder in your workspace, it will be added automatically **if** you don't specify anything.
+    required: false
+  codeCoveragePath:
+    description: The path to a module or scripts under test
+    required: false
+  testRunTitle:
+    description: If you want to override the default "Pester" test run name
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - id: pester
+      run: ${{ github.action_path }}/action.ps1 -PesterVersion '${{ inputs.pesterVersion }}' -ModuleUnderTest '${{ inputs.moduleUnderTest }}' -ModuleVersion '${{ inputs.moduleVersion }}' -TestsDirectory '${{ inputs.testsDirectory }}' -IncludeTag '${{ inputs.includeTag }}' -ExcludeTag '${{ inputs.excludeTag }}' -AdditionalModulePaths '${{ inputs.additionalModulePaths }}' -CodeCoveragePath '${{ inputs.codeCoveragePath }}'
+      shell: pwsh

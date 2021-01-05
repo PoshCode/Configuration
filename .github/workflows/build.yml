@@ -21,7 +21,7 @@ jobs:
       - name: Upload Build Output
         uses: actions/upload-artifact@v2
         with:
-          name: Configuration
+          name: Modules
           path: ${{github.workspace}}/output
       - name: Upload Tests
         uses: actions/upload-artifact@v2
@@ -42,8 +42,9 @@ jobs:
     steps:
       - name: Download Build Output
         uses: actions/download-artifact@v2
-      - name: Verbose Output
-        run: Get-ChildItem -Recurse
-        shell: pwsh
       - uses: PoshCode/Configuration/.github/actions/install-requiredmodules@joel/ghactions
       - uses: PoshCode/Configuration/.github/actions/pester@joel/ghactions
+        with:
+          codeCoveragePath: Modules/Configuration
+          moduleUnderTest: Configuration
+          additionalModulePaths: ${{github.workspace}}/Modules
