@@ -10,12 +10,12 @@ jobs:
         uses: actions/checkout@v2
       - name: GitVersion
         id: gitversion
-        uses: ./.github/actions/gitversion
+        uses: PoshCode/Actions/gitversion@v1
       - name: Install-RequiredModules
-        uses: ./.github/actions/install-requiredmodules
+        uses: PoshCode/Actions/install-requiredmodules@v1
       - name: Build Module
         id: build
-        uses: ./.github/actions/build-module
+        uses: PoshCode/actions/build-module@v1
         with:
           version: ${{ steps.gitversion.outputs.LegacySemVerPadded }}
           destination: ${{github.workspace}}/output
@@ -47,9 +47,14 @@ jobs:
     steps:
       - name: Download Build Output
         uses: actions/download-artifact@v2
-      - uses: PoshCode/Configuration/.github/actions/install-requiredmodules@joel/ghactions
-      - uses: PoshCode/Configuration/.github/actions/pester@joel/ghactions
+      - uses: PoshCode/Actions/install-requiredmodules@v1
+      - uses: PoshCode/Actions/pester@v1
         with:
           codeCoveragePath: Modules/Configuration
           moduleUnderTest: Configuration
           additionalModulePaths: ${{github.workspace}}/Modules
+      - name: Upload Results
+        uses: actions/upload-artifact@v2
+        with:
+          name: Pester Results
+          path: ${{github.workspace}}/*.xml
