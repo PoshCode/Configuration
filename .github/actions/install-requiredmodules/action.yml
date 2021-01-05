@@ -1,0 +1,16 @@
+name: Install Required Modules
+description: Runs Install-RequiredModule
+inputs:
+  requiredModules-path:
+    description: The path to the RequiredModules.psd1
+    required: false
+    default: ${{github.workspace}}/RequiredModules.psd1
+runs:
+  using: 'node12'
+  main: 'index.js'
+
+# runs:
+#   using: composite
+#   steps:
+#     - run: ${{ github.action_path }}/action.ps1 -key '${{runner.os}}' -RequiredModules '${{inputs.requiredModules-path}}'
+#       shell: pwsh

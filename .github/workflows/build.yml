@@ -1,0 +1,49 @@
+name: Build on push
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: GitVersion
+        id: gitversion
+        uses: ./.github/actions/gitversion
+      - name: Install-RequiredModules
+        uses: ./.github/actions/install-requiredmodules
+      - name: Build Module
+        uses: ./.github/actions/build-module
+        with:
+          version: ${{ steps.gitversion.outputs.LegacySemVerPadded }}
+          destination: ${{github.workspace}}/output
+      - name: Upload Build Output
+        uses: actions/upload-artifact@v2
+        with:
+          name: Configuration
+          path: ${{github.workspace}}/output
+      - name: Upload Tests
+        uses: actions/upload-artifact@v2
+        with:
+          name: PesterTests
+          path: ${{github.workspace}}/Specs
+      - name: Upload RequiredModules.psd1
+        uses: actions/upload-artifact@v2
+        with:
+          name: RequiredModules
+          path: ${{github.workspace}}/RequiredModules.psd1
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest] #, ubuntu-16.04, ubuntu-18.04, windows-2016, macos-latest]
+    needs: build
+    steps:
+      - name: Download Build Output
+        uses: actions/download-artifact@v2
+      - name: Verbose Output
+        run: Get-ChildItem -Recurse
+        shell: pwsh
+      - uses: PoshCode/Configuration/.github/actions/install-requiredmodules@joel/ghactions
+      - uses: PoshCode/Configuration/.github/actions/pester@joel/ghactions
