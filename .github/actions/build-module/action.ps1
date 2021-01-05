@@ -23,7 +23,7 @@ $Modules = @(
     }
 )
 
-$ModuleInfo = $Modules | Select-Object Name, ModuleBase | ConvertTo-Json -Compress
+$ModuleInfo = $Modules | Select-Object Name, Path, ModuleBase | ConvertTo-Json -Compress
 Write-Host "::set-output name=moduleinfo::$ModuleInfo"
 
 trap {
