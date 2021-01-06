@@ -61,7 +61,6 @@ function Export-Configuration {
         [String]$DefaultPath,
 
         # The scope to save at, defaults to Enterprise (which returns a path in "RoamingData")
-        [Parameter(ParameterSetName = "ManualOverride")]
         [ValidateSet("User", "Machine", "Enterprise")]
         [string]$Scope = "Enterprise",
 
