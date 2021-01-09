@@ -26,7 +26,8 @@ function Update-Metadata {
            Sets the PrivateData.PSData.ReleaseNotes value in the Configuration.psd1 file!
     #>
     [Alias("Update-Manifest")]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSShouldProcess", "")] # Because PSSCriptAnalyzer team refuses to listen to reason. See bugs:  #194 #283 #521 #608
+    # Because PSSCriptAnalyzer team refuses to listen to reason. See bugs:  #194 #283 #521 #608
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSShouldProcess", "")]
     [CmdletBinding(SupportsShouldProcess)]
     param(
         # The path to the module manifest file -- must be a .psd1 file
@@ -56,69 +57,70 @@ function Update-Metadata {
         [Parameter(ParameterSetName = "IncrementVersion")]
         [switch]$Passthru
     )
+    process {
+        $KeyValue = Get-Metadata $Path -PropertyName $PropertyName -Passthru
 
-    $KeyValue = Get-Metadata $Path -PropertyName $PropertyName -Passthru
+        if ($PSCmdlet.ParameterSetName -eq "IncrementVersion") {
+            $Version = [Version]$KeyValue.GetPureExpression().Value # SafeGetValue()
 
-    if ($PSCmdlet.ParameterSetName -eq "IncrementVersion") {
-        $Version = [Version]$KeyValue.GetPureExpression().Value # SafeGetValue()
+            $Version = switch ($Increment) {
+                "Major" {
+                    [Version]::new($Version.Major + 1, 0)
+                }
+                "Minor" {
+                    $Minor = if ($Version.Minor -le 0) {
+                        1
+                    } else {
+                        $Version.Minor + 1
+                    }
+                    [Version]::new($Version.Major, $Minor)
+                }
+                "Build" {
+                    $Build = if ($Version.Build -le 0) {
+                        1
+                    } else {
+                        $Version.Build + 1
+                    }
+                    [Version]::new($Version.Major, $Version.Minor, $Build)
+                }
+                "Revision" {
+                    $Build = if ($Version.Build -le 0) {
+                        0
+                    } else {
+                        $Version.Build
+                    }
+                    $Revision = if ($Version.Revision -le 0) {
+                        1
+                    } else {
+                        $Version.Revision + 1
+                    }
+                    [Version]::new($Version.Major, $Version.Minor, $Build, $Revision)
+                }
+            }
 
-        $Version = switch ($Increment) {
-            "Major" {
-                [Version]::new($Version.Major + 1, 0)
-            }
-            "Minor" {
-                $Minor = if ($Version.Minor -le 0) {
-                    1
-                } else {
-                    $Version.Minor + 1
-                }
-                [Version]::new($Version.Major, $Minor)
-            }
-            "Build" {
-                $Build = if ($Version.Build -le 0) {
-                    1
-                } else {
-                    $Version.Build + 1
-                }
-                [Version]::new($Version.Major, $Version.Minor, $Build)
-            }
-            "Revision" {
-                $Build = if ($Version.Build -le 0) {
-                    0
-                } else {
-                    $Version.Build
-                }
-                $Revision = if ($Version.Revision -le 0) {
-                    1
-                } else {
-                    $Version.Revision + 1
-                }
-                [Version]::new($Version.Major, $Version.Minor, $Build, $Revision)
+            $Value = $Version
+
+            if ($Passthru) {
+                $Value
             }
         }
 
-        $Value = $Version
+        $Value = ConvertTo-Metadata $Value
 
-        if ($Passthru) {
-            $Value
+        $Extent = $KeyValue.Extent
+        while ($KeyValue.parent) {
+            $KeyValue = $KeyValue.parent
         }
-    }
 
-    $Value = ConvertTo-Metadata $Value
+        $ManifestContent = $KeyValue.Extent.Text.Remove(
+            $Extent.StartOffset,
+            ($Extent.EndOffset - $Extent.StartOffset)
+        ).Insert($Extent.StartOffset, $Value).Trim()
 
-    $Extent = $KeyValue.Extent
-    while ($KeyValue.parent) {
-        $KeyValue = $KeyValue.parent
-    }
-
-    $ManifestContent = $KeyValue.Extent.Text.Remove(
-        $Extent.StartOffset,
-        ($Extent.EndOffset - $Extent.StartOffset)
-    ).Insert($Extent.StartOffset, $Value).Trim()
-
-    if (Test-Path $Path) {
-        Set-Content -Encoding UTF8 -Path $Path -Value $ManifestContent
-    } else {
-        $ManifestContent
+        if (Test-Path $Path) {
+            Set-Content -Encoding UTF8 -Path $Path -Value $ManifestContent
+        } else {
+            $ManifestContent
+        }
     }
 }

@@ -25,8 +25,8 @@ function Get-ConfigurationPath {
     #
     #   This example shows how to use Get-ConfigurationPath with Export-CliXML to cache data as clixml from inside a module.
     [Alias("Get-StoragePath")]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Callstack', Justification = 'This is referenced in ParameterBinder')]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Module', Justification = 'This is referenced in ParameterBinder')]
+    # [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Callstack', Justification = 'This is referenced in ParameterBinder')]
+    # [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Module', Justification = 'This is referenced in ParameterBinder')]
     [CmdletBinding(DefaultParameterSetName = '__ModuleInfo')]
     param(
         # The scope to save at, defaults to Enterprise (which returns a path in "RoamingData")

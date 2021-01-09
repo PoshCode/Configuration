@@ -1,4 +1,4 @@
-#requires -Module ModuleBuilder, Configuration
+#requires -Module @{ModuleName = "ModuleBuilder"; ModuleVersion = "2.0.0"}, Configuration
 [CmdletBinding()]
 param(
     # A specific folder to build into
