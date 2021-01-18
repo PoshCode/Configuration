@@ -38,6 +38,11 @@ jobs:
         with:
           name: RequiredModules
           path: ${{github.workspace}}/RequiredModules.psd1
+      - name: Upload PSScriptAnalyzerSettings.psd1
+        uses: actions/upload-artifact@v2
+        with:
+          name: ScriptAnalyzer
+          path: ${{github.workspace}}/PSScriptAnalyzerSettings.psd1
   test:
     runs-on: ${{ matrix.os }}
     strategy:
