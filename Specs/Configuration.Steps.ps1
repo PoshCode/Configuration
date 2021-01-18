@@ -141,6 +141,13 @@ Given 'the configuration module is imported with a URL converter' {
             } -Scope Global
 }
 
+Given 'the configuration module is imported' {
+    param($Table)
+    $ModuleBase = GetModuleBase
+    Remove-Module "Configuration" -ErrorAction Ignore -Force
+    Import-Module $ModuleBase/Configuration.psd1 -Scope Global
+}
+
 Given 'the manifest module is imported' {
     param($Table)
     $ModuleBase = GetModuleBase
