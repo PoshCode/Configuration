@@ -20,8 +20,8 @@ Feature: Module Configuration
             """
         When I call Import-Configuration
         Then the settings object should be of type hashtable
-        And the settings object should have a UserName of type String
-        And the settings object should have an Age of type Int32
+        And the settings object's UserName should be of type String
+        And the settings object's Age should be of type Int32
 
 
     @Modules @EndUsers
@@ -36,8 +36,8 @@ Feature: Module Configuration
             """
         When the ModuleInfo is piped to Import-Configuration
         Then the settings object should be of type hashtable
-        And the settings object should have a UserName of type String
-        And the settings object should have an Age of type Int32
+        And the settings object's UserName should be of type String
+        And the settings object's Age should be of type Int32
 
     @Modules @Import @EndUsers
     Scenario: End users should be able to work with configuration data outside the module
@@ -51,8 +51,8 @@ Feature: Module Configuration
             """
         When the ModuleInfo is piped to Import-Configuration
         Then the settings object should be of type hashtable
-        And the settings object should have a UserName of type String
-        And the settings object should have an Age of type Int32
+        And the settings object's UserName should be of type String
+        And the settings object's Age should be of type Int32
 
     @Modules @Import
     Scenario: SxS Versions
@@ -164,3 +164,5 @@ Feature: Module Configuration
     #     Then the settings from the old version should be copied
     #     And MyModule should be able to migrate them
     #     But they should save only to the new version
+
+

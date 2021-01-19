@@ -46,8 +46,8 @@ function ConvertFrom-Metadata {
         [Switch]$Ordered
     )
     begin {
-        $Script:OriginalMetadataSerializers = $Script:MetadataSerializers.Clone()
-        $Script:OriginalMetadataDeserializers = $Script:MetadataDeserializers.Clone()
+        $OriginalMetadataSerializers = $Script:MetadataSerializers.Clone()
+        $OriginalMetadataDeserializers = $Script:MetadataDeserializers.Clone()
         Add-MetadataConverter $Converters
         [string[]]$ValidCommands = @(
             "ConvertFrom-StringData", "Join-Path", "Split-Path", "ConvertTo-SecureString"
@@ -55,8 +55,8 @@ function ConvertFrom-Metadata {
         [string[]]$ValidVariables = "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot", "PSCulture", "PSUICulture", "True", "False", "Null"
     }
     end {
-        $Script:MetadataSerializers = $Script:OriginalMetadataSerializers.Clone()
-        $Script:MetadataDeserializers = $Script:OriginalMetadataDeserializers.Clone()
+        $Script:MetadataSerializers = $OriginalMetadataSerializers.Clone()
+        $Script:MetadataDeserializers = $OriginalMetadataDeserializers.Clone()
     }
     process {
         $ErrorActionPreference = "Stop"

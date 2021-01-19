@@ -1,5 +1,6 @@
 # Utility to throw an errorrecord
 function ThrowError {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidOverwritingBuiltInCmdlets", "")]
     param
     (
         [Parameter()]

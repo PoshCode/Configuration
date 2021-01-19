@@ -1,6 +1,6 @@
 function Get-Metadata {
     #.Synopsis
-    #   Reads a specific value from a PowerShell metdata file (e.g. a module manifest)
+    #   Reads a specific value from a PowerShell metadata file (e.g. a module manifest)
     #.Description
     #   By default Get-Metadata gets the ModuleVersion, but it can read any key in the metadata file
     #.Example
@@ -29,61 +29,63 @@ function Get-Metadata {
 
         [switch]$Passthru
     )
-    $ErrorActionPreference = "Stop"
+    process {
+        $ErrorActionPreference = "Stop"
 
-    if (!(Test-Path $Path)) {
-        WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
-            -Message "Can't find file $Path" `
-            -ErrorId "PathNotFound,Metadata\Import-Metadata" `
-            -Category "ObjectNotFound"
-        return
-    }
-    $Path = Convert-Path $Path
-
-    $Tokens = $Null; $ParseErrors = $Null
-    $AST = [System.Management.Automation.Language.Parser]::ParseFile( $Path, [ref]$Tokens, [ref]$ParseErrors )
-
-    $KeyValue = $Ast.EndBlock.Statements
-    $KeyValue = @(FindHashKeyValue $PropertyName $KeyValue)
-    if ($KeyValue.Count -eq 0) {
-        WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
-            -Message "Can't find '$PropertyName' in $Path" `
-            -ErrorId "PropertyNotFound,Metadata\Get-Metadata" `
-            -Category "ObjectNotFound"
-        return
-    }
-    if ($KeyValue.Count -gt 1) {
-        $SingleKey = @($KeyValue | Where-Object { $_.HashKeyPath -eq $PropertyName })
-
-        if ($SingleKey.Count -gt 1) {
-            WriteError -ExceptionType System.Reflection.AmbiguousMatchException `
-                -Message ("Found more than one '$PropertyName' in $Path. Please specify a dotted path instead. Matching paths include: '{0}'" -f ($KeyValue.HashKeyPath -join "', '")) `
-                -ErrorId "AmbiguousMatch,Metadata\Get-Metadata" `
-                -Category "InvalidArgument"
+        if (!(Test-Path $Path)) {
+            WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
+                -Message "Can't find file $Path" `
+                -ErrorId "PathNotFound,Metadata\Import-Metadata" `
+                -Category "ObjectNotFound"
             return
-        } else {
-            $KeyValue = $SingleKey
         }
-    }
-    $KeyValue = $KeyValue[0]
+        $Path = Convert-Path $Path
 
-    if ($Passthru) {
-        $KeyValue
-    } else {
-        # # Write-Debug "Start $($KeyValue.Extent.StartLineNumber) : $($KeyValue.Extent.StartColumnNumber) (char $($KeyValue.Extent.StartOffset))"
-        # # Write-Debug "End   $($KeyValue.Extent.EndLineNumber) : $($KeyValue.Extent.EndColumnNumber) (char $($KeyValue.Extent.EndOffset))"
+        $Tokens = $Null; $ParseErrors = $Null
+        $AST = [System.Management.Automation.Language.Parser]::ParseFile( $Path, [ref]$Tokens, [ref]$ParseErrors )
 
-        # In PowerShell 5+ we can just use:
-        if ($KeyValue.SafeGetValue) {
-            $KeyValue.SafeGetValue()
-        } else {
-            # Otherwise, this workd for simple values:
-            $Expression = $KeyValue.GetPureExpression()
-            if ($Expression.Value) {
-                $Expression.Value
+        $KeyValue = $Ast.EndBlock.Statements
+        $KeyValue = @(FindHashKeyValue $PropertyName $KeyValue)
+        if ($KeyValue.Count -eq 0) {
+            WriteError -ExceptionType System.Management.Automation.ItemNotFoundException `
+                -Message "Can't find '$PropertyName' in $Path" `
+                -ErrorId "PropertyNotFound,Metadata\Get-Metadata" `
+                -Category "ObjectNotFound"
+            return
+        }
+        if ($KeyValue.Count -gt 1) {
+            $SingleKey = @($KeyValue | Where-Object { $_.HashKeyPath -eq $PropertyName })
+
+            if ($SingleKey.Count -gt 1) {
+                WriteError -ExceptionType System.Reflection.AmbiguousMatchException `
+                    -Message ("Found more than one '$PropertyName' in $Path. Please specify a dotted path instead. Matching paths include: '{0}'" -f ($KeyValue.HashKeyPath -join "', '")) `
+                    -ErrorId "AmbiguousMatch,Metadata\Get-Metadata" `
+                    -Category "InvalidArgument"
+                return
             } else {
-                # For complex (arrays, hashtables) we parse it ourselves
-                ConvertFrom-Metadata $KeyValue
+                $KeyValue = $SingleKey
+            }
+        }
+        $KeyValue = $KeyValue[0]
+
+        if ($Passthru) {
+            $KeyValue
+        } else {
+            # # Write-Debug "Start $($KeyValue.Extent.StartLineNumber) : $($KeyValue.Extent.StartColumnNumber) (char $($KeyValue.Extent.StartOffset))"
+            # # Write-Debug "End   $($KeyValue.Extent.EndLineNumber) : $($KeyValue.Extent.EndColumnNumber) (char $($KeyValue.Extent.EndOffset))"
+
+            # In PowerShell 5+ we can just use:
+            if ($KeyValue.SafeGetValue) {
+                $KeyValue.SafeGetValue()
+            } else {
+                # Otherwise, this workd for simple values:
+                $Expression = $KeyValue.GetPureExpression()
+                if ($Expression.Value) {
+                    $Expression.Value
+                } else {
+                    # For complex (arrays, hashtables) we parse it ourselves
+                    ConvertFrom-Metadata $KeyValue
+                }
             }
         }
     }

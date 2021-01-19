@@ -14,6 +14,9 @@ function Import-Configuration {
     #
     #   This example shows how to use Import-Configuration in your module to load data cached for another module
     #
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Callstack', Justification = 'This is referenced in ParameterBinder')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Module', Justification = 'This is referenced in ParameterBinder')]
+    # [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'DefaultPath', Justification = 'This is referenced in ParameterBinder')]
     [CmdletBinding(DefaultParameterSetName = '__CallStack')]
     param(
         # A callstack. You should not ever pass this.

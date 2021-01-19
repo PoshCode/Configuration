@@ -57,13 +57,13 @@ function Add-MetadataConverter {
                 # Write-Debug "Storing deserialization function: $_"
                 Set-Content "function:script:$_" $Converters[$_]
                 # We need to store the function in MetadataDeserializers
-                $MetadataDeserializers[$_] = $Converters[$_]
+                $script:MetadataDeserializers[$_] = $Converters[$_]
                 continue
             }
 
             {$_ -is [Type]} {
                 # Write-Debug "Adding serializer for $($_.FullName)"
-                $MetadataSerializers[$_] = $Converters[$_]
+                $script:MetadataSerializers[$_] = $Converters[$_]
                 continue
             }
             default {

@@ -14,7 +14,7 @@ Feature: Automatically Calculate Local Storage Paths on Linux
         Given the configuration module is imported on Linux:
         Given a module with the name '<modulename>' with the author 'Jaykul'
         Then the module's <scope> path should match '^<rootpattern>' and '/Jaykul/<modulename>$'
-        And the module's <scope> path should exist already
+        # And the module's <scope> path should exist already
 
         Examples:
             | scope      | modulename      | rootpattern    |

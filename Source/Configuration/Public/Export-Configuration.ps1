@@ -16,7 +16,11 @@ function Export-Configuration {
 
             This example shows how to use Export-Configuration to export data for use in a specific module.
     #>
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSShouldProcess", "")] # Because PSSCriptAnalyzer team refuses to listen to reason. See bugs:  #194 #283 #521 #608
+    # PSSCriptAnalyzer team refuses to listen to reason. See bugs:  #194 #283 #521 #608
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSShouldProcess", "")]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Callstack', Justification = 'This is referenced in ParameterBinder')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Module', Justification = 'This is referenced in ParameterBinder')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'DefaultPath', Justification = 'This is referenced in ParameterBinder')]
     [CmdletBinding(DefaultParameterSetName = '__ModuleInfo', SupportsShouldProcess)]
     param(
         # Specifies the objects to export as metadata structures.

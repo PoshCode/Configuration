@@ -1,20 +1,20 @@
-#requires -Module ModuleBuilder, Configuration
+#requires -Module @{ModuleName = "ModuleBuilder"; ModuleVersion = "2.0.0"}, Configuration
 [CmdletBinding()]
 param(
     # A specific folder to build into
-    $OutputDirectory = $PSScriptRoot,
+    $OutputDirectory,
 
     # The version of the output module
     [Alias("ModuleVersion")]
-    [string]$SemVer,
-
-    # Optionally, a local folder that modules and CLI tools can be installed in
-    $LocalTools = "./RequiredModules"
+    [string]$SemVer
 )
-Push-Location $PSScriptRoot -StackName BuildWindowsConsoleFont
+Push-Location $PSScriptRoot -StackName BuildTestStack
 
 if (!$SemVer -and (Get-Command gitversion -ErrorAction Ignore)) {
     $PSBoundParameters['SemVer'] = gitversion -showvariable nugetversion
+}
+if (!$PSBoundParameters.ContainsKey("OutputDirectory")) {
+    $PSBoundParameters["OutputDirectory"] = $PSScriptRoot
 }
 
 try {
@@ -27,18 +27,33 @@ try {
                         -Target Build -Passthru `
                         @PSBoundParameters
 
+    # Copy and then remove the extra output
+    Copy-Item -Path (Join-Path $MetadataInfo.ModuleBase Metadata.psm1) -Destination $ConfigurationInfo.ModuleBase
+    Remove-Item $MetadataInfo.ModuleBase -Recurse
+
     # Because this is a double-module, combine the exports of both modules
+    # Put the ExportedFunctions of both in the manifest
     Update-Metadata -Path $ConfigurationInfo.Path -PropertyName FunctionsToExport `
                     -Value @(
-                        $MetadataInfo.ExportedFunctions.Keys
-                        $ConfigurationInfo.ExportedFunctions.Keys
+                        @(
+                            $MetadataInfo.ExportedFunctions.Keys
+                            $ConfigurationInfo.ExportedFunctions.Keys
+                        ) | Select-Object -Unique
+                        # @('*')
+                    )
+
+    # Put the ExportedAliases of both in the manifest
+    Update-Metadata -Path $ConfigurationInfo.Path -PropertyName AliasesToExport `
+                    -Value @(
+                        @(
+                            $MetadataInfo.ExportedAliases.Keys
+                            $ConfigurationInfo.ExportedAliases.Keys
+                        ) | Select-Object -Unique
                         # @('*')
                     )
 
     $ConfigurationInfo
 
-    # Remove the extra metadata file
-    Remove-Item $MetadataInfo.Path
 } finally {
-    Pop-Location -StackName BuildWindowsConsoleFont
+    Pop-Location -StackName BuildTestStack
 }

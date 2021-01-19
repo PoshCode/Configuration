@@ -62,6 +62,8 @@ function ConvertTo-Metadata {
     process {
         if ($Null -eq $InputObject) {
             '""'
+        } elseif ($InputObject -is [IPsMetadataSerializable] -or ($InputObject.ToPsMetadata -as [Func[String]] -and $InputObject.FromPsMetasta -as [Action[String]])) {
+            "(FromPsMetadata {0} @'`n{1}`n'@)" -f $InputObject.GetType().FullName, $InputObject.ToMetadata()
         } elseif ( $InputObject -is [Int16] -or
                    $InputObject -is [Int32] -or
                    $InputObject -is [Int64] -or
@@ -81,13 +83,13 @@ function ConvertTo-Metadata {
                         }
                     }) -split "`n" -join "`n$t")
         } elseif ($InputObject -is [System.Collections.IEnumerable]) {
-            "@($($(ForEach($item in @($InputObject)) { ConvertTo-Metadata $item -AsHashtable:$AsHashtable}) -join ","))"
+            "@($($(ForEach($item in @($InputObject)) { $item | ConvertTo-Metadata -AsHashtable:$AsHashtable}) -join ","))"
         } elseif ($InputObject.GetType().FullName -eq 'System.Management.Automation.PSCustomObject') {
             # NOTE: we can't put [ordered] here because we need support for PS v2, but it's ok, because we put it in at parse-time
             $(if ($AsHashtable) {
                     "@{{`n$t{0}`n}}"
                 } else {
-                    "(PSObject @{{`n$t{0}`n}})"
+                    "(PSObject @{{`n$t{0}`n}} -TypeName '$($InputObject.PSTypeNames -join "','")')"
                 }) -f ($(
                     ForEach ($key in $InputObject | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name) {
                         if ("$key" -match '^(\w+|-?\d+\.?\d*)$') {

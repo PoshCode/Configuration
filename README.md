@@ -1,12 +1,32 @@
-# Configuration
+[![Build Status](https://dev.azure.com/poshcode/Configuration/_apis/build/status/Configuration?branchName=master)](https://dev.azure.com/poshcode/Configuration/_build/latest?definitionId=2&branchName=master)
 
-A module for saving and loading settings and configuration objects for PowerShell modules (and scripts).
+# The Configuration Module
 
-The Configuration module supports layered configurations with default values, and serializes objects and hashtables to the simple PowerShell metadata format with the ability to extend how your custom types are serialized, so your configuration files are just .psd1 files!
+## Metadata commands for working with .psd1:
 
-The key feature is that you don't have to worry about where to store files, and modules using the Configuration commands will be able to easily store data even when installed in write-protected folders like Program Files.
+- Manipulating metadata files
+- Extensible serialization of types
+- Built in support for DateTime, Version, Guid, SecureString, ScriptBlocks and more
+- Lets you store almost anything in readable metadata (.psd1) files
+- Serializing (`Export`) to metadata (.psd1) files
+- Deserializing (`Import`) from metadata (.psd1) files
 
-Supports WindowsPowerShell, as well as PowerShell Core on Windows, Linux and OS X.
+## Configuration commands for loading settings:
+
+- Ship default configuration files with your module
+- Automatically determines where to save your settings
+    - Supports Windows roaming profiles
+    - Supports XDG settings for Linux (and MacOS)
+- Allow users to configure settings using our commands, or your wrappers
+- Supports _layered_ configurations:
+  - Machine-level config
+  - User override files
+- Supports automatic configuration of parameters values for a command
+  - Reads `Noun` configuration files in your working directory
+  - Filters only values which apply to the current command
+
+
+It supports WindowsPowerShell, as well as PowerShell Core on Windows, Linux and OS X.
 
 ## Installation
 
