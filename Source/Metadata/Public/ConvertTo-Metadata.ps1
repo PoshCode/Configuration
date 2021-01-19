@@ -76,7 +76,7 @@ function ConvertTo-Metadata {
         } elseif ($InputObject -is [Collections.IDictionary]) {
             "@{{`n$t{0}`n}}" -f ($(
                     ForEach ($key in @($InputObject.Keys)) {
-                        if ("$key" -match '^(\w+|-?\d+\.?\d*)$') {
+                        if ("$key" -match '^([A-Za-z_]\w*|-?\d+\.?\d*)$') {
                             "$key = " + (ConvertTo-Metadata $InputObject.($key) -AsHashtable:$AsHashtable)
                         } else {
                             "'$key' = " + (ConvertTo-Metadata $InputObject.($key) -AsHashtable:$AsHashtable)
@@ -92,7 +92,7 @@ function ConvertTo-Metadata {
                     "(PSObject @{{`n$t{0}`n}} -TypeName '$($InputObject.PSTypeNames -join "','")')"
                 }) -f ($(
                     ForEach ($key in $InputObject | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name) {
-                        if ("$key" -match '^(\w+|-?\d+\.?\d*)$') {
+                        if ("$key" -match '^([A-Za-z_]\w*|-?\d+\.?\d*)$') {
                             "$key = " + (ConvertTo-Metadata $InputObject.$key -AsHashtable:$AsHashtable)
                         } else {
                             "'$key' = " + (ConvertTo-Metadata $InputObject.$key -AsHashtable:$AsHashtable)
