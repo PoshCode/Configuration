@@ -33,17 +33,27 @@ function ConvertFrom-Metadata {
     #>
     [CmdletBinding()]
     param(
+        # The metadata text (or a path to a metadata file)
         [Parameter(ValueFromPipelineByPropertyName = "True", Position = 0)]
         [Alias("PSPath")]
         $InputObject,
 
+        # A hashtable of MetadataConverters (same as with Add-MetadataConverter)
         [Hashtable]$Converters = @{},
 
+        # The PSScriptRoot which the metadata should be evaluated from.
+        # You do not normally need to pass this, and it has no effect unless
+        # you're referencing $PSScriptRoot or $ScriptRoot in your metadata
         $ScriptRoot = "$PSScriptRoot",
 
         # If set (and PowerShell version 4 or later) preserve the file order of configuration
         # This results in the output being an OrderedDictionary instead of Hashtable
-        [Switch]$Ordered
+        [Switch]$Ordered,
+
+        # Allows extending the valid variables which are allowed to be referenced in metadata
+        # BEWARE: This exposes the value of these variables in your context to the caller
+        # You ware reponsible to only allow variables which you know are safe to share
+        [String[]]$AllowedVariables
     )
     begin {
         $OriginalMetadataSerializers = $Script:MetadataSerializers.Clone()
@@ -52,7 +62,8 @@ function ConvertFrom-Metadata {
         [string[]]$ValidCommands = @(
             "ConvertFrom-StringData", "Join-Path", "Split-Path", "ConvertTo-SecureString"
         ) + @($MetadataDeserializers.Keys)
-        [string[]]$ValidVariables = "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot", "PSCulture", "PSUICulture", "True", "False", "Null"
+        [string[]]$ValidVariables = $AllowedVariables + @(
+            "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot", "PSCulture", "PSUICulture", "True", "False", "Null")
     }
     end {
         $Script:MetadataSerializers = $OriginalMetadataSerializers.Clone()

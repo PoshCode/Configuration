@@ -11,15 +11,22 @@ function Import-Metadata {
    #>
     [CmdletBinding()]
     param(
+        # The path to the metadata (.psd1) file to import
         [Parameter(ValueFromPipeline = $true, Mandatory = $true, ValueFromPipelineByPropertyName = $true)]
         [Alias("PSPath", "Content")]
         [string]$Path,
 
+        # A hashtable of MetadataConverters (same as with Add-MetadataConverter)
         [Hashtable]$Converters = @{},
 
         # If set (and PowerShell version 4 or later) preserve the file order of configuration
         # This results in the output being an OrderedDictionary instead of Hashtable
-        [Switch]$Ordered
+        [Switch]$Ordered,
+
+        # Allows extending the valid variables which are allowed to be referenced in metadata
+        # BEWARE: This exposes the value of these variables in your context to the caller
+        # You ware reponsible to only allow variables which you know are safe to share
+        [String[]]$AllowedVariables
     )
     process {
         if (Test-Path $Path) {
@@ -36,7 +43,7 @@ function Import-Metadata {
             return
         }
         try {
-            ConvertFrom-Metadata -InputObject $Path -Converters $Converters -Ordered:$Ordered
+            ConvertFrom-Metadata -InputObject $Path -Converters $Converters -Ordered:$Ordered -AllowedVariables $AllowedVariables
         } catch {
             ThrowError $_
         }

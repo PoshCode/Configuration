@@ -507,3 +507,20 @@ Feature: Serialize Hashtables or Custom Objects
         And the settings object's User should be Jaykul
         And the settings object's Name should be Joel
         And the settings object's Keys should be User
+
+    @Serialization
+    Scenario: Allows specifying a list of allowed variables
+        Given a settings file named Configuration.psd1
+            """
+            @{
+                UserName = "${Env:UserName}"
+                Age = 42
+                FullName = $FullName
+            }
+            """
+        And we define FullName = Joel Bennett
+        And we define Env:UserName = Jaykul
+        When we import the file allowing variables FullName, Env:UserName
+        And the settings object's UserName should be Jaykul
+        And the settings object's FullName should be Joel Bennett
+

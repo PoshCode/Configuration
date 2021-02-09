@@ -550,7 +550,7 @@ Given "we expect an? (?<type>warning|error|verbose) in the (?<module>.*) module"
         Mock -Module $ErrorModule Write-$type { Write-Host "       Write-Error: $Message" -Foreground Red } -Verifiable
     }
 }
-
+# The error is logged exactly 1 time
 # Then the error is logged exactly 2 times
 # Then the warning is logged 3 times
 # Then the error is logged
@@ -830,4 +830,22 @@ When "I call (Test-Verb|New-User)(?<Parameters> .*)?" {
     } finally {
         Pop-Location
     }
+}
+
+Given "we define (?<Name>[\:\w]+) = (?<Value>.*)" {
+    param($Name, $Value)
+    if ($Name -match "^env:") {
+        Set-Content $Name $Value
+    } else {
+        # we shouldn't have to set it global, but because of pester ...
+        Set-Variable $Name $Value -Scope Global
+    }
+}
+
+When "we import the file allowing variables (?<Variables>.*)" {
+    param($Variables)
+    $Variables = $Variables.Trim() -split "\s*,\s*"
+    $Settings = Import-Metadata ${SettingsFile} -AllowedVariables $Variables
+
+    Write-Verbose (($Settings | Out-String -Stream | ForEach-Object TrimEnd) -join "`n")
 }
