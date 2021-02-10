@@ -135,18 +135,21 @@ function ConvertFrom-Metadata {
         $Tokens += $Tokens | Where-Object { "StringExpandable" -eq $_.Kind } | Select-Object -ExpandProperty NestedTokens
 
         # Work around PowerShell rules about magic variables
-        # Replace "PSScriptRoot" magic variables with the non-reserved "ScriptRoot"
-        if ($scriptroots = @($Tokens | Where-Object { ("Variable" -eq $_.Kind) -and ($_.Name -eq "PSScriptRoot") } | ForEach-Object { $_.Extent } )) {
-            $ScriptContent = $Ast.ToString()
-            for ($r = $scriptroots.count - 1; $r -ge 0; $r--) {
-                $ScriptContent = $ScriptContent.Remove($scriptroots[$r].StartOffset, ($scriptroots[$r].EndOffset - $scriptroots[$r].StartOffset)).Insert($scriptroots[$r].StartOffset, '$ScriptRoot')
+        # Change all the "ValidVariables" to use names like __ModuleBuilder__OriginalName__
+        # Later, we'll try to make sure these are all set!
+        if (($UsedVariables = $Tokens | Where-Object { "Variable" -eq $_.Kind -and $_.Name -in $ValidVariables })) {
+            if ($scriptroots = @( $UsedVariables | ForEach-Object { $_.Extent | Add-Member NoteProperty Name $_.Name } )) {
+                $ScriptContent = $Ast.ToString()
+                for ($r = $scriptroots.count - 1; $r -ge 0; $r--) {
+                    $ScriptContent = $ScriptContent.Remove($scriptroots[$r].StartOffset, ($scriptroots[$r].EndOffset - $scriptroots[$r].StartOffset)).Insert($scriptroots[$r].StartOffset, '$__ModuleBuilder__' + $_.Name + '__')
+                }
             }
-            $AST = [System.Management.Automation.Language.Parser]::ParseInput($ScriptContent, [ref]$Tokens, [ref]$ParseErrors)
         }
+        $AST = [System.Management.Automation.Language.Parser]::ParseInput($ScriptContent, [ref]$Tokens, [ref]$ParseErrors)
 
         $Script = $AST.GetScriptBlock()
         try {
-            $Script.CheckRestrictedLanguage( $ValidCommands, $ValidVariables, $true )
+            $Script.CheckRestrictedLanguage( $ValidCommands, [string[]]($ValidVariables -replace ".*", '__ModuleBuilder__$0__'), $true )
         } catch {
             ThrowError -Exception $_.Exception.InnerException -ErrorId "Metadata Error" -Category "InvalidData" -TargetObject $Script
         }
@@ -162,6 +165,14 @@ function ConvertFrom-Metadata {
                 } | Sort-Object Position -Descending
                 foreach ($point in $Hashtables) {
                     $ScriptContent = $ScriptContent.Insert($point.Position, $point.Type)
+                }
+
+                # Set the ValidVariables in our scope to allow using variables from the caller's scope
+                foreach ($name in $ValidVariables) {
+                    if (!($Value = $PSCmdlet.SessionState.PSVariable.GetValue($Name))) {
+                        $Value = $Name
+                    }
+                    Set-Variable "__ModuleBuilder__${Name}__" $Value
                 }
                 $AST = [System.Management.Automation.Language.Parser]::ParseInput($ScriptContent, [ref]$Tokens, [ref]$ParseErrors)
                 $Script = $AST.GetScriptBlock()
