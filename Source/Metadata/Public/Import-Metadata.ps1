@@ -24,11 +24,18 @@ function Import-Metadata {
         [Switch]$Ordered,
 
         # Allows extending the valid variables which are allowed to be referenced in metadata
-        # BEWARE: This exposes the value of these variables in your context to the caller
-        # You ware reponsible to only allow variables which you know are safe to share
-        [String[]]$AllowedVariables
+        # BEWARE: This exposes the value of these variables in the calling context to the metadata file
+        # You are reponsible to only allow variables which you know are safe to share
+        [String[]]$AllowedVariables,
+
+        # You should not pass this.
+        # The PSVariable parameter is for preserving variable scope within the Metadata commands
+        [System.Management.Automation.PSVariableIntrinsics]$PSVariable
     )
     process {
+        if (!$PSVariable) {
+            $PSVariable = $PSCmdlet.SessionState.PSVariable
+        }
         if (Test-Path $Path) {
             # Write-Debug "Importing Metadata file from `$Path: $Path"
             if (!(Test-Path $Path -PathType Leaf)) {
@@ -43,7 +50,7 @@ function Import-Metadata {
             return
         }
         try {
-            ConvertFrom-Metadata -InputObject $Path -Converters $Converters -Ordered:$Ordered -AllowedVariables $AllowedVariables
+            ConvertFrom-Metadata -InputObject $Path -Converters $Converters -Ordered:$Ordered -AllowedVariables $AllowedVariables -PSVariable $PSVariable
         } catch {
             ThrowError $_
         }
