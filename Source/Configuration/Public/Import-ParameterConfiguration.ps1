@@ -156,7 +156,12 @@ function Import-ParameterConfiguration {
         [string]$FileName,
 
         # If set, considers configuration files in the parent, and it's parent recursively
-        [switch]$Recurse
+        [switch]$Recurse,
+
+        # Allows extending the valid variables which are allowed to be referenced in configuration
+        # BEWARE: This exposes the value of these variables in the calling context to the configuration file
+        # You are reponsible to only allow variables which you know are safe to share
+        [String[]]$AllowedVariables
     )
 
     $CallersInvocation = $PSCmdlet.SessionState.PSVariable.GetValue("MyInvocation")
@@ -166,12 +171,18 @@ function Import-ParameterConfiguration {
         $FileName = "$($CallersInvocation.MyCommand.Noun).psd1"
     }
 
+    $MetadataOptions = @{
+        AllowedVariables = $AllowedVariables
+        PSVariable       = $PSCmdlet.SessionState.PSVariable
+        ErrorAction      = "SilentlyContinue"
+    }
+
     do {
         $FilePath = Join-Path $WorkingDirectory $FileName
 
         Write-Debug "Initializing parameters for $($CallersInvocation.InvocationName) from $(Join-Path $WorkingDirectory $FileName)"
         if (Test-Path $FilePath) {
-            $ConfiguredDefaults = Import-Metadata $FilePath -ErrorAction SilentlyContinue
+            $ConfiguredDefaults = Import-Metadata $FilePath @MetadataOptions
 
             foreach ($Parameter in $AllParameters) {
                 # If it's in the defaults AND it was not already set at a higher precedence

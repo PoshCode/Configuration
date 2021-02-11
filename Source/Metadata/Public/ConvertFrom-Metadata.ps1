@@ -43,7 +43,7 @@ function ConvertFrom-Metadata {
 
         # The PSScriptRoot which the metadata should be evaluated from.
         # You do not normally need to pass this, and it has no effect unless
-        # you're referencing $PSScriptRoot or $ScriptRoot in your metadata
+        # you're referencing $ScriptRoot in your metadata
         $ScriptRoot = "$PSScriptRoot",
 
         # If set (and PowerShell version 4 or later) preserve the file order of configuration
@@ -53,7 +53,11 @@ function ConvertFrom-Metadata {
         # Allows extending the valid variables which are allowed to be referenced in metadata
         # BEWARE: This exposes the value of these variables in your context to the caller
         # You ware reponsible to only allow variables which you know are safe to share
-        [String[]]$AllowedVariables
+        [String[]]$AllowedVariables,
+
+        # You should not pass this.
+        # The PSVariable parameter is for preserving variable scope within the Metadata commands
+        [System.Management.Automation.PSVariableIntrinsics]$PSVariable
     )
     begin {
         $OriginalMetadataSerializers = $Script:MetadataSerializers.Clone()
@@ -64,6 +68,10 @@ function ConvertFrom-Metadata {
         ) + @($MetadataDeserializers.Keys)
         [string[]]$ValidVariables = $AllowedVariables + @(
             "PSScriptRoot", "ScriptRoot", "PoshCodeModuleRoot", "PSCulture", "PSUICulture", "True", "False", "Null")
+
+        if (!$PSVariable) {
+            $PSVariable = $PSCmdlet.SessionState.PSVariable
+        }
     }
     end {
         $Script:MetadataSerializers = $OriginalMetadataSerializers.Clone()
@@ -74,6 +82,7 @@ function ConvertFrom-Metadata {
         $Tokens = $Null; $ParseErrors = $Null
 
         if (Test-PSVersion -lt "3.0") {
+            # Write-Debug "Using Import-LocalizedData to support PowerShell $($PSVersionTable.PSVersion)"
             # Write-Debug "$InputObject"
             if (!(Test-Path $InputObject -ErrorAction SilentlyContinue)) {
                 $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
@@ -90,6 +99,7 @@ function ConvertFrom-Metadata {
         }
 
         if (Test-Path $InputObject -ErrorAction SilentlyContinue) {
+            Write-Debug "Using ParseInput to support PowerShell $($PSVersionTable.PSVersion)"
             # ParseFile on PS5 (and older) doesn't handle utf8 encoding properly (treats it as ASCII)
             # Sometimes, that causes an avoidable error. So I'm avoiding it, if I can:
             $Path = Convert-Path $InputObject
@@ -103,6 +113,7 @@ function ConvertFrom-Metadata {
                 # But older versions of PowerShell, this will throw a MethodException because the overload is missing
                 $AST = [System.Management.Automation.Language.Parser]::ParseInput($Content, $Path, [ref]$Tokens, [ref]$ParseErrors)
             } catch [System.Management.Automation.MethodException] {
+                Write-Debug "Using ParseFile as a backup for PowerShell $($PSVersionTable.PSVersion)"
                 $AST = [System.Management.Automation.Language.Parser]::ParseFile( $Path, [ref]$Tokens, [ref]$ParseErrors)
 
                 # If we got parse errors on older versions of PowerShell, test to see if the error is just encoding
@@ -117,6 +128,7 @@ function ConvertFrom-Metadata {
                 }
             }
         } else {
+            Write-Debug "Using ParseInput with loose metadata: $InputObject"
             if (!$PSBoundParameters.ContainsKey('ScriptRoot')) {
                 $ScriptRoot = $PoshCodeModuleRoot
             }
@@ -134,27 +146,45 @@ function ConvertFrom-Metadata {
         # Get the variables or subexpressions from strings which have them ("StringExpandable" vs "String") ...
         $Tokens += $Tokens | Where-Object { "StringExpandable" -eq $_.Kind } | Select-Object -ExpandProperty NestedTokens
 
+        Write-Debug "Searching $($Tokens.Count) variables for: $($ValidVariables -join ', '))"
         # Work around PowerShell rules about magic variables
         # Change all the "ValidVariables" to use names like __ModuleBuilder__OriginalName__
         # Later, we'll try to make sure these are all set!
-        if (($UsedVariables = $Tokens | Where-Object { "Variable" -eq $_.Kind -and $_.Name -in $ValidVariables })) {
-            if ($scriptroots = @( $UsedVariables | ForEach-Object { $_.Extent | Add-Member NoteProperty Name $_.Name } )) {
+        if (($UsedVariables = $Tokens | Where-Object { ("Variable" -eq $_.Kind) -and ($_.Name -in $ValidVariables) })) {
+            # Write-Debug "Replacing $($UsedVariables.Name -join ', ')"
+            if (($scriptroots = @( $UsedVariables | ForEach-Object { $_.Extent | Add-Member NoteProperty Name $_.Name -PassThru } ))) {
                 $ScriptContent = $Ast.ToString()
+                # Write-Debug "Replacing $($UsedVariables.Count) variables in metadata: $ScriptContent"
                 for ($r = $scriptroots.count - 1; $r -ge 0; $r--) {
-                    $ScriptContent = $ScriptContent.Remove($scriptroots[$r].StartOffset, ($scriptroots[$r].EndOffset - $scriptroots[$r].StartOffset)).Insert($scriptroots[$r].StartOffset, '$__ModuleBuilder__' + $_.Name + '__')
+                    $ScriptContent = $ScriptContent.Remove($scriptroots[$r].StartOffset, ($scriptroots[$r].EndOffset - $scriptroots[$r].StartOffset)).Insert($scriptroots[$r].StartOffset, '${__ModuleBuilder__' + $scriptroots[$r].Name + '__}')
                 }
             }
         }
+
+        # Write-Debug "Replaced $($UsedVariables.Name -join ' and ') in metadata: $ScriptContent"
         $AST = [System.Management.Automation.Language.Parser]::ParseInput($ScriptContent, [ref]$Tokens, [ref]$ParseErrors)
 
         $Script = $AST.GetScriptBlock()
         try {
-            $Script.CheckRestrictedLanguage( $ValidCommands, [string[]]($ValidVariables -replace ".*", '__ModuleBuilder__$0__'), $true )
+            [string[]]$PrivateVariables = $ValidVariables -replace "^.*$", '__ModuleBuilder__$0__'
+            # Write-Debug "Validating metadata: $Script against $PrivateVariables"
+            $Script.CheckRestrictedLanguage( $ValidCommands, $PrivateVariables, $true )
         } catch {
             ThrowError -Exception $_.Exception.InnerException -ErrorId "Metadata Error" -Category "InvalidData" -TargetObject $Script
         }
 
+        # Set the __ModuleBuilder__ValidVariables__ in our scope but not for constant variables:
+        $ReplacementVariables = $ValidVariables | Where-Object { $_ -notin "PSCulture", "PSUICulture", "True", "False", "Null" }
+        foreach ($name in $ReplacementVariables) {
+            if (!($Value = $PSVariable.GetValue($Name))) {
+                $Value = "`${$Name}"
+            }
+            # Write-Debug "Setting __ModuleBuilder__${Name}__ = $Value"
+            Set-Variable "__ModuleBuilder__${Name}__" $Value
+        }
+
         if ($Ordered -and (Test-PSVersion -gt "3.0")) {
+            # Write-Debug "Supporting [Ordered] on PowerShell $($PSVersionTable.PSVersion)"
             # Make all the hashtables ordered, so that the output objects make more sense to humans...
             if ($Tokens | Where-Object { "AtCurly" -eq $_.Kind }) {
                 $ScriptContent = $AST.ToString()
@@ -167,24 +197,19 @@ function ConvertFrom-Metadata {
                     $ScriptContent = $ScriptContent.Insert($point.Position, $point.Type)
                 }
 
-                # Set the ValidVariables in our scope to allow using variables from the caller's scope
-                foreach ($name in $ValidVariables) {
-                    if (!($Value = $PSCmdlet.SessionState.PSVariable.GetValue($Name))) {
-                        $Value = $Name
-                    }
-                    Set-Variable "__ModuleBuilder__${Name}__" $Value
-                }
                 $AST = [System.Management.Automation.Language.Parser]::ParseInput($ScriptContent, [ref]$Tokens, [ref]$ParseErrors)
                 $Script = $AST.GetScriptBlock()
             }
         }
-
+        # Write-Debug "Metadata: $Script"
+        # Write-Debug "Switching to RestrictedLanguage mode"
         $Mode, $ExecutionContext.SessionState.LanguageMode = $ExecutionContext.SessionState.LanguageMode, "RestrictedLanguage"
 
         try {
             $Script.InvokeReturnAsIs(@())
         } finally {
             $ExecutionContext.SessionState.LanguageMode = $Mode
+            # Write-Debug "Switching to $Mode mode"
         }
     }
 }
