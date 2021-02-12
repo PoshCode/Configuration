@@ -82,8 +82,8 @@ function ConvertFrom-Metadata {
         $Tokens = $Null; $ParseErrors = $Null
 
         if (Test-PSVersion -lt "3.0") {
-            # Write-Debug "Using Import-LocalizedData to support PowerShell $($PSVersionTable.PSVersion)"
-            # Write-Debug "$InputObject"
+            # Write-Debug "ConvertFrom-Metadata: Using Import-LocalizedData to support PowerShell $($PSVersionTable.PSVersion)"
+            # Write-Debug "ConvertFrom-Metadata: $InputObject"
             if (!(Test-Path $InputObject -ErrorAction SilentlyContinue)) {
                 $Path = [IO.path]::ChangeExtension([IO.Path]::GetTempFileName(), $ModuleManifestExtension)
                 Set-Content -Encoding UTF8 -Path $Path $InputObject
@@ -99,7 +99,7 @@ function ConvertFrom-Metadata {
         }
 
         if (Test-Path $InputObject -ErrorAction SilentlyContinue) {
-            Write-Debug "Using ParseInput to support PowerShell $($PSVersionTable.PSVersion)"
+            # Write-Debug "ConvertFrom-Metadata: Using ParseInput to support PowerShell $($PSVersionTable.PSVersion)"
             # ParseFile on PS5 (and older) doesn't handle utf8 encoding properly (treats it as ASCII)
             # Sometimes, that causes an avoidable error. So I'm avoiding it, if I can:
             $Path = Convert-Path $InputObject
@@ -113,7 +113,7 @@ function ConvertFrom-Metadata {
                 # But older versions of PowerShell, this will throw a MethodException because the overload is missing
                 $AST = [System.Management.Automation.Language.Parser]::ParseInput($Content, $Path, [ref]$Tokens, [ref]$ParseErrors)
             } catch [System.Management.Automation.MethodException] {
-                Write-Debug "Using ParseFile as a backup for PowerShell $($PSVersionTable.PSVersion)"
+                # Write-Debug "ConvertFrom-Metadata: Using ParseFile as a backup for PowerShell $($PSVersionTable.PSVersion)"
                 $AST = [System.Management.Automation.Language.Parser]::ParseFile( $Path, [ref]$Tokens, [ref]$ParseErrors)
 
                 # If we got parse errors on older versions of PowerShell, test to see if the error is just encoding
@@ -128,7 +128,7 @@ function ConvertFrom-Metadata {
                 }
             }
         } else {
-            Write-Debug "Using ParseInput with loose metadata: $InputObject"
+            # Write-Debug "ConvertFrom-Metadata: Using ParseInput with loose metadata: $InputObject"
             if (!$PSBoundParameters.ContainsKey('ScriptRoot')) {
                 $ScriptRoot = $PoshCodeModuleRoot
             }
@@ -146,28 +146,35 @@ function ConvertFrom-Metadata {
         # Get the variables or subexpressions from strings which have them ("StringExpandable" vs "String") ...
         $Tokens += $Tokens | Where-Object { "StringExpandable" -eq $_.Kind } | Select-Object -ExpandProperty NestedTokens
 
-        Write-Debug "Searching $($Tokens.Count) variables for: $($ValidVariables -join ', '))"
+        # Write-Debug "ConvertFrom-Metadata: Searching $($Tokens.Count) variables for: $($ValidVariables -join ', '))"
         # Work around PowerShell rules about magic variables
         # Change all the "ValidVariables" to use names like __ModuleBuilder__OriginalName__
         # Later, we'll try to make sure these are all set!
         if (($UsedVariables = $Tokens | Where-Object { ("Variable" -eq $_.Kind) -and ($_.Name -in $ValidVariables) })) {
-            # Write-Debug "Replacing $($UsedVariables.Name -join ', ')"
+            # Write-Debug "ConvertFrom-Metadata: Replacing $($UsedVariables.Name -join ', ')"
             if (($scriptroots = @( $UsedVariables | ForEach-Object { $_.Extent | Add-Member NoteProperty Name $_.Name -PassThru } ))) {
                 $ScriptContent = $Ast.ToString()
-                # Write-Debug "Replacing $($UsedVariables.Count) variables in metadata: $ScriptContent"
+                # Write-Debug "ConvertFrom-Metadata: Replacing $($UsedVariables.Count) variables in metadata: $ScriptContent"
                 for ($r = $scriptroots.count - 1; $r -ge 0; $r--) {
-                    $ScriptContent = $ScriptContent.Remove($scriptroots[$r].StartOffset, ($scriptroots[$r].EndOffset - $scriptroots[$r].StartOffset)).Insert($scriptroots[$r].StartOffset, '${__ModuleBuilder__' + $scriptroots[$r].Name + '__}')
+                    $VariableExtent = $scriptroots[$r]
+                    $VariableName = if ($VariableExtent.Name -eq "PSScriptRoot") {
+                        '${__ModuleBuilder__ScriptRoot__}'
+                    } else {
+                        '${__ModuleBuilder__' + $VariableExtent.Name + '__}'
+                    }
+                    $ScriptContent = $ScriptContent.Remove($VariableExtent.StartOffset, ($VariableExtent.EndOffset - $VariableExtent.StartOffset)
+                                                  ).Insert($VariableExtent.StartOffset, $VariableName)
                 }
             }
         }
 
-        # Write-Debug "Replaced $($UsedVariables.Name -join ' and ') in metadata: $ScriptContent"
+        # Write-Debug "ConvertFrom-Metadata: Replaced $($UsedVariables.Name -join ' and ') in metadata: $ScriptContent"
         $AST = [System.Management.Automation.Language.Parser]::ParseInput($ScriptContent, [ref]$Tokens, [ref]$ParseErrors)
 
         $Script = $AST.GetScriptBlock()
         try {
             [string[]]$PrivateVariables = $ValidVariables -replace "^.*$", '__ModuleBuilder__$0__'
-            # Write-Debug "Validating metadata: $Script against $PrivateVariables"
+            # Write-Debug "ConvertFrom-Metadata: Validating metadata: $Script against $PrivateVariables"
             $Script.CheckRestrictedLanguage( $ValidCommands, $PrivateVariables, $true )
         } catch {
             ThrowError -Exception $_.Exception.InnerException -ErrorId "Metadata Error" -Category "InvalidData" -TargetObject $Script
@@ -179,12 +186,12 @@ function ConvertFrom-Metadata {
             if (!($Value = $PSVariable.GetValue($Name))) {
                 $Value = "`${$Name}"
             }
-            # Write-Debug "Setting __ModuleBuilder__${Name}__ = $Value"
+            # Write-Debug "ConvertFrom-Metadata: Setting __ModuleBuilder__${Name}__ = $Value"
             Set-Variable "__ModuleBuilder__${Name}__" $Value
         }
 
         if ($Ordered -and (Test-PSVersion -gt "3.0")) {
-            # Write-Debug "Supporting [Ordered] on PowerShell $($PSVersionTable.PSVersion)"
+            # Write-Debug "ConvertFrom-Metadata: Supporting [Ordered] on PowerShell $($PSVersionTable.PSVersion)"
             # Make all the hashtables ordered, so that the output objects make more sense to humans...
             if ($Tokens | Where-Object { "AtCurly" -eq $_.Kind }) {
                 $ScriptContent = $AST.ToString()
@@ -201,15 +208,15 @@ function ConvertFrom-Metadata {
                 $Script = $AST.GetScriptBlock()
             }
         }
-        # Write-Debug "Metadata: $Script"
-        # Write-Debug "Switching to RestrictedLanguage mode"
+        # Write-Debug "ConvertFrom-Metadata: Metadata: $Script"
+        # Write-Debug "ConvertFrom-Metadata: Switching to RestrictedLanguage mode"
         $Mode, $ExecutionContext.SessionState.LanguageMode = $ExecutionContext.SessionState.LanguageMode, "RestrictedLanguage"
 
         try {
             $Script.InvokeReturnAsIs(@())
         } finally {
             $ExecutionContext.SessionState.LanguageMode = $Mode
-            # Write-Debug "Switching to $Mode mode"
+            # Write-Debug "ConvertFrom-Metadata: Switching to $Mode mode"
         }
     }
 }
