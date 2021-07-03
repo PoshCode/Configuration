@@ -50,7 +50,12 @@ function Import-Configuration {
 
         # If set (and PowerShell version 4 or later) preserve the file order of configuration
         # This results in the output being an OrderedDictionary instead of Hashtable
-        [Switch]$Ordered
+        [Switch]$Ordered,
+
+        # Allows extending the valid variables which are allowed to be referenced in configuration
+        # BEWARE: This exposes the value of these variables in the calling context to the configuration file
+        # You are reponsible to only allow variables which you know are safe to share
+        [String[]]$AllowedVariables
     )
     begin {
         # Write-Debug "Import-Configuration for module $Name"
@@ -62,12 +67,19 @@ function Import-Configuration {
             throw "Could not determine the configuration name. When you are not calling Import-Configuration from a module, you must specify the -Author and -Name parameter"
         }
 
+        $MetadataOptions = @{
+            AllowedVariables = $AllowedVariables
+            PSVariable       = $PSCmdlet.SessionState.PSVariable
+            Ordered          = $Ordered
+            ErrorAction      = "Ignore"
+        }
+
         if ($DefaultPath -and (Test-Path $DefaultPath -Type Container)) {
             $DefaultPath = Join-Path $DefaultPath Configuration.psd1
         }
 
         $Configuration = if ($DefaultPath -and (Test-Path $DefaultPath)) {
-            Import-Metadata $DefaultPath -ErrorAction Ignore -Ordered:$Ordered
+            Import-Metadata $DefaultPath @MetadataOptions
         } else {
             @{}
         }
@@ -85,7 +97,7 @@ function Import-Configuration {
         $MachinePath = Get-ConfigurationPath @Parameters -Scope Machine -SkipCreatingFolder
         $MachinePath = Join-Path $MachinePath Configuration.psd1
         $Machine = if (Test-Path $MachinePath) {
-            Import-Metadata $MachinePath -ErrorAction Ignore -Ordered:$Ordered
+            Import-Metadata $MachinePath @MetadataOptions
         } else {
             @{}
         }
@@ -95,7 +107,7 @@ function Import-Configuration {
         $EnterprisePath = Get-ConfigurationPath @Parameters -Scope Enterprise -SkipCreatingFolder
         $EnterprisePath = Join-Path $EnterprisePath Configuration.psd1
         $Enterprise = if (Test-Path $EnterprisePath) {
-            Import-Metadata $EnterprisePath -ErrorAction Ignore -Ordered:$Ordered
+            Import-Metadata $EnterprisePath @MetadataOptions
         } else {
             @{}
         }
@@ -104,7 +116,7 @@ function Import-Configuration {
         $LocalUserPath = Get-ConfigurationPath @Parameters -Scope User -SkipCreatingFolder
         $LocalUserPath = Join-Path $LocalUserPath Configuration.psd1
         $LocalUser = if (Test-Path $LocalUserPath) {
-            Import-Metadata $LocalUserPath -ErrorAction Ignore -Ordered:$Ordered
+            Import-Metadata $LocalUserPath @MetadataOptions
         } else {
             @{}
         }
