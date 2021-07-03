@@ -40,8 +40,9 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest, windows-2016] #, ubuntu-16.04, ubuntu-18.04, macos-latest]
+        os: [windows-latest, windows-2016, ubuntu-latest, macos-latest]
     needs: build
     steps:
       - name: Download Build Output
