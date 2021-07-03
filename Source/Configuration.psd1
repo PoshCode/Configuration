@@ -4,7 +4,7 @@
 ModuleToProcess = 'Configuration.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.7.2'
+ModuleVersion = '1.5.0'
 
 # ID used to uniquely identify this module
 GUID = 'e56e5bec-4d97-4dfd-b138-abbaa14464a6'
@@ -16,7 +16,7 @@ Author = @('Joel Bennett')
 CompanyName = 'HuddledMasses.org'
 
 # Copyright statement for this module
-Copyright = 'Copyright (c) 2014-2019 by Joel Bennett, all rights reserved.'
+Copyright = 'Copyright (c) 2014-2021 by Joel Bennett, all rights reserved.'
 
 # Description of the functionality provided by this module
 Description = 'A module for storing and reading configuration values, with full PS Data serialization, automatic configuration for modules and scripts, etc.'
@@ -26,9 +26,10 @@ FunctionsToExport = @('*')
 CmdletsToExport = @()
 VariablesToExport = @()
 AliasesToExport = @('Get-StoragePath', 'Get-ManifestValue', 'Update-Manifest')
+RequiredModules = @('Metadata')
 
 # List of all files packaged with this module
-FileList = @('.\Configuration.psd1','.\Configuration.psm1','.\Metadata.psm1','.\en-US\about_Configuration.help.txt')
+FileList = @('.\Configuration.psd1','.\Configuration.psm1','.\en-US\about_Configuration.help.txt')
 
 PrivateData = @{
     # Allows overriding the default paths where Configuration stores it's configuration
@@ -67,13 +68,8 @@ PrivateData = @{
 
         # Release notes for this particular version of the module
         ReleaseNotes = '
-        - Fix bug in Get-Metadata with complex values (#19)
-        - Fix postfix/suffix
-        - Fix serialization of scriptblocks with single quotes
-        - Convert the modules to ModuleBuilder format
-        - Switch build to azure pipelines
-        - Clean up extra output lines in psd1 files
-        - Clean up exports
+        - Extract the Metadata module
+        - Add support for arbitrary AllowedVariables
         '
     }
 }

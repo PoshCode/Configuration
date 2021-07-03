@@ -6,9 +6,4 @@ param(
     $MachineData
 )
 
-$ConfigurationRoot = Get-Variable PSScriptRoot* -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq "PSScriptRoot" } | ForEach-Object { $_.Value }
-if (!$ConfigurationRoot) {
-    $ConfigurationRoot = Split-Path $MyInvocation.MyCommand.Path -Parent
-}
-
-Import-Module "${ConfigurationRoot}\Metadata.psm1" -Force -Args @($Converters) -Verbose:$false
+Import-Module Metadata -Force -Args @($Converters) -Verbose:$false -Global

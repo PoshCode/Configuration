@@ -1,7 +1,7 @@
 @{
-    ModuleManifest           = "Configuration.psd1"
+    ModuleManifest           = "Source/Configuration.psd1"
+    OutputDirectory          = "../"
     SourceDirectories        = @("Private", "Public")
     Prefix                   = "Header\param.ps1"
-    ReadMe                   = "..\..\ReadMe.md"
     VersionedOutputDirectory = $true
 }
