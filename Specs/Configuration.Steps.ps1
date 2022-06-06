@@ -102,6 +102,8 @@ Given 'the configuration module is imported with testing paths on Linux:' {
         Set-Variable IsLinux $True -Force -Option ReadOnly, AllScope -Scope Global
         Import-Module $ModuleBase/Configuration.psd1 -Scope Global
         Set-Variable IsLinux $False -Force -Option ReadOnly, AllScope -Scope Global
+    } else {
+        Import-Module $ModuleBase/Configuration.psd1 -Scope Global
     }
 
     Update-Metadata -Path $ModuleBase/Configuration.psd1 -PropertyName 'PrivateData.PathOverride.MachineData' -Value ""
