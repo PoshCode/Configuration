@@ -6,4 +6,6 @@ param(
     $MachineData
 )
 
-Import-Module Metadata -Force -Args @($Converters) -Verbose:$false -Global
+if ($Converters) {
+    Add-MetadataConverter $Converters
+}
