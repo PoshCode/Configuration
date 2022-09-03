@@ -1,5 +1,4 @@
-[![Build Status](https://dev.azure.com/poshcode/Configuration/_apis/build/status/Configuration?branchName=master)](https://dev.azure.com/poshcode/Configuration/_build/latest?definitionId=2&branchName=master)
-
+[![Build Status](https://github.com/PoshCode/Configuration/actions/workflows/build.yml/badge.svg)](https://github.com/PoshCode/Configuration/actions/workflows/build.yml)
 # The Configuration Module
 
 ## Metadata commands for working with .psd1:
