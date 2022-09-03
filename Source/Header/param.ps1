@@ -6,6 +6,6 @@ param(
     $MachineData
 )
 
-if ($Converters.Keys) {
+if ($Converters.Count) {
     Add-MetadataConverter $Converters
 }
