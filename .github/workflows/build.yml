@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, windows-2016, ubuntu-latest, macos-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
     needs: build
     steps:
       - name: Download Build Output
