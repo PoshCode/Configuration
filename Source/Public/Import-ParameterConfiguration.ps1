@@ -101,7 +101,7 @@ function Import-ParameterConfiguration {
             Permissions : { Access = Administrator }
 
         .EXAMPLE
-            Following up on our earlier example, let's look at a way to use imagine that -FileName parameter.
+            Following up on our earlier example, let's look at a way to use that -FileName parameter.
             If you wanted to use a different configuration files than your Noun, you can pass the file name in.
 
             You could even use one of your parameters to generate the file name. If we modify the function like ...
