@@ -39,6 +39,7 @@ function Get-ParameterValue {
             PSVariable       = $PSCmdlet.SessionState.PSVariable
             ErrorAction      = "SilentlyContinue"
         }
+        Write-Debug "Importing $FromFile"
         $FileValues = Import-Metadata $FromFile @MetadataOptions
         if ($CommandKey) {
             $FileValues = $FileValues.$CommandKey
@@ -57,9 +58,10 @@ function Get-ParameterValue {
         Write-Debug "  Parameter: $($parameter.key)"
         $key = $parameter.Key
 
+        # Support parameter aliases in the config file by changing the alias to the parameter name
         # If the value is not in the file defaults AND was not set by the user ...
-        if (-not $FileDefaults.ContainsKey($key) -and -not $BoundParameters.ContainsKey($key)) {
-            # Support parameter aliases in the config file (by changing their names)
+        if ($FromFile -and -not $FileDefaults.ContainsKey($key) -and -not $BoundParameters.ContainsKey($key)) {
+            # Check if any of the aliases are in the file defaults
             Write-Debug "  Aliases: $($parameter.Value.Aliases -join ', ')"
             foreach ($k in @($parameter.Value.Aliases)) {
                 if ($null -ne $k -and $FileDefaults.ContainsKey($k)) {
@@ -71,30 +73,30 @@ function Get-ParameterValue {
             }
         }
 
+        # Bound parameter values > build.psd1 values > default parameters values
         if ($CallersInvocation) {
-            # If it's in the defaults AND it was not already set at a higher precedence
-            if ($FileDefaults.ContainsKey($Parameter) -and -not ($BoundParameters.ContainsKey($Parameter))) {
+            # If it's in the file defaults (now) AND it was not already set at a higher precedence
+            if ($FromFile -and $FileDefaults.ContainsKey($Parameter) -and -not ($BoundParameters.ContainsKey($Parameter))) {
                 Write-Debug "Export $Parameter = $($FileDefaults[$Parameter])"
                 $BoundParameters[$Parameter] = $FileDefaults[$Parameter]
                 # Set the variable in the _callers_ SessionState as well as our return hashtable
                 $PSCmdlet.SessionState.PSVariable.Set($Parameter, $FileDefaults[$Parameter])
-            }
-
-            # Bound parameter values > build.psd1 values > default parameters values
-            if (-not $FileDefaults.ContainsKey($key) -and -not $BoundParameters.ContainsKey($key)) {
+            # If it's still NOT in the file defaults and was not already set, check if there's a default value
+            } elseif (-not $FileDefaults.ContainsKey($key) -and -not $BoundParameters.ContainsKey($key)) {
                 # Reading the current value of the $key variable returns either the bound parameter or the default
                 if ($null -ne ($value = $PSCmdlet.SessionState.PSVariable.Get($key).Value)) {
+                    Write-Debug "    From Default: $($BoundParameters[$key] -join ', ')"
                     if ($value -ne ($null -as $parameter.Value.ParameterType)) {
                         $BoundParameters[$key] = $value
                     }
                 }
-                if ($BoundParameters.ContainsKey($key)) {
-                    Write-Debug "    From Parameter: $($BoundParameters[$key] -join ', ')"
-                } elseif ($BoundParameters[$key]) {
-                    Write-Debug "    From Default: $($BoundParameters[$key] -join ', ')"
-                }
+            # Otherwise, it was set by the user, or ...
+            } elseif ($BoundParameters[$key]) {
+                Write-Debug "    From Parameter: $($BoundParameters[$key] -join ', ')"
+            # We'll set it from the file
             } elseif ($FileDefaults[$key]) {
                 Write-Debug "    From File: $($FileDefaults[$key] -join ', ')"
+                $BoundParameters[$key] = $FileDefaults[$key]
             }
         }
     }

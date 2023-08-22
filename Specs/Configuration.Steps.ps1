@@ -768,7 +768,7 @@ Then "a settings file named (\S+) should exist(?:(?: in the (?<Scope>\S+) folder
 }
 
 Given "a passthru command '(?<Command>[A-Z][a-z]+-[A-Z][a-z]+)' with (?<Parameters>.*) parameters" {
-     param($Command, $Parameters)
+    param($Command, $Parameters)
 
     [string[]]$Parameters = $Parameters -split "\s*and\s*" | % { $_.Trim("['`"]") }
 
@@ -781,6 +781,26 @@ Given "a passthru command '(?<Command>[A-Z][a-z]+-[A-Z][a-z]+)' with (?<Paramete
                 "`n            $Name = `$$Name"
             })
         }
+        `$global:DebugPreference = 'SilentlyContinue'
+    }
+    "
+    Invoke-Expression $Function
+}
+
+Given "a passthru command '(?<Command>[A-Z][a-z]+-[A-Z][a-z]+)' with (?<Parameters>.*) parameters that calls Get-ParameterValue(?<FromFile> with a file config)?" {
+    param($Command, $Parameters, $FromFile)
+
+    [string[]]$Parameters = $Parameters -split "\s*and\s*"
+
+    $Function = "
+    function $Command {
+        param(
+            `$$($Parameters -join ", `$"),
+            [Alias('Alias')]
+            `$ExtraParameter
+        )
+        `$global:DebugPreference = 'Continue'
+        Get-ParameterValue $(if($FromFile){ "-FromFile Verb.psd1" })
         `$global:DebugPreference = 'SilentlyContinue'
     }
     "

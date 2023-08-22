@@ -5,7 +5,7 @@ Feature: Passes Script Analyzer
 
     Scenario: ScriptAnalyzer on the compiled module output
         Given the configuration module is imported
-        When we run ScriptAnalyzer on 'C:\Users\Jaykul\Projects\Modules\Configuration\1.4.5' with 'C:\Users\Jaykul\Projects\Modules\Configuration\PSScriptAnalyzerSettings.psd1'
+        When we run ScriptAnalyzer on 'C:\Users\Jaykul\Projects\Modules\Configuration\1.5.5' with 'C:\Users\Jaykul\Projects\Modules\Configuration\PSScriptAnalyzerSettings.psd1'
 
         Then it passes the ScriptAnalyzer rule PSAlignAssignmentStatement 
         Then it passes the ScriptAnalyzer rule PSAvoidUsingCmdletAliases 
@@ -58,6 +58,7 @@ Feature: Passes Script Analyzer
         Then it passes the ScriptAnalyzer rule PSUsePSCredentialType 
         Then it passes the ScriptAnalyzer rule PSShouldProcess 
         Then it passes the ScriptAnalyzer rule PSUseShouldProcessForStateChangingFunctions 
+        Then it passes the ScriptAnalyzer rule PSUseSingularNouns 
         Then it passes the ScriptAnalyzer rule PSUseSupportsShouldProcess 
         Then it passes the ScriptAnalyzer rule PSUseToExportFieldsInManifest 
         Then it passes the ScriptAnalyzer rule PSUseUsingScopeModifierInNewRunspaces 
