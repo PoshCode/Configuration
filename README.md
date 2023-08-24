@@ -1,7 +1,25 @@
 [![Build Status](https://github.com/PoshCode/Configuration/actions/workflows/build.yml/badge.svg)](https://github.com/PoshCode/Configuration/actions/workflows/build.yml)
 # The Configuration Module
 
-## Metadata commands for working with .psd1:
+Configuration commands for storing and loading settings (usually just hashtables, but can be any PSObject). Just pipe your hashtable to `Export-Configuration` and load it back with `Import-Configuration`!
+
+- Ship default configuration files with your module
+- Automatically determines where to save your settings
+  - Supports Windows roaming profiles
+  - Supports XDG settings for Linux (and MacOS)
+- Allow users to configure settings using our commands, or your own custom commands
+- Supports _layered_ configurations:
+  - Machine-level config
+  - User override files
+- Supports automatic configuration of parameters values for a command
+  - Reads `Noun` configuration files in your working directory
+  - Filters only values which apply to the current command
+  - Supports recursively defining defaults in folders
+- Supports combining parameter values from PSBoundParameters, DefaultValues, and an optional configuration file.
+
+These modules work back to much older versions of PowerShell, but are currently being tested on Windows PowerShell and PowerShell 7. They depend on the Metadata module for serialization of objects to psd1 format.
+
+## Metadata commands for working with .psd1 are in the [Metadata](https://github.com/PoshCode/Metadata) module
 
 - Manipulating metadata files
 - Extensible serialization of types
@@ -9,21 +27,6 @@
 - Lets you store almost anything in readable metadata (.psd1) files
 - Serializing (`Export`) to metadata (.psd1) files
 - Deserializing (`Import`) from metadata (.psd1) files
-
-## Configuration commands for loading settings:
-
-- Ship default configuration files with your module
-- Automatically determines where to save your settings
-    - Supports Windows roaming profiles
-    - Supports XDG settings for Linux (and MacOS)
-- Allow users to configure settings using our commands, or your wrappers
-- Supports _layered_ configurations:
-  - Machine-level config
-  - User override files
-- Supports automatic configuration of parameters values for a command
-  - Reads `Noun` configuration files in your working directory
-  - Filters only values which apply to the current command
-
 
 It supports WindowsPowerShell, as well as PowerShell Core on Windows, Linux and OS X.
 
@@ -74,7 +77,7 @@ Of course, you could have imported the configuration, edited that one setting, a
 
 Versioning your configuration is supported, but is only done explicitly (in `Import-Configuration`, `Export-Configuration`, and `Get-ConfigurationPath`). Whenever you need to change your module's configuration in an incompatible way, you can write a migration function that runs at import-time in your new version, something like this:
 
-```posh
+```powershell
 # Specify a script-level version number
 $ConfigVersion = @{ Version = 1.1 }
 
@@ -109,9 +112,9 @@ The Configuration module works by serializing PowerShell hashtables or custom ob
 
 When you `Export-Configuration` you can set the `-Scope`, which determines where the Configuration.psd1 are stored:
 
-* **User** exports to `$Env:LocalAppData` or `~/.config/`
-* **Enterprise** exports to `$Env:AppData` (the roaming path) or `~/.local/share/`
-* **Machine** exports to `$Env:ProgramData` or `/etc/xdg/`
+- **User** exports to `$Env:LocalAppData` or `~/.config/`
+- **Enterprise** exports to `$Env:AppData` (the roaming path) or `~/.local/share/`
+- **Machine** exports to `$Env:ProgramData` or `/etc/xdg/`
 
 Note that the linux paths are controlled by XDG environment variables, and the default paths can be overriden by manually editing the Configuration module manifest.
 
@@ -140,13 +143,13 @@ The actual serialization commands (with the `Metadata` noun) are: ConvertFrom, C
 
 In other words, it handles everything you're likely to need in a configuration file. However, it also has support for adding additional type serializers via the `Add-MetadataConverter` command. If you want to store anything that doesn't work, please raise an issue :wink:.
 
-#### One little catch
+### One little catch
 
 The configuration module uses the caller's scope to determine the name of the module (and Company or Author name) that is asking for configuration.  For this reason you normally just call `Import-Configuration` from within _a function_ **in** your module (to make sure the callstack shows the module scope).
 
 The _very important_ side effect is that you _must not_ change the module name nor the author of your module if you're using this Configuration module, or you will need to manually call `Import-Configuration` with the old information and then `Export` those settings to the new location (see the )
 
-#### Using the cmdlets from outside a module
+### Using the cmdlets from outside a module
 
 It is possible to use the commands to Import and Export the configuration for a module from outside the module (or from the main module body, instead of a function), simply pipe the ModuleInfo to `Import-Configuration`. To continue our example from earlier:
 
@@ -164,8 +167,7 @@ $Config = Import-Configuration -Name DataModule -Author HuddledMasses.org
 
 Because of how easily this can go wrong, I strongly recommend you don't use this syntax -- but if you do, be aware that you must also specify the `-DefaultPath` if you want to load the default configuration file from the module folder.
 
-
-# A little history:
+# A little history
 
 The Configuration module is something I first wrote as part of the PoshCode packaging module and have been meaning to pull out for awhile.
 
