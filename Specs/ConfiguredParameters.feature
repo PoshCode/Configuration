@@ -18,7 +18,7 @@ Feature: Configure Command From Working Directory
             }
             """
         When I call Test-Verb
-        Then the output object's use rName should be Joel
+        Then the output object's userName should be Joel
         And the output object's Age should be 42
 
     @Functions @Import

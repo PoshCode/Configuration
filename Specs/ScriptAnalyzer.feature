@@ -5,7 +5,7 @@ Feature: Passes Script Analyzer
 
     Scenario: ScriptAnalyzer on the compiled module output
         Given the configuration module is imported
-        When we run ScriptAnalyzer on 'C:\Users\Jaykul\Projects\Modules\Configuration\1.5.5' with 'C:\Users\Jaykul\Projects\Modules\Configuration\PSScriptAnalyzerSettings.psd1'
+        When we run ScriptAnalyzer on 'C:\Users\Jaykul\Projects\Modules\Configuration\1.6.0' with 'C:\Users\Jaykul\Projects\Modules\Configuration\PSScriptAnalyzerSettings.psd1'
 
         Then it passes the ScriptAnalyzer rule PSAlignAssignmentStatement 
         Then it passes the ScriptAnalyzer rule PSAvoidUsingCmdletAliases 
@@ -18,14 +18,17 @@ Feature: Passes Script Analyzer
         Then it passes the ScriptAnalyzer rule PSAvoidGlobalVars 
         Then it passes the ScriptAnalyzer rule PSAvoidInvokingEmptyMembers 
         Then it passes the ScriptAnalyzer rule PSAvoidLongLines 
+        Then it passes the ScriptAnalyzer rule PSAvoidMultipleTypeAttributes 
         Then it passes the ScriptAnalyzer rule PSAvoidNullOrEmptyHelpMessageAttribute 
         Then it passes the ScriptAnalyzer rule PSAvoidOverwritingBuiltInCmdlets 
         Then it passes the ScriptAnalyzer rule PSAvoidUsingPositionalParameters 
         Then it passes the ScriptAnalyzer rule PSReservedCmdletChar 
         Then it passes the ScriptAnalyzer rule PSReservedParams 
+        Then it passes the ScriptAnalyzer rule PSAvoidSemicolonsAsLineTerminators 
         Then it passes the ScriptAnalyzer rule PSAvoidShouldContinueWithoutForce 
         Then it passes the ScriptAnalyzer rule PSAvoidTrailingWhitespace 
         Then it passes the ScriptAnalyzer rule PSAvoidUsingUsernameAndPasswordParams 
+        Then it passes the ScriptAnalyzer rule PSAvoidUsingBrokenHashAlgorithms 
         Then it passes the ScriptAnalyzer rule PSAvoidUsingComputerNameHardcoded 
         Then it passes the ScriptAnalyzer rule PSAvoidUsingConvertToSecureStringWithPlainText 
         Then it passes the ScriptAnalyzer rule PSAvoidUsingDoubleQuotesForConstantString 
